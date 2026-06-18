@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { redirect } from "next/navigation";
 import { ArrowLeft, LogOut, Shield, Trophy, UserRound, Users } from "lucide-react";
 
 import { logout } from "@/app/admin/login/actions";
@@ -10,8 +9,6 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     getCurrentAdminUser(),
     canManageAdminUsers(),
   ]);
-
-  if (!currentUser) redirect("/admin/login");
 
   return (
     <div className="min-h-screen overflow-x-hidden bg-slate-100">
