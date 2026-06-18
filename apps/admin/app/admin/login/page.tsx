@@ -40,7 +40,14 @@ export default async function AdminLoginPage() {
             <p className="text-[1.7rem] text-[#8c95a5] sm:text-[1.05rem]">
               Protected area. Authorized personnel only.
             </p>
-          
+            <p className="text-[1.7rem] sm:text-[0.95rem]">
+              <a
+                href={`${process.env.NEXT_PUBLIC_SITE_URL ?? ""}/members/forgot-password`}
+                className="text-[#6b9fa4] hover:text-[#8fc5ca] hover:underline"
+              >
+                Forgot your password?
+              </a>
+            </p>
           </div>
         </div>
       </section>

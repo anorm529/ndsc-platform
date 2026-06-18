@@ -28,6 +28,14 @@ export default async function AdminLoginPage({
         <div className="mt-6">
           <LoginForm next={next} />
         </div>
+        <p className="mt-5 text-center text-sm text-slate-500">
+          <a
+            href={`${process.env.NEXT_PUBLIC_SITE_URL ?? ""}/members/forgot-password`}
+            className="font-semibold text-slate-700 hover:text-slate-950 hover:underline"
+          >
+            Forgot your password?
+          </a>
+        </p>
       </section>
 
     </div>

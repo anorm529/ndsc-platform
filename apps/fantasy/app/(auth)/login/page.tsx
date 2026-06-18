@@ -42,6 +42,14 @@ export default async function LoginPage() {
             Use your NDSC member credentials
           </p>
           <LoginForm />
+          <p className="mt-5 text-center text-sm text-slate-500">
+            <a
+              href={`${process.env.NEXT_PUBLIC_SITE_URL ?? ""}/members/forgot-password`}
+              className="font-semibold text-ndsc-navy hover:underline"
+            >
+              Forgot your password?
+            </a>
+          </p>
         </div>
 
         <p className="text-center text-slate-500 text-xs mt-6">
