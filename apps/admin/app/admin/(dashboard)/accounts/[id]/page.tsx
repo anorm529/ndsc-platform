@@ -22,6 +22,7 @@ import {
   approveUserAction,
   addAdminNoteAction,
   changeRoleAction,
+  deleteUserAction,
   disableUserAction,
   relinkUserAction,
   resetPasswordAction,
@@ -427,6 +428,26 @@ export default async function AccountDetailPage({ params, searchParams }: PagePr
           ) : null}
         </div>
       </SectionCard>
+
+      {adminUser.role === "owner" && !isOwnerTarget ? (
+        <div className="rounded-lg border border-red-900/40 bg-red-950/20 p-6">
+          <h2 className="text-sm font-semibold uppercase tracking-[0.12em] text-red-400">Danger Zone</h2>
+          <p className="mt-1 text-sm text-[#c5cfdb]">
+            Permanently delete this account and all login data. The linked player record and their stats are unaffected.
+            If they rejoin the club they can register a new account.
+          </p>
+          <form action={deleteUserAction} className="mt-4 flex flex-wrap items-center gap-3">
+            <input type="hidden" name="userId" value={account.id} />
+            <input
+              name="confirmation"
+              placeholder="Type DELETE to confirm"
+              className="h-10 rounded-full border border-red-900/60 bg-transparent px-3 text-sm text-white outline-none placeholder:text-[#7f8a9a]"
+              required
+            />
+            <FormSubmitButton idleLabel="Delete account" pendingLabel="Deleting..." variant="danger" />
+          </form>
+        </div>
+      ) : null}
     </div>
   );
 }

@@ -413,6 +413,48 @@ export async function updateEmailAction(formData: FormData) {
   revalidatePath(`/admin/accounts/${target.id}`);
 }
 
+export async function deleteUserAction(formData: FormData) {
+  const { adminUser, target } = await loadAuthorizedTarget(formData);
+  requireConfirmation(formData, "DELETE");
+
+  if (adminUser.role !== "owner") {
+    throw new Error("Only owners can delete accounts.");
+  }
+
+  if (adminUser.id === target.id) {
+    throw new Error("You cannot delete your own account.");
+  }
+
+  if (target.role === "owner") {
+    throw new Error("Owner accounts cannot be deleted.");
+  }
+
+  // Capture email before deletion for the audit record
+  const emailResult = await dbQuery<{ email: string }>(
+    "select email from users where id = $1 limit 1",
+    [target.id],
+  );
+  const deletedEmail = emailResult.rows[0]?.email ?? "unknown";
+
+  // Log before delete — target_user_id will be nulled by CASCADE but player_id and values are preserved
+  await logAdminAudit({
+    actorUserId: adminUser.id,
+    targetUserId: target.id,
+    targetPlayerId: target.player_id,
+    action: "account.delete",
+    fieldName: "email",
+    previousValue: deletedEmail,
+    newValue: null,
+  });
+
+  // CASCADE handles: user_sessions, password_reset_tokens
+  // SET NULL handles: email_events.user_id, admin_audit_log.target_user_id
+  // CASCADE handles: admin_notes
+  await dbQuery("delete from users where id = $1", [target.id]);
+
+  redirect("/admin/accounts");
+}
+
 export async function searchPlayersForAccountAction(formData: FormData) {
   const userId = getUserId(formData);
   const q = encodeURIComponent(String(formData.get("playerSearch") ?? ""));
