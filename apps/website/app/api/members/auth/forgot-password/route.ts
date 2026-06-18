@@ -42,7 +42,7 @@ export async function POST(req: Request) {
         userId: reset?.userId ?? undefined,
         email: reset?.email ?? email,
         type: "password_reset",
-        providerMessageId: result.providerMessageId,
+        providerMessageId: result.providerMessageId ?? undefined,
         status: "sent",
       });
     } catch (error) {
@@ -51,7 +51,7 @@ export async function POST(req: Request) {
         email: reset?.email ?? email,
         type: "password_reset",
         status: "failed",
-        errorMessage: sanitizeEmailError(error),
+        errorMessage: sanitizeEmailError(error) ?? undefined,
       });
     }
   }
