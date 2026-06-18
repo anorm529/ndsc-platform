@@ -369,6 +369,50 @@ export async function revokeAllSessionsAction(formData: FormData) {
   revalidatePath(`/admin/accounts/${target.id}`);
 }
 
+export async function updateEmailAction(formData: FormData) {
+  const { adminUser, target } = await loadAuthorizedTarget(formData);
+
+  if (adminUser.role !== "owner") {
+    throw new Error("Only owners can change email addresses.");
+  }
+
+  const newEmail = String(formData.get("email") ?? "").trim().toLowerCase();
+
+  if (!newEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newEmail)) {
+    throw new Error("Enter a valid email address.");
+  }
+
+  const existing = await dbQuery(
+    "select id from users where lower(email) = $1 and id != $2 limit 1",
+    [newEmail, target.id],
+  );
+  if (existing.rowCount) {
+    throw new Error("That email is already in use by another account.");
+  }
+
+  const previous = await dbQuery<{ email: string }>(
+    "select email from users where id = $1 limit 1",
+    [target.id],
+  );
+  const previousEmail = previous.rows[0]?.email ?? null;
+
+  await dbQuery(
+    "update users set email = $2, email_verified = false, updated_at = now() where id = $1",
+    [target.id, newEmail],
+  );
+  await logAdminAudit({
+    actorUserId: adminUser.id,
+    targetUserId: target.id,
+    targetPlayerId: target.player_id,
+    action: "account.email_change",
+    fieldName: "email",
+    previousValue: previousEmail,
+    newValue: newEmail,
+  });
+  revalidatePath("/admin/accounts");
+  revalidatePath(`/admin/accounts/${target.id}`);
+}
+
 export async function searchPlayersForAccountAction(formData: FormData) {
   const userId = getUserId(formData);
   const q = encodeURIComponent(String(formData.get("playerSearch") ?? ""));

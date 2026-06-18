@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import {
   ArrowLeft,
+  AtSign,
   ClipboardPen,
   History,
   KeyRound,
@@ -27,6 +28,7 @@ import {
   revokeAllSessionsAction,
   revokeSessionAction,
   searchPlayersForAccountAction,
+  updateEmailAction,
   updatePlayerProfileAction,
 } from "../actions";
 
@@ -263,33 +265,54 @@ export default async function AccountDetailPage({ params, searchParams }: PagePr
         </SectionCard>
       </div>
 
-      <div className="grid gap-6 xl:grid-cols-2">
-        <SectionCard title="Admin Notes" subtitle="Private review context for this account." icon={ClipboardPen}>
-          {canMutate ? (
-            <form action={addAdminNoteAction} className="mt-6 space-y-3">
-              <input type="hidden" name="userId" value={account.id} />
-              <textarea
-                name="note"
-                rows={4}
-                placeholder="Add a private admin note"
-                className="admin-panel-soft w-full rounded-lg px-3 py-3 text-sm text-white outline-none placeholder:text-[#7f8a9a]"
-              />
-              <FormSubmitButton idleLabel="Save note" pendingLabel="Saving..." />
-            </form>
-          ) : protectedOwnerMessage}
-          <div className="mt-5 space-y-3">
-            {account.notes.map((note) => (
-              <div key={note.id} className="rounded-lg border border-[color:var(--border)] p-3 text-sm">
-                <div className="text-white">{note.note}</div>
-                <div className="mt-2 text-xs text-[#8b95a5]">
-                  {note.actorEmail || "Unknown admin"} · {formatDate(note.createdAt)}
-                </div>
+      <SectionCard title="Admin Notes" subtitle="Private review context for this account." icon={ClipboardPen}>
+        {canMutate ? (
+          <form action={addAdminNoteAction} className="mt-6 space-y-3">
+            <input type="hidden" name="userId" value={account.id} />
+            <textarea
+              name="note"
+              rows={4}
+              placeholder="Add a private admin note"
+              className="admin-panel-soft w-full rounded-lg px-3 py-3 text-sm text-white outline-none placeholder:text-[#7f8a9a]"
+            />
+            <FormSubmitButton idleLabel="Save note" pendingLabel="Saving..." />
+          </form>
+        ) : protectedOwnerMessage}
+        <div className="mt-5 space-y-3">
+          {account.notes.map((note) => (
+            <div key={note.id} className="rounded-lg border border-[color:var(--border)] p-3 text-sm">
+              <div className="text-white">{note.note}</div>
+              <div className="mt-2 text-xs text-[#8b95a5]">
+                {note.actorEmail || "Unknown admin"} · {formatDate(note.createdAt)}
               </div>
-            ))}
-            {!account.notes.length ? (
-              <p className="text-sm text-[#8b95a5]">No notes yet.</p>
-            ) : null}
-          </div>
+            </div>
+          ))}
+          {!account.notes.length ? (
+            <p className="text-sm text-[#8b95a5]">No notes yet.</p>
+          ) : null}
+        </div>
+      </SectionCard>
+
+      <div className="grid gap-6 xl:grid-cols-2">
+        <SectionCard title="Change Email" subtitle="Update the login email address. Clears email verification and is owner-only." icon={AtSign}>
+          {adminUser.role === "owner" && canMutate ? (
+            <form action={updateEmailAction} className="mt-6 flex flex-wrap gap-3">
+              <input type="hidden" name="userId" value={account.id} />
+              <input
+                name="email"
+                type="email"
+                defaultValue={account.email}
+                placeholder="New email address"
+                className={`${inputClassName()} min-w-[18rem] flex-1`}
+                required
+              />
+              <FormSubmitButton idleLabel="Update email" pendingLabel="Updating..." variant="ghost" />
+            </form>
+          ) : (
+            <p className="mt-6 rounded-lg border border-[color:var(--border)] p-4 text-sm text-[#c5cfdb]">
+              Email changes are owner-only.
+            </p>
+          )}
         </SectionCard>
 
         <SectionCard title="Password Reset" subtitle="Set a temporary password, hash it securely, and revoke existing sessions." icon={KeyRound}>
