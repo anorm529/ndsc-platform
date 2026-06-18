@@ -39,7 +39,7 @@ export async function POST(req: Request) {
     try {
       const result = await sendPasswordResetEmail({ to: email, resetUrl });
       await logEmailEvent({
-        userId: reset?.userId ?? null,
+        userId: reset?.userId ?? undefined,
         email: reset?.email ?? email,
         type: "password_reset",
         providerMessageId: result.providerMessageId,
@@ -47,7 +47,7 @@ export async function POST(req: Request) {
       });
     } catch (error) {
       await logEmailEvent({
-        userId: reset?.userId ?? null,
+        userId: reset?.userId ?? undefined,
         email: reset?.email ?? email,
         type: "password_reset",
         status: "failed",
