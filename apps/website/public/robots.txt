@@ -1,0 +1,6 @@
+User-agent: *
+Allow: /
+Disallow: /members
+
+Sitemap: https://northdownsoftballclub.co.uk/sitemap.xml
+

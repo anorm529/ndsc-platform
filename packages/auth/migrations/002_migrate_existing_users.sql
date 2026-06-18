@@ -1,0 +1,38 @@
+-- NDSC Auth Database — Data Migration
+-- Run this AFTER 001_initial_schema.sql
+--
+-- This script copies existing users and sessions from the MAIN database into
+-- the new AUTH database using postgres_fdw (foreign data wrapper).
+--
+-- Steps:
+--   1. Connect to the AUTH database in Neon's SQL editor
+--   2. Replace MAIN_DATABASE_URL below with your actual main DB connection string
+--   3. Run the script — it is idempotent (ON CONFLICT DO NOTHING)
+--
+-- Alternatively, export from main DB and import here using COPY or INSERT.
+
+-- ── Option A: Manual export/import (recommended for Neon) ─────────────────────
+--
+-- On the MAIN database, run:
+--   \COPY (SELECT id, email, password_hash, role::text, player_id, email_verified, account_status::text, last_login, created_at, updated_at FROM users) TO '/tmp/users.csv' CSV HEADER;
+--   \COPY (SELECT id, user_id, session_token, expires_at, created_at, last_seen, device_name, ip_address FROM user_sessions WHERE expires_at > NOW()) TO '/tmp/sessions.csv' CSV HEADER;
+--   \COPY (SELECT id, user_id, token_hash, expires_at, used_at, created_at FROM password_reset_tokens WHERE used_at IS NULL AND expires_at > NOW()) TO '/tmp/tokens.csv' CSV HEADER;
+--
+-- On the AUTH database, run:
+--   \COPY users (id, email, password_hash, role, player_id, email_verified, account_status, last_login, created_at, updated_at) FROM '/tmp/users.csv' CSV HEADER;
+--   \COPY user_sessions (id, user_id, session_token, expires_at, created_at, last_seen, device_name, ip_address) FROM '/tmp/sessions.csv' CSV HEADER;
+--   \COPY password_reset_tokens (id, user_id, token_hash, expires_at, used_at, created_at) FROM '/tmp/tokens.csv' CSV HEADER;
+
+-- ── Option B: Neon branch copy ────────────────────────────────────────────────
+--
+-- If both DBs are in Neon, you can use the Neon console to:
+--   1. Export the auth tables from the main project
+--   2. Import into the auth project
+-- See: https://neon.tech/docs/import/import-from-neon
+
+-- ── Verification query (run on auth DB after migration) ───────────────────────
+--
+-- SELECT
+--   (SELECT COUNT(*) FROM users) AS users,
+--   (SELECT COUNT(*) FROM user_sessions WHERE expires_at > NOW()) AS active_sessions,
+--   (SELECT COUNT(*) FROM password_reset_tokens WHERE used_at IS NULL AND expires_at > NOW()) AS pending_resets;

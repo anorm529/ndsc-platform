@@ -1,0 +1,231 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../app/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model FantasyLeague {
+  id                 String    @id @default(uuid()) @db.Uuid
+  name               String
+  mainSeasonId       String    @db.Uuid @map("main_season_id")
+  prevSeasonId       String?   @db.Uuid @map("prev_season_id")
+  status             String    @default("draft")
+  transferWindowOpen Boolean   @default(true) @map("transfer_window_open")
+  windowClosesAt     DateTime? @map("window_closes_at")
+  doublePointsActive Boolean   @default(false) @map("double_points_active")
+  startingBudget     Decimal   @default(50.0) @db.Decimal(10, 1) @map("starting_budget")
+  squadSize          Int       @default(7) @map("squad_size")
+  maxPlayersPerTeam  Int       @default(3) @map("max_players_per_team")
+  joinRequestsOpen   Boolean   @default(true) @map("join_requests_open")
+  createdAt          DateTime  @default(now()) @map("created_at")
+  updatedAt          DateTime  @updatedAt @map("updated_at")
+
+  teams            FantasyTeam[]
+  joinRequests     FantasyJoinRequest[]
+  processedGames   FantasyProcessedGame[]
+  playerMetas      FantasyPlayerMeta[]
+  auditLogs        FantasyAuditLog[]
+  ownershipHistory FantasyOwnershipHistory[]
+  transferTrends   FantasyTransferTrends[]
+  awards           FantasyAward[]
+
+  @@map("fantasy_leagues")
+}
+
+model FantasyUser {
+  id           String   @id @default(uuid()) @db.Uuid
+  memberUserId String   @unique @db.Uuid @map("member_user_id")
+  teamName     String   @map("team_name")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  teams FantasyTeam[]
+
+  @@map("fantasy_users")
+}
+
+model FantasyTeam {
+  id            String   @id @default(uuid()) @db.Uuid
+  fantasyUserId String   @db.Uuid @map("fantasy_user_id")
+  leagueId      String   @db.Uuid @map("league_id")
+  teamName      String   @default("My Fantasy Team") @map("team_name")
+  currentBudget Decimal  @default(50.0) @db.Decimal(10, 1) @map("current_budget")
+  totalPoints   Int      @default(0) @map("total_points")
+  overallRank   Int?     @map("overall_rank")
+
+  user      FantasyUser       @relation(fields: [fantasyUserId], references: [id], onDelete: Cascade)
+  league    FantasyLeague     @relation(fields: [leagueId], references: [id], onDelete: Cascade)
+  roster    FantasyRoster[]
+  transfers FantasyTransfer[]
+
+  @@unique([fantasyUserId, leagueId])
+  @@map("fantasy_teams")
+}
+
+model FantasyRoster {
+  id            String   @id @default(uuid()) @db.Uuid
+  fantasyTeamId String   @db.Uuid @map("fantasy_team_id")
+  playerId      String   @db.Uuid @map("player_id")
+  purchasePrice Decimal  @db.Decimal(10, 1) @map("purchase_price")
+  currentPrice  Decimal  @db.Decimal(10, 1) @map("current_price")
+  isCaptain     Boolean  @default(false) @map("is_captain")
+  joinedAt      DateTime @default(now()) @map("joined_at")
+
+  team FantasyTeam @relation(fields: [fantasyTeamId], references: [id], onDelete: Cascade)
+
+  @@unique([fantasyTeamId, playerId])
+  @@map("fantasy_roster")
+}
+
+model FantasyProcessedGame {
+  id           String   @id @default(uuid()) @db.Uuid
+  leagueId     String   @db.Uuid @map("league_id")
+  gameId       String   @db.Uuid @map("game_id")
+  processedAt  DateTime @default(now()) @map("processed_at")
+  scoreCount   Int      @default(0) @map("score_count")
+  priceChanges Int      @default(0) @map("price_changes")
+
+  league           FantasyLeague           @relation(fields: [leagueId], references: [id], onDelete: Cascade)
+  scores           FantasyScore[]
+  priceHistory     FantasyPriceHistory[]
+  ownershipHistory FantasyOwnershipHistory[]
+  transferTrends   FantasyTransferTrends[]
+
+  @@unique([leagueId, gameId])
+  @@map("fantasy_processed_games")
+}
+
+model FantasyScore {
+  id              String               @id @default(uuid()) @db.Uuid
+  playerId        String               @db.Uuid @map("player_id")
+  processedGameId String               @db.Uuid @map("processed_game_id")
+  fantasyPoints   Int                  @default(0) @map("fantasy_points")
+  calculatedAt    DateTime             @default(now()) @map("calculated_at")
+
+  processedGame FantasyProcessedGame @relation(fields: [processedGameId], references: [id], onDelete: Cascade)
+
+  @@unique([playerId, processedGameId])
+  @@map("fantasy_scores")
+}
+
+model FantasyTransfer {
+  id            String   @id @default(uuid()) @db.Uuid
+  fantasyTeamId String   @db.Uuid @map("fantasy_team_id")
+  playerOutId   String   @db.Uuid @map("player_out_id")
+  playerInId    String   @db.Uuid @map("player_in_id")
+  transferCost  Int      @default(0) @map("transfer_cost")
+  transferDate  DateTime @default(now()) @map("transfer_date")
+
+  team FantasyTeam @relation(fields: [fantasyTeamId], references: [id], onDelete: Cascade)
+
+  @@map("fantasy_transfers")
+}
+
+model FantasyPriceHistory {
+  id              String               @id @default(uuid()) @db.Uuid
+  playerId        String               @db.Uuid @map("player_id")
+  processedGameId String               @db.Uuid @map("processed_game_id")
+  oldPrice        Decimal              @db.Decimal(10, 1) @map("old_price")
+  newPrice        Decimal              @db.Decimal(10, 1) @map("new_price")
+  changeAmount    Decimal              @db.Decimal(10, 1) @map("change_amount")
+  reason          String?
+
+  processedGame FantasyProcessedGame @relation(fields: [processedGameId], references: [id], onDelete: Cascade)
+
+  @@map("fantasy_price_history")
+}
+
+model FantasyPlayerMeta {
+  id            String   @id @default(uuid()) @db.Uuid
+  playerId      String   @db.Uuid @map("player_id")
+  leagueId      String   @db.Uuid @map("league_id")
+  fantasyRating Int      @default(50) @map("fantasy_rating")
+  currentPrice  Decimal  @db.Decimal(10, 1) @default(3.0) @map("current_price")
+  status        String   @default("active")
+  updatedAt     DateTime @default(now()) @updatedAt @map("updated_at")
+
+  league FantasyLeague @relation(fields: [leagueId], references: [id], onDelete: Cascade)
+
+  @@unique([playerId, leagueId])
+  @@map("fantasy_player_meta")
+}
+
+model FantasyOwnershipHistory {
+  id                  String   @id @default(uuid()) @db.Uuid
+  playerId            String   @db.Uuid @map("player_id")
+  leagueId            String   @db.Uuid @map("league_id")
+  processedGameId     String   @db.Uuid @map("processed_game_id")
+  ownershipPercentage Decimal  @db.Decimal(5, 2) @map("ownership_percentage")
+  managerCount        Int      @map("manager_count")
+  createdAt           DateTime @default(now()) @map("created_at")
+
+  league        FantasyLeague        @relation(fields: [leagueId], references: [id], onDelete: Cascade)
+  processedGame FantasyProcessedGame @relation(fields: [processedGameId], references: [id], onDelete: Cascade)
+
+  @@unique([playerId, leagueId, processedGameId])
+  @@map("fantasy_ownership_history")
+}
+
+model FantasyTransferTrends {
+  id              String   @id @default(uuid()) @db.Uuid
+  playerId        String   @db.Uuid @map("player_id")
+  leagueId        String   @db.Uuid @map("league_id")
+  processedGameId String   @db.Uuid @map("processed_game_id")
+  transfersIn     Int      @default(0) @map("transfers_in")
+  transfersOut    Int      @default(0) @map("transfers_out")
+  netTransfers    Int      @default(0) @map("net_transfers")
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  league        FantasyLeague        @relation(fields: [leagueId], references: [id], onDelete: Cascade)
+  processedGame FantasyProcessedGame @relation(fields: [processedGameId], references: [id], onDelete: Cascade)
+
+  @@unique([playerId, leagueId, processedGameId])
+  @@map("fantasy_transfer_trends")
+}
+
+model FantasyAward {
+  id             String   @id @default(uuid()) @db.Uuid
+  leagueId       String   @db.Uuid @map("league_id")
+  awardName      String   @map("award_name")
+  winnerTeamId   String?  @db.Uuid @map("winner_team_id")
+  winnerPlayerId String?  @db.Uuid @map("winner_player_id")
+  value          String
+  details        String?
+  generatedAt    DateTime @default(now()) @map("generated_at")
+
+  league FantasyLeague @relation(fields: [leagueId], references: [id], onDelete: Cascade)
+
+  @@map("fantasy_awards")
+}
+
+model FantasyJoinRequest {
+  id           String   @id @default(uuid()) @db.Uuid
+  leagueId     String   @db.Uuid @map("league_id")
+  memberUserId String   @db.Uuid @map("member_user_id")
+  teamName     String   @map("team_name")
+  status       String   @default("pending")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  league FantasyLeague @relation(fields: [leagueId], references: [id], onDelete: Cascade)
+
+  @@unique([leagueId, memberUserId])
+  @@map("fantasy_join_requests")
+}
+
+model FantasyAuditLog {
+  id          String   @id @default(uuid()) @db.Uuid
+  adminUserId String   @db.Uuid @map("admin_user_id")
+  leagueId    String?  @db.Uuid @map("league_id")
+  action      String
+  targetType  String   @map("target_type")
+  targetId    String?  @map("target_id")
+  details     String?
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  league FantasyLeague? @relation(fields: [leagueId], references: [id], onDelete: SetNull)
+
+  @@map("fantasy_audit_log")
+}

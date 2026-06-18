@@ -1,0 +1,127 @@
+@import "tailwindcss";
+
+:root {
+  --background: #030b15;
+  --foreground: #e8eef5;
+  --muted-foreground: #7f8a9a;
+  --panel: rgba(6, 16, 29, 0.92);
+  --panel-soft: rgba(10, 24, 41, 0.78);
+  --panel-strong: rgba(4, 14, 26, 0.96);
+  --border: rgba(115, 145, 176, 0.14);
+  --border-strong: rgba(120, 221, 215, 0.22);
+  --accent: #1dd7cf;
+  --accent-strong: #58dacb;
+  --accent-muted: rgba(29, 215, 207, 0.14);
+  --success: #18d58d;
+  --warning: #e9b93e;
+  --danger: #ef4b5f;
+  --sidebar-width: 22rem;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-muted-foreground: var(--muted-foreground);
+  --font-sans:
+    "Segoe UI", Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+    sans-serif;
+  --font-mono:
+    "SFMono-Regular", "Cascadia Mono", "Cascadia Code", ui-monospace, Consolas,
+    monospace;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  background: var(--background);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family:
+    "Segoe UI", Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+    sans-serif;
+  min-height: 100vh;
+}
+
+a,
+button,
+input {
+  transition:
+    background-color 160ms ease,
+    border-color 160ms ease,
+    color 160ms ease,
+    box-shadow 160ms ease,
+    opacity 160ms ease,
+    transform 160ms ease;
+}
+
+::selection {
+  background: rgba(29, 215, 207, 0.28);
+  color: white;
+}
+
+.admin-grid-bg {
+  background-color: #020a14;
+  background-image:
+    linear-gradient(rgba(40, 66, 97, 0.12) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(40, 66, 97, 0.12) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(20, 217, 208, 0.045) 1px, transparent 1px);
+  background-position:
+    0 0,
+    0 0,
+    0 0;
+  background-size:
+    112px 112px,
+    112px 112px,
+    56px 56px;
+}
+
+.admin-shell-bg {
+  background:
+    radial-gradient(circle at top center, rgba(7, 52, 75, 0.36), transparent 34%),
+    linear-gradient(180deg, #04101d 0%, #030b15 100%);
+}
+
+.admin-panel {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.02),
+    0 10px 40px rgba(1, 8, 17, 0.34);
+  backdrop-filter: blur(18px);
+}
+
+.admin-panel-soft {
+  background: var(--panel-soft);
+  border: 1px solid rgba(115, 145, 176, 0.1);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.02);
+}
+
+.admin-accent-glow {
+  box-shadow:
+    0 0 0 1px rgba(29, 215, 207, 0.2),
+    0 14px 34px rgba(12, 151, 148, 0.18),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+.admin-scrollbar::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+.admin-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(112, 139, 168, 0.22);
+  border-radius: 999px;
+}
+
+.admin-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.thin-mask {
+  mask-image: linear-gradient(to bottom, black 85%, transparent 100%);
+}

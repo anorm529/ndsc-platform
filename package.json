@@ -1,0 +1,21 @@
+{
+  "name": "ndsc-platform",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev:website": "npm run dev --workspace=apps/website",
+    "dev:admin": "npm run dev --workspace=apps/admin",
+    "dev:fantasy": "npm run dev --workspace=apps/fantasy",
+    "dev:tournament": "npm run dev --workspace=apps/tournament",
+    "build:website": "npm run build --workspace=apps/website",
+    "build:admin": "npm run build --workspace=apps/admin",
+    "build:fantasy": "npm run build --workspace=apps/fantasy",
+    "build:tournament": "npm run build --workspace=apps/tournament",
+    "build:all": "npm run build --workspaces --if-present",
+    "lint:all": "npm run lint --workspaces --if-present"
+  }
+}
