@@ -6,6 +6,24 @@ import { getPlayerProfile, listUserSessions, requireCurrentUser } from "@/lib/au
 
 export const dynamic = "force-dynamic";
 
+function parseUserAgent(ua: string | null): string {
+  if (!ua) return "Unknown device";
+  let browser = "Browser";
+  if (/CriOS/.test(ua)) browser = "Chrome";
+  else if (/Edg\//.test(ua)) browser = "Edge";
+  else if (/Chrome/.test(ua)) browser = "Chrome";
+  else if (/Firefox/.test(ua)) browser = "Firefox";
+  else if (/Safari/.test(ua)) browser = "Safari";
+  let os = "device";
+  if (/iPhone/.test(ua)) os = "iPhone";
+  else if (/iPad/.test(ua)) os = "iPad";
+  else if (/Android/.test(ua)) os = "Android";
+  else if (/Macintosh/.test(ua)) os = "Mac";
+  else if (/Windows/.test(ua)) os = "Windows";
+  else if (/Linux/.test(ua)) os = "Linux";
+  return `${browser} on ${os}`;
+}
+
 function formatDate(value: string) {
   return new Date(value).toLocaleString("en-GB", {
     day: "numeric",
@@ -48,17 +66,17 @@ export default async function AccountPage() {
           </div>
         </div>
 
+        <div className="rounded-2xl border border-[#2B4162] bg-[#1D2E48] p-6">
+          <h2 className="text-xl font-semibold">Change Password</h2>
+          <ChangePasswordForm />
+        </div>
+
         <div className="rounded-2xl border border-[#2B4162] bg-[#1D2E48] p-6 lg:col-span-2">
           <h2 className="text-xl font-semibold">Player Profile</h2>
           <p className="mt-1 text-sm text-slate-400">
             These fields feed your member dashboard and can be adjusted independently of stats.
           </p>
           <ProfileForm profile={profile} />
-        </div>
-
-        <div className="rounded-2xl border border-[#2B4162] bg-[#1D2E48] p-6">
-          <h2 className="text-xl font-semibold">Change Password</h2>
-          <ChangePasswordForm />
         </div>
 
         <div className="rounded-2xl border border-[#2B4162] bg-[#1D2E48] p-6 lg:col-span-2">
@@ -79,7 +97,7 @@ export default async function AccountPage() {
                       {session.current ? "Current session" : "Signed-in device"}
                     </div>
                     <div className="mt-1 text-sm text-slate-400">
-                      {session.deviceName ?? "Unknown device"}
+                      {parseUserAgent(session.deviceName)}
                     </div>
                   </div>
                   <div className="text-right text-sm text-slate-400">
