@@ -1,7 +1,8 @@
 "use server";
 
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
-import { getUserByEmail, verifyPassword } from "@ndsc/auth";
+import { getUserByEmail, verifyPassword, checkRateLimit } from "@ndsc/auth";
 import {
   createFantasySession,
   clearSessionCookie,
@@ -19,6 +20,11 @@ export async function loginAction(
   if (!email || !password) {
     return { error: "Email and password are required." };
   }
+
+  const h = await headers();
+  const ip = h.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
+  const limit = await checkRateLimit(`fantasy-login:${ip}`, 10, 60 * 15);
+  if (!limit.allowed) return { error: "Too many attempts. Try again in 15 minutes." };
 
   const user = await getUserByEmail(email);
   if (!user || user.accountStatus !== "active") {

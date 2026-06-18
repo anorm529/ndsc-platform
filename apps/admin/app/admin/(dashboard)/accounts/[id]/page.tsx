@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import {
+  AlertTriangle,
   ArrowLeft,
   AtSign,
   ClipboardPen,
@@ -131,11 +132,25 @@ export default async function AccountDetailPage({ params, searchParams }: PagePr
             {canMutate ? (
               <div className="grid gap-3">
                 {account.accountStatus === "pending" ? (
-                  <form action={approveUserAction} className="admin-panel-soft flex flex-wrap items-center justify-between gap-3 rounded-lg p-4">
-                    <input type="hidden" name="userId" value={account.id} />
-                    <span className="text-sm text-[#c5cfdb]">Approve this pending account.</span>
-                    <FormSubmitButton idleLabel="Approve" pendingLabel="Approving..." />
-                  </form>
+                  account.emailVerified ? (
+                    <form action={approveUserAction} className="admin-panel-soft flex flex-wrap items-center justify-between gap-3 rounded-lg p-4">
+                      <input type="hidden" name="userId" value={account.id} />
+                      <span className="text-sm text-[#c5cfdb]">Approve this pending account.</span>
+                      <FormSubmitButton idleLabel="Approve" pendingLabel="Approving..." />
+                    </form>
+                  ) : (
+                    <div className="flex items-start gap-3 rounded-lg border border-yellow-500/25 bg-yellow-500/8 p-4">
+                      <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-yellow-400" />
+                      <div className="text-sm">
+                        <p className="font-semibold text-yellow-300">Email not verified</p>
+                        <p className="mt-1 text-[#c5cfdb]">
+                          This account cannot be approved until the member clicks the verification link sent to{" "}
+                          <span className="font-medium text-white">{account.email}</span>.
+                          Ask them to check their inbox (and spam folder).
+                        </p>
+                      </div>
+                    </div>
+                  )
                 ) : null}
 
                 {account.accountStatus !== "disabled" ? (

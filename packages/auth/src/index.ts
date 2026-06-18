@@ -57,6 +57,9 @@ export { logEmailEvent, getEmailEvents } from './email-events'
 // Admin audit log
 export { logAuditAction, getAuditLog } from './audit'
 
+// Email verification
+export { createVerificationToken, consumeVerificationToken } from './verify'
+
 // Rate limiting
 export { checkRateLimit } from './rate-limit'
 export type { RateLimitResult } from './rate-limit'

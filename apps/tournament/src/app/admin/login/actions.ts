@@ -1,8 +1,8 @@
 "use server";
 
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
-import { getUserByEmail, verifyPassword, createSession, updateLastLogin } from "@ndsc/auth";
+import { getUserByEmail, verifyPassword, createSession, updateLastLogin, checkRateLimit } from "@ndsc/auth";
 import { ActionState, errorState } from "@/lib/action-state";
 import { ADMIN_SESSION_COOKIE } from "@/lib/admin-session";
 
@@ -21,6 +21,11 @@ export async function login(_state: ActionState, formData: FormData) {
     const next = readString(formData, "next") || "/admin";
 
     if (!email) throw new Error("Email is required.");
+
+    const h = await headers();
+    const ip = h.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
+    const limit = await checkRateLimit(`tournament-login:${ip}`, 10, 60 * 15);
+    if (!limit.allowed) throw new Error("Too many attempts. Try again in 15 minutes.");
 
     const user = await getUserByEmail(email);
     if (!user) throw new Error("Those login details are not correct.");
