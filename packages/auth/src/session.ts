@@ -91,14 +91,34 @@ export async function deleteAllUserSessions(
 
 export async function getUserSessions(userId: string): Promise<Session[]> {
   const db = getAuthDb()
-  const result = await db.query(
+  const result = await db.query<{
+    id: string
+    user_id: string
+    session_token: string
+    expires_at: Date
+    created_at: Date
+    last_seen: Date
+    device_name: string | null
+    ip_address: string | null
+    app: string
+  }>(
     `SELECT id, user_id, session_token, expires_at, created_at, last_seen, device_name, ip_address, app
      FROM user_sessions
      WHERE user_id = $1 AND expires_at > NOW()
      ORDER BY last_seen DESC`,
     [userId]
   )
-  return result.rows as Session[]
+  return result.rows.map((row) => ({
+    id: row.id,
+    userId: row.user_id,
+    sessionToken: row.session_token,
+    expiresAt: row.expires_at,
+    createdAt: row.created_at,
+    lastSeen: row.last_seen,
+    deviceName: row.device_name,
+    ipAddress: row.ip_address,
+    app: row.app,
+  }))
 }
 
 export async function cleanExpiredSessions(): Promise<number> {
