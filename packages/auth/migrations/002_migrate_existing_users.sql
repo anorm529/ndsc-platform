@@ -1,15 +1,11 @@
--- NDSC Auth Database — Data Migration
--- Run this AFTER 001_initial_schema.sql
+-- NDSC Auth — Historical Data Migration (SUPERSEDED)
 --
--- This script copies existing users and sessions from the MAIN database into
--- the new AUTH database using postgres_fdw (foreign data wrapper).
+-- This script was written to copy users from MAIN_DATABASE into a separate
+-- AUTH_DATABASE. That architecture has since been reversed:
+-- AUTH_DATABASE_URL now points at MAIN_DATABASE (ep-orange-boat), so there
+-- is no separate auth Neon project and no data migration needed.
 --
--- Steps:
---   1. Connect to the AUTH database in Neon's SQL editor
---   2. Replace MAIN_DATABASE_URL below with your actual main DB connection string
---   3. Run the script — it is idempotent (ON CONFLICT DO NOTHING)
---
--- Alternatively, export from main DB and import here using COPY or INSERT.
+-- Kept for reference only. Do not run.
 
 -- ── Option A: Manual export/import (recommended for Neon) ─────────────────────
 --

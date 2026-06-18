@@ -1,5 +1,9 @@
--- NDSC Auth Database — Initial Schema
--- Run this once against the AUTH database (not the main stats DB)
+-- NDSC Auth Schema — Initial Schema
+-- Originally designed for a separate AUTH database.
+-- AUTH_DATABASE_URL now points at the MAIN stats database (ep-orange-boat).
+-- This migration is kept for reference; tables already exist in MAIN_DATABASE
+-- from the website migrations. The only addendum needed was the `app` column
+-- on user_sessions — see apps/admin/db/migrations/2026-06-18-consolidate-auth-into-main-db.sql
 
 CREATE TYPE user_role AS ENUM ('player', 'admin', 'owner');
 CREATE TYPE user_account_status AS ENUM ('active', 'pending', 'disabled');
