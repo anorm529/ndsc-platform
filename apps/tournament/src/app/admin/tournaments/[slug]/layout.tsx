@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import {
   Archive,
   CalendarDays,
@@ -74,8 +75,10 @@ export default async function AdminTournamentLayout({
     getCurrentAdminUser(),
   ]);
 
-  const isOwner = currentUser?.role === "owner";
-  const userPermissions = currentUser && !isOwner
+  if (!currentUser) redirect("/admin/login");
+
+  const isOwner = currentUser.role === "owner";
+  const userPermissions = !isOwner
     ? await getUserPermissions(currentUser.id)
     : null;
 

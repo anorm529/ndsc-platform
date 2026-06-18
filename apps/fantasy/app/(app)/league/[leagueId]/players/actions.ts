@@ -14,10 +14,12 @@ export async function signPlayerAction(
   price: number,
   leagueId: string
 ): Promise<SignPlayerResult> {
-  await requireSession();
+  const session = await requireSession();
 
   const league = await db.fantasyLeague.findUnique({ where: { id: leagueId } });
-  const windowClosed = !league?.transferWindowOpen ||
+  if (!league) return { error: "League not found" };
+
+  const windowClosed = !league.transferWindowOpen ||
     (league.windowClosesAt != null && new Date() >= league.windowClosesAt);
   if (windowClosed) return { error: "Transfer window is currently closed" };
 
@@ -27,6 +29,7 @@ export async function signPlayerAction(
   });
 
   if (!team) return { error: "Team not found" };
+  if (team.fantasyUserId !== session.fantasyUserId) return { error: "Not your team" };
   if (team.roster.length >= (league.squadSize ?? 7)) return { error: `Squad is full (max ${league.squadSize ?? 7} players)` };
   if (Number(team.currentBudget) < price) return { error: "Insufficient budget" };
 
@@ -76,10 +79,12 @@ export async function transferPlayerAction(
   price: number,
   leagueId: string
 ): Promise<SignPlayerResult> {
-  await requireSession();
+  const session = await requireSession();
 
   const league = await db.fantasyLeague.findUnique({ where: { id: leagueId } });
-  const windowClosed = !league?.transferWindowOpen ||
+  if (!league) return { error: "League not found" };
+
+  const windowClosed = !league.transferWindowOpen ||
     (league.windowClosesAt != null && new Date() >= league.windowClosesAt);
   if (windowClosed) return { error: "Transfer window is currently closed" };
 
@@ -88,6 +93,7 @@ export async function transferPlayerAction(
     include: { roster: true },
   });
   if (!team) return { error: "Team not found" };
+  if (team.fantasyUserId !== session.fantasyUserId) return { error: "Not your team" };
 
   const rosterOut = team.roster.find((r) => r.id === rosterOutId);
   if (!rosterOut) return { error: "Player not found in squad" };

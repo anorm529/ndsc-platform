@@ -1,4 +1,5 @@
 import { getTournamentBundle } from "@/lib/tournaments/data";
+import { getCurrentAdminUser } from "@/lib/current-admin";
 import { prisma } from "@/lib/db";
 import { teamName } from "@/lib/tournaments/view-model";
 
@@ -8,6 +9,9 @@ export async function GET(
   _request: Request,
   { params }: { params: Promise<{ slug: string; kind: string }> },
 ) {
+  const currentUser = await getCurrentAdminUser();
+  if (!currentUser) return new Response("Unauthorized", { status: 401 });
+
   const { kind, slug } = await params;
   const bundle = await getTournamentBundle(slug);
   const rows = kind === "audit" ? await getAuditRows(bundle.tournament.id) : getRows(kind, bundle);

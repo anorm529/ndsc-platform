@@ -5,7 +5,10 @@ import { db } from "@/app/lib/fantasy-db";
 import { requireSession } from "@/app/lib/auth";
 
 export async function setCaptainAction(teamId: string, rosterId: string, leagueId: string) {
-  await requireSession();
+  const session = await requireSession();
+
+  const team = await db.fantasyTeam.findUnique({ where: { id: teamId } });
+  if (!team || team.fantasyUserId !== session.fantasyUserId) return;
 
   await db.$transaction([
     db.fantasyRoster.updateMany({
@@ -22,13 +25,13 @@ export async function setCaptainAction(teamId: string, rosterId: string, leagueI
 }
 
 export async function removePlayerAction(teamId: string, rosterId: string, leagueId: string) {
-  await requireSession();
+  const session = await requireSession();
 
   const roster = await db.fantasyRoster.findUnique({ where: { id: rosterId } });
   if (!roster || roster.fantasyTeamId !== teamId) return;
 
   const team = await db.fantasyTeam.findUnique({ where: { id: teamId } });
-  if (!team) return;
+  if (!team || team.fantasyUserId !== session.fantasyUserId) return;
 
   await db.$transaction([
     db.fantasyRoster.delete({ where: { id: rosterId } }),
