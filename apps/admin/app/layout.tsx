@@ -3,7 +3,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "NDSC Admin",
-  description: "North Down Softball Club internal admin dashboard",
+  description: "North Down Softball Club internal admin dashboard. Created by Adam Norman.",
 };
 
 export default function RootLayout({

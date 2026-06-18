@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "NDSC Tournament Manager",
-  description: "Manage North Down Softball Club tournaments, fixtures, results, and standings.",
+  description: "Manage North Down Softball Club tournaments, fixtures, results, and standings. Created by Adam Norman.",
 };
 
 export default function RootLayout({

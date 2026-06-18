@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "NDSC Fantasy Softball",
-  description: "NDSC Fantasy Softball League Manager",
+  description: "NDSC Fantasy Softball League Manager. Created by Adam Norman.",
 };
 
 export default function RootLayout({
