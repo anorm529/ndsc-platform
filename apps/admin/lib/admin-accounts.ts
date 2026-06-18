@@ -3,7 +3,7 @@ import "server-only";
 import { getAuditLogForAccount, type AdminAuditEntry } from "@/lib/admin-audit";
 import { getAdminNotesForAccount, type AdminNote } from "@/lib/admin-operations";
 import { dbQuery } from "@/lib/db";
-import type { AccountRole, AccountStatus } from "@/lib/admin-session";
+import type { AdminRole, AccountStatus } from "@/lib/admin-session";
 
 export type UserFilter = {
   status?: string;
@@ -22,7 +22,7 @@ export type AdminAccountSummary = {
 export type AdminAccountRow = {
   id: string;
   email: string;
-  role: AccountRole;
+  role: AdminRole;
   accountStatus: AccountStatus;
   emailVerified: boolean;
   playerId: string | null;
@@ -127,7 +127,7 @@ export async function getAccounts(filters: UserFilter) {
   const result = await dbQuery<{
     id: string;
     email: string;
-    role: AccountRole;
+    role: AdminRole;
     account_status: AccountStatus;
     email_verified: boolean;
     player_id: string | null;
@@ -299,7 +299,7 @@ export async function getAccountDetail(userId: string, playerQuery = "") {
   const userResult = await dbQuery<{
     id: string;
     email: string;
-    role: AccountRole;
+    role: AdminRole;
     account_status: AccountStatus;
     email_verified: boolean;
     player_id: string | null;
