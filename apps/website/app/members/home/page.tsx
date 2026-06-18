@@ -107,13 +107,13 @@ export default async function MembersHomePage() {
                 <Image
                   src={playerProfile.profileImageUrl}
                   alt=""
-                  width={64}
-                  height={64}
+                  width={112}
+                  height={112}
                   unoptimized
-                  className="h-16 w-16 rounded-2xl border border-teal-200/30 object-cover"
+                  className="h-28 w-28 rounded-2xl border border-teal-200/30 object-cover"
                 />
               ) : (
-                <div className="grid h-16 w-16 place-items-center rounded-2xl border border-teal-200/30 bg-teal-300/15 text-2xl font-bold text-teal-300">
+                <div className="grid h-28 w-28 place-items-center rounded-2xl border border-teal-200/30 bg-teal-300/15 text-3xl font-bold text-teal-300">
                   {playerRating(profile.career.ops)}
                 </div>
               )}
