@@ -1,7 +1,18 @@
 import { NextResponse } from "next/server";
+import { checkRateLimit } from "@ndsc/auth";
 import { authenticateUser, createUserSession } from "@/lib/auth";
 
+function getIp(req: Request) {
+  return req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
+}
+
 export async function POST(req: Request) {
+  const ip = getIp(req);
+  const limit = await checkRateLimit(`login:${ip}`, 10, 60 * 15);
+  if (!limit.allowed) {
+    return NextResponse.json({ ok: false, error: "Too many attempts. Try again later." }, { status: 429 });
+  }
+
   const body = await req.json().catch(() => ({}));
   const email = String(body.email ?? "");
   const password = String(body.password ?? "");

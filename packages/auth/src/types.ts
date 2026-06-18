@@ -1,6 +1,17 @@
 export type UserRole = 'player' | 'admin' | 'owner'
 export type AccountStatus = 'active' | 'pending' | 'disabled'
 
+const USER_ROLES: readonly UserRole[] = ['player', 'admin', 'owner']
+const ACCOUNT_STATUSES: readonly AccountStatus[] = ['active', 'pending', 'disabled']
+
+export function isUserRole(value: unknown): value is UserRole {
+  return USER_ROLES.includes(value as UserRole)
+}
+
+export function isAccountStatus(value: unknown): value is AccountStatus {
+  return ACCOUNT_STATUSES.includes(value as AccountStatus)
+}
+
 export interface User {
   id: string
   email: string

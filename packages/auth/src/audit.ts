@@ -18,7 +18,9 @@ export async function logAuditAction(data: AuditData): Promise<void> {
         data.newValue !== undefined ? JSON.stringify(data.newValue) : null,
       ]
     )
-    .catch(console.error)
+    .catch((err) => {
+      console.error('[audit] Failed to write audit log entry:', err)
+    })
 }
 
 export async function getAuditLog(filters?: {

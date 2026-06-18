@@ -16,9 +16,11 @@ function mapRow(row: Record<string, unknown>): User {
   }
 }
 
+const USER_COLS = 'id, email, password_hash, role, player_id, email_verified, account_status, last_login, created_at, updated_at'
+
 export async function getUserByEmail(email: string): Promise<User | null> {
   const db = getAuthDb()
-  const result = await db.query('SELECT * FROM users WHERE email = $1', [
+  const result = await db.query(`SELECT ${USER_COLS} FROM users WHERE email = $1`, [
     email.toLowerCase().trim(),
   ])
   return result.rows[0] ? mapRow(result.rows[0]) : null
@@ -26,20 +28,20 @@ export async function getUserByEmail(email: string): Promise<User | null> {
 
 export async function getUserById(id: string): Promise<User | null> {
   const db = getAuthDb()
-  const result = await db.query('SELECT * FROM users WHERE id = $1', [id])
+  const result = await db.query(`SELECT ${USER_COLS} FROM users WHERE id = $1`, [id])
   return result.rows[0] ? mapRow(result.rows[0]) : null
 }
 
 export async function getUsersByIds(ids: string[]): Promise<User[]> {
   if (ids.length === 0) return []
   const db = getAuthDb()
-  const result = await db.query('SELECT * FROM users WHERE id = ANY($1)', [ids])
+  const result = await db.query(`SELECT ${USER_COLS} FROM users WHERE id = ANY($1)`, [ids])
   return result.rows.map(mapRow)
 }
 
 export async function getUserByPlayerId(playerId: string): Promise<User | null> {
   const db = getAuthDb()
-  const result = await db.query('SELECT * FROM users WHERE player_id = $1', [playerId])
+  const result = await db.query(`SELECT ${USER_COLS} FROM users WHERE player_id = $1`, [playerId])
   return result.rows[0] ? mapRow(result.rows[0]) : null
 }
 
@@ -132,7 +134,7 @@ export async function getAllUsers(filters?: UserFilters): Promise<User[]> {
 
   const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : ''
   const result = await db.query(
-    `SELECT * FROM users ${where} ORDER BY created_at DESC`,
+    `SELECT ${USER_COLS} FROM users ${where} ORDER BY created_at DESC`,
     params
   )
   return result.rows.map(mapRow)

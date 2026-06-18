@@ -30,51 +30,6 @@ export function getEmailProviderConfig() {
   };
 }
 
-export async function logEmailEvent({
-  userId,
-  email,
-  type,
-  providerMessageId,
-  status,
-  errorMessage,
-}: {
-  userId?: string | null;
-  email: string;
-  type: EmailEventType | string;
-  providerMessageId?: string | null;
-  status: EmailEventStatus | string;
-  errorMessage?: string | null;
-}) {
-  try {
-    await dbQuery(
-      `insert into email_events (
-        user_id,
-        email,
-        type,
-        provider,
-        provider_message_id,
-        status,
-        error_message
-      )
-      values ($1, $2, $3, 'resend', $4, $5, $6)`,
-      [
-        userId ?? null,
-        email,
-        type,
-        providerMessageId ?? null,
-        status,
-        errorMessage ?? null,
-      ],
-    );
-  } catch (error) {
-    if (isMissingTableError(error)) {
-      return;
-    }
-
-    throw error;
-  }
-}
-
 export async function getEmailDeliveryOverview() {
   const config = getEmailProviderConfig();
 

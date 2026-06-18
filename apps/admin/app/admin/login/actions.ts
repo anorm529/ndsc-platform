@@ -1,7 +1,8 @@
 "use server";
 
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
-import { getUserByEmail, verifyPassword, updateLastLogin } from "@ndsc/auth";
+import { getUserByEmail, verifyPassword, updateLastLogin, checkRateLimit } from "@ndsc/auth";
 import { createAdminSession } from "@/lib/admin-session";
 
 export type LoginState = {
@@ -19,10 +20,18 @@ export async function authenticateAdmin(
     return { error: "Enter your email and password." };
   }
 
+  const h = await headers();
+  const ip = h.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
+  const limit = await checkRateLimit(`admin-login:${ip}`, 10, 60 * 15);
+  if (!limit.allowed) {
+    return { error: "Too many attempts. Try again in 15 minutes." };
+  }
+
   const user = await getUserByEmail(email);
   const passwordMatches = user ? await verifyPassword(password, user.passwordHash) : false;
 
   if (!user || !passwordMatches) {
+    // Constant-time delay prevents timing attacks that distinguish "user not found" from "wrong password"
     await new Promise((resolve) => setTimeout(resolve, 800));
     return { error: "Incorrect email or password." };
   }

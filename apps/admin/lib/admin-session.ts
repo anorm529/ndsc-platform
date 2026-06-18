@@ -10,6 +10,7 @@ import {
   deleteAllUserSessions,
   hashPassword,
   verifyPassword,
+  isAccountStatus,
 } from "@ndsc/auth";
 
 export { hashPassword, verifyPassword };
@@ -57,14 +58,14 @@ export async function getAdminUser(): Promise<AdminUser | null> {
   const sessionUser = await validateSession(rawToken);
   if (!sessionUser) return null;
 
-  if (sessionUser.accountStatus !== "active") return null;
+  if (!isAccountStatus(sessionUser.accountStatus) || sessionUser.accountStatus !== "active") return null;
   if (sessionUser.role !== "admin" && sessionUser.role !== "owner") return null;
 
   return {
     id: sessionUser.userId,
     email: sessionUser.email,
     role: sessionUser.role as AdminRole,
-    accountStatus: sessionUser.accountStatus as AccountStatus,
+    accountStatus: sessionUser.accountStatus,
     playerId: sessionUser.playerId,
   };
 }

@@ -1,11 +1,15 @@
 import { NextResponse } from "next/server";
+import { logEmailEvent, checkRateLimit } from "@ndsc/auth";
 import { createPasswordReset } from "@/lib/auth";
 import {
-  logEmailEvent,
   passwordResetEmailConfigured,
   sanitizeEmailError,
   sendPasswordResetEmail,
 } from "@/lib/email";
+
+function getIp(req: Request) {
+  return req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
+}
 
 function resetUrlBase(req: Request) {
   const directResetUrl = process.env.PASSWORD_RESET_URL?.trim();
@@ -18,6 +22,12 @@ function resetUrlBase(req: Request) {
 }
 
 export async function POST(req: Request) {
+  const ip = getIp(req);
+  const limit = await checkRateLimit(`forgot:${ip}`, 5, 60 * 15);
+  if (!limit.allowed) {
+    return NextResponse.json({ ok: true, message: "If that email has an account, a reset link will be sent." });
+  }
+
   const body = await req.json().catch(() => ({}));
   const email = String(body.email ?? "");
   const reset = email ? await createPasswordReset(email) : null;

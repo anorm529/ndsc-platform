@@ -17,7 +17,9 @@ export async function logEmailEvent(data: EmailEventData): Promise<void> {
         data.errorMessage ?? null,
       ]
     )
-    .catch(console.error) // Email logging is non-fatal
+    .catch((err) => {
+      console.error('[email-events] Failed to write email event:', err)
+    })
 }
 
 export async function getEmailEvents(filters?: {

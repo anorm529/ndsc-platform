@@ -1,5 +1,5 @@
 import { cookies } from "next/headers";
-import { validateSession } from "@ndsc/auth";
+import { validateSession, isAccountStatus } from "@ndsc/auth";
 import { ADMIN_SESSION_COOKIE } from "@/lib/admin-session";
 import { prisma } from "@/lib/db";
 
@@ -32,7 +32,7 @@ export async function getCurrentAdminUser(): Promise<CurrentAdminUser | null> {
   if (!rawToken) return null;
 
   const sessionUser = await validateSession(rawToken);
-  if (!sessionUser || sessionUser.accountStatus !== "active") return null;
+  if (!sessionUser || !isAccountStatus(sessionUser.accountStatus) || sessionUser.accountStatus !== "active") return null;
 
   const tournamentRole = mapRoleToTournamentRole(sessionUser.role);
   if (!tournamentRole) return null;

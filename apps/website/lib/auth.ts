@@ -19,6 +19,8 @@ import {
   updateUserPassword,
   updateLastLogin,
   emailExists,
+  isUserRole,
+  isAccountStatus,
 } from "@ndsc/auth";
 
 export { hashPassword, verifyPassword };
@@ -251,6 +253,10 @@ export async function getCurrentUser(): Promise<AuthenticatedUser | null> {
   const sessionUser = await validateSession(token);
   if (!sessionUser || sessionUser.accountStatus !== "active" || !sessionUser.playerId) return null;
 
+  const role = isUserRole(sessionUser.role) ? sessionUser.role : null;
+  const accountStatus = isAccountStatus(sessionUser.accountStatus) ? sessionUser.accountStatus : null;
+  if (!role || !accountStatus) return null;
+
   const result = await dbQuery<{ display_name: string; gender: string | null }>(
     "SELECT display_name, gender FROM public.players WHERE id = $1::uuid LIMIT 1",
     [sessionUser.playerId]
@@ -260,10 +266,10 @@ export async function getCurrentUser(): Promise<AuthenticatedUser | null> {
   return {
     id: sessionUser.userId,
     email: sessionUser.email,
-    role: sessionUser.role as UserRole,
+    role,
     playerId: sessionUser.playerId,
     emailVerified: sessionUser.emailVerified,
-    accountStatus: sessionUser.accountStatus as AccountStatus,
+    accountStatus,
     playerName: player?.display_name || sessionUser.email,
     gender: player?.gender ?? null,
   };

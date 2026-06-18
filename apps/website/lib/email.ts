@@ -1,19 +1,8 @@
 import "server-only";
 
-import { dbQuery } from "@/lib/db";
-
 type SendPasswordResetEmailInput = {
   to: string;
   resetUrl: string;
-};
-
-type EmailEventInput = {
-  userId: string | null;
-  email: string;
-  type: "password_reset";
-  providerMessageId?: string | null;
-  status: "sent" | "failed" | "delivered" | "bounced";
-  errorMessage?: string | null;
 };
 
 type ResendResponse = {
@@ -34,31 +23,6 @@ function safeEmailError(error: unknown) {
     .replace(/token=[^\\s"'<>]+/gi, "token=[redacted]")
     .replace(/Bearer\\s+[A-Za-z0-9._-]+/g, "Bearer [redacted]")
     .slice(0, 500);
-}
-
-export async function logEmailEvent({
-  userId,
-  email,
-  type,
-  providerMessageId = null,
-  status,
-  errorMessage = null,
-}: EmailEventInput) {
-  await dbQuery(
-    `
-      insert into public.email_events (
-        user_id,
-        email,
-        type,
-        provider,
-        provider_message_id,
-        status,
-        error_message
-      )
-      values ($1::uuid, $2, $3, 'resend', $4, $5, $6)
-    `,
-    [userId, email, type, providerMessageId, status, errorMessage ? safeEmailError(errorMessage) : null]
-  );
 }
 
 export async function sendPasswordResetEmail({ to, resetUrl }: SendPasswordResetEmailInput) {

@@ -1,4 +1,4 @@
-// Types
+// Types and guards
 export type {
   User,
   Session,
@@ -10,6 +10,7 @@ export type {
   EmailEventData,
   AuditData,
 } from './types'
+export { isUserRole, isAccountStatus } from './types'
 
 // Database connection (for apps that need direct access)
 export { getAuthDb } from './db'
@@ -55,3 +56,7 @@ export { logEmailEvent, getEmailEvents } from './email-events'
 
 // Admin audit log
 export { logAuditAction, getAuditLog } from './audit'
+
+// Rate limiting
+export { checkRateLimit } from './rate-limit'
+export type { RateLimitResult } from './rate-limit'
