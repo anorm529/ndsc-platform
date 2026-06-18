@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import {
   hashPassword,
   requireAdminUser,
-  type AccountRole,
+  type AdminRole,
   type AccountStatus,
   type AdminUser,
 } from "@/lib/admin-session";
@@ -14,7 +14,7 @@ import { dbQuery } from "@/lib/db";
 
 type TargetUser = {
   id: string;
-  role: AccountRole;
+  role: AdminRole;
   account_status: AccountStatus;
   player_id: string | null;
 };
@@ -121,7 +121,7 @@ export async function disableUserAction(formData: FormData) {
 
 export async function changeRoleAction(formData: FormData) {
   const { adminUser, target } = await loadAuthorizedTarget(formData);
-  const role = String(formData.get("role") ?? "") as AccountRole;
+  const role = String(formData.get("role") ?? "") as AdminRole;
 
   if (!["player", "admin", "owner"].includes(role)) {
     throw new Error("Invalid role.");
