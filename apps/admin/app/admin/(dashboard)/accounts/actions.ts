@@ -93,6 +93,49 @@ export async function approveUserAction(formData: FormData) {
   revalidatePath(`/admin/accounts/${target.id}`);
 }
 
+export async function bulkApproveAction(formData: FormData) {
+  const adminUser = await requireAdminUser();
+
+  const userIds = formData.getAll("userId").map(String).filter(Boolean);
+  if (!userIds.length) return;
+
+  const result = await dbQuery<TargetUser>(
+    `select id, role, account_status, player_id from users
+     where id = any($1::uuid[])
+       and account_status = 'pending'
+       and email_verified = true
+       and player_id is not null`,
+    [userIds],
+  );
+
+  if (!result.rows.length) return;
+
+  const eligible = result.rows.filter((u) => {
+    if (adminUser.role !== "owner" && u.role === "owner") return false;
+    return true;
+  });
+
+  await Promise.all(
+    eligible.map(async (target) => {
+      await dbQuery(
+        "update users set account_status = 'active', updated_at = now() where id = $1",
+        [target.id],
+      );
+      await logAdminAudit({
+        actorUserId: adminUser.id,
+        targetUserId: target.id,
+        targetPlayerId: target.player_id,
+        action: "account.approve",
+        fieldName: "account_status",
+        previousValue: "pending",
+        newValue: "active",
+      });
+    }),
+  );
+
+  revalidatePath("/admin/accounts");
+}
+
 export async function disableUserAction(formData: FormData) {
   const { adminUser, target } = await loadAuthorizedTarget(formData);
   requireConfirmation(formData, "DISABLE");

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import {
   AlertCircle,
+  CheckCheck,
   CheckCircle2,
   CircleOff,
   LinkIcon,
@@ -16,6 +17,7 @@ import { getAccounts, getAccountSummary } from "@/lib/admin-accounts";
 import { requireAdminUser } from "@/lib/admin-session";
 import {
   approveUserAction,
+  bulkApproveAction,
   changeRoleAction,
   disableUserAction,
 } from "./actions";
@@ -63,6 +65,10 @@ export default async function AccountsPage({ searchParams }: PageProps) {
     getAccounts(filters),
   ]);
 
+  const readyToApprove = accounts.filter(
+    (a) => a.accountStatus === "pending" && a.emailVerified && a.playerId,
+  );
+
   return (
     <div className="space-y-6">
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
@@ -93,7 +99,25 @@ export default async function AccountsPage({ searchParams }: PageProps) {
       </div>
 
       <SectionCard title="Accounts" subtitle="Approve, filter, link, and manage member platform access." icon={Users}>
-        <form className="mt-6 grid gap-3 lg:grid-cols-[1.4fr_0.8fr_0.8fr_0.9fr_auto]">
+        {readyToApprove.length > 0 ? (
+          <form action={bulkApproveAction} className="mt-6 flex items-center justify-between gap-4 rounded-xl border border-emerald-500/25 bg-emerald-500/8 px-5 py-4">
+            {readyToApprove.map((a) => (
+              <input key={a.id} type="hidden" name="userId" value={a.id} />
+            ))}
+            <div className="flex items-center gap-3">
+              <CheckCheck className="h-5 w-5 shrink-0 text-emerald-400" />
+              <div className="text-sm">
+                <span className="font-semibold text-emerald-300">
+                  {readyToApprove.length} account{readyToApprove.length === 1 ? "" : "s"} ready to approve
+                </span>
+                <span className="ml-2 text-[#c5cfdb]">— email verified and player linked</span>
+              </div>
+            </div>
+            <FormSubmitButton idleLabel="Approve all" pendingLabel="Approving…" />
+          </form>
+        ) : null}
+
+        <form className={`${readyToApprove.length > 0 ? "mt-4" : "mt-6"} grid gap-3 lg:grid-cols-[1.4fr_0.8fr_0.8fr_0.9fr_auto]`}>
           <label className="admin-panel-soft flex h-11 items-center gap-3 rounded-lg px-3">
             <Search className="h-4 w-4 text-[#8d97a7]" />
             <input
@@ -205,10 +229,19 @@ export default async function AccountsPage({ searchParams }: PageProps) {
                     <td className="border-b border-[color:var(--border)] px-3 py-4">
                       <div className="flex flex-wrap gap-2">
                         {account.accountStatus === "pending" && canMutate ? (
-                          <form action={approveUserAction}>
-                            <input type="hidden" name="userId" value={account.id} />
-                            <FormSubmitButton idleLabel="Approve" pendingLabel="Approving..." />
-                          </form>
+                          account.emailVerified && account.playerId ? (
+                            <form action={approveUserAction}>
+                              <input type="hidden" name="userId" value={account.id} />
+                              <FormSubmitButton idleLabel="Approve" pendingLabel="Approving..." />
+                            </form>
+                          ) : (
+                            <Link
+                              href={`/admin/accounts/${account.id}`}
+                              className="inline-flex h-9 items-center rounded-full border border-orange-500/30 bg-orange-500/10 px-3 text-xs font-semibold text-orange-300 hover:bg-orange-500/20"
+                            >
+                              Needs action
+                            </Link>
+                          )
                         ) : null}
                         {account.accountStatus !== "disabled" && canMutate ? (
                           <form action={disableUserAction}>
