@@ -31,12 +31,22 @@ export const FANTASY_PERMISSIONS = [
   'settings',
 ] as const
 
+export const COUNCIL_PERMISSIONS = [
+  'chairman',
+  'vice_chair',
+  'treasurer',
+  'captain',
+  'secretary',
+  'social_media',
+] as const
+
 export type AdminPermission = (typeof ADMIN_PERMISSIONS)[number]
 export type TournamentPermission = (typeof TOURNAMENT_PERMISSIONS)[number]
 export type FantasyPermission = (typeof FANTASY_PERMISSIONS)[number]
-export type AppPermission = AdminPermission | TournamentPermission | FantasyPermission
+export type CouncilPermission = (typeof COUNCIL_PERMISSIONS)[number]
+export type AppPermission = AdminPermission | TournamentPermission | FantasyPermission | CouncilPermission
 
-export type App = 'admin' | 'tournament' | 'fantasy'
+export type App = 'admin' | 'tournament' | 'fantasy' | 'council'
 
 export const PERMISSION_LABELS: Record<App, Record<string, string>> = {
   admin: {
@@ -65,12 +75,21 @@ export const PERMISSION_LABELS: Record<App, Record<string, string>> = {
     awards:        'Awards',
     settings:      'League settings',
   },
+  council: {
+    chairman:    'Chairman — full council access',
+    vice_chair:  'Vice Chair — full council access',
+    treasurer:   'Treasurer — accounts & fees',
+    captain:     'Captain — team roster & fee status',
+    secretary:   'Secretary — meetings & minutes',
+    social_media: 'Social Media Officer — members & meetings (no treasurer)',
+  },
 }
 
 export const ALL_PERMISSIONS: Record<App, readonly string[]> = {
   admin:      ADMIN_PERMISSIONS,
   tournament: TOURNAMENT_PERMISSIONS,
   fantasy:    FANTASY_PERMISSIONS,
+  council:    COUNCIL_PERMISSIONS,
 }
 
 // ─── CRUD ─────────────────────────────────────────────────────────────────────
