@@ -6,7 +6,6 @@ import {
   canManageAdminUsers,
   adminPermissionTypes,
   permissionLabels,
-  getUserPermissions,
   type AdminPermissionType,
 } from "@/lib/current-admin";
 import { getAppPermissionGrants } from "@ndsc/auth";

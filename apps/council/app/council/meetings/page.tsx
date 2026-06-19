@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { CalendarDays, Plus, CheckCircle2, Clock, XCircle } from "lucide-react";
+import { Plus, CheckCircle2, Clock, XCircle } from "lucide-react";
 import { requireCouncilUser, hasSecretaryAccess } from "@/lib/council-session";
 import { getAllMeetings } from "@/lib/council-queries";
 

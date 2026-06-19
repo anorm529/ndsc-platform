@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { requireCouncilUser, requireSecretaryAccess } from "@/lib/council-session";
 import { createMeeting } from "@/lib/meeting-actions";
@@ -103,12 +104,12 @@ export default async function NewMeetingPage() {
           >
             Schedule meeting
           </button>
-          <a
+          <Link
             href="/council/meetings"
             className="rounded-xl border border-[color:var(--border)] px-5 py-3 text-[0.9rem] text-[color:var(--muted-foreground)] hover:text-slate-900"
           >
             Cancel
-          </a>
+          </Link>
         </div>
       </form>
     </div>

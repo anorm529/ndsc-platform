@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { requireCouncilUser, requireTreasurerAccess } from "@/lib/council-session";
 import { createAccount } from "@/lib/treasurer-queries";
@@ -48,12 +49,12 @@ export default async function NewAccountPage() {
           >
             Create account
           </button>
-          <a
+          <Link
             href="/council/treasurer/accounts"
             className="rounded-xl border border-[color:var(--border)] px-5 py-3 text-[0.9rem] text-[color:var(--muted-foreground)] hover:text-slate-900"
           >
             Cancel
-          </a>
+          </Link>
         </div>
       </form>
     </div>

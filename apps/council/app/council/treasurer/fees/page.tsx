@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Plus, PoundSterling, CheckCircle2, AlertCircle } from "lucide-react";
+import { Plus, PoundSterling, CheckCircle2 } from "lucide-react";
 import { requireCouncilUser, requireTreasurerAccess } from "@/lib/council-session";
 import { getAllFeeSeasons, createFeeSeason } from "@/lib/treasurer-queries";
 

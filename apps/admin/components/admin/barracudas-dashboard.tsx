@@ -782,7 +782,23 @@ export function BarracudasDashboard({
   const [manualLock, setManualLock] = useState(false);
   const [manualError, setManualError] = useState("");
   const [typedMessage, setTypedMessage] = useState("");
-  const [lineupHistory, setLineupHistory] = useState<LineupHistoryItem[]>([]);
+  const [lineupHistory, setLineupHistory] = useState<LineupHistoryItem[]>(() => {
+    if (typeof window === "undefined") {
+      return [];
+    }
+
+    try {
+      const raw = window.localStorage.getItem("barracudas-lineup-history");
+      if (!raw) {
+        return [];
+      }
+
+      const parsed = JSON.parse(raw) as LineupHistoryItem[];
+      return Array.isArray(parsed) ? parsed.slice(0, 3) : [];
+    } catch {
+      return [];
+    }
+  });
 
   const allPlayers = useMemo(
     () =>
@@ -849,21 +865,6 @@ export function BarracudasDashboard({
         clearTimeout(timeoutId);
       }
     };
-  }, []);
-
-  useEffect(() => {
-    try {
-      const raw = window.localStorage.getItem("barracudas-lineup-history");
-
-      if (!raw) {
-        return;
-      }
-
-      const parsed = JSON.parse(raw) as LineupHistoryItem[];
-      setLineupHistory(Array.isArray(parsed) ? parsed.slice(0, 3) : []);
-    } catch {
-      setLineupHistory([]);
-    }
   }, []);
 
   useEffect(() => {

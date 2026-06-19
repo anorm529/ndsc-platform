@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { CheckSquare, Plus, Clock, CheckCircle2, AlertCircle } from "lucide-react";
+import { Plus, Clock, CheckCircle2, AlertCircle } from "lucide-react";
 import { requireCouncilUser, hasSecretaryAccess } from "@/lib/council-session";
 import { getAllActions, type ActionItem } from "@/lib/council-queries";
 import { getAllActiveMembers, memberDisplayName } from "@/lib/main-db";

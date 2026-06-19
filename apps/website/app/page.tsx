@@ -119,14 +119,6 @@ function Section({
   );
 }
 
-function Pill({ children }: { children: React.ReactNode }) {
-  return (
-    <span className="inline-flex items-center gap-2 rounded-full border border-teal-300/40 bg-teal-500/10 px-4 py-2 text-sm text-teal-200">
-      {children}
-    </span>
-  );
-}
-
 function Card({ children }: { children: React.ReactNode }) {
   return (
     <div className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">

@@ -86,9 +86,12 @@ function formatTeamName(team?: string) {
 
 function extractBodyText(body?: PortableTextBlock[]): string {
   if (!body?.length) return "";
-  const firstBlock = body.find((b: any) => b._type === "block" && b.style === "normal");
+  const firstBlock = body.find(
+    (b): b is PortableTextBlock & { style?: string; children?: Array<{ text?: string }> } =>
+      b._type === "block" && "style" in b && b.style === "normal",
+  );
   if (!firstBlock) return "";
-  return ((firstBlock as any).children as Array<{ text?: string }> || [])
+  return (firstBlock.children || [])
     .map((c) => c.text || "")
     .join("")
     .trim();

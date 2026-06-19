@@ -151,7 +151,7 @@ export async function generateAwards(leagueId: string): Promise<void> {
     }
 
     let bestGame = { team: teams[0], score: 0 };
-    for (const [pgId, gameScores] of scoresByGame) {
+    for (const gameScores of scoresByGame.values()) {
       for (const team of teams) {
         const captain = team.roster.find((r) => r.isCaptain);
         let total = 0;

@@ -15,11 +15,11 @@ function cn(...classes: (string | false | undefined | null)[]) {
   return classes.filter(Boolean).join(" ");
 }
 
-function isBlank(v: any) {
+function isBlank(v: unknown) {
   return v === null || v === undefined || String(v).trim() === "";
 }
 
-function parseDate(d: any) {
+function parseDate(d: unknown) {
   const t = Date.parse(String(d));
   return Number.isFinite(t) ? t : NaN;
 }

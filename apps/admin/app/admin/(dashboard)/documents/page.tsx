@@ -1,4 +1,4 @@
-import { FileText, Trash2, Upload } from "lucide-react";
+import { FileText } from "lucide-react";
 import { FormSubmitButton } from "@/components/admin/form-submit-button";
 import { SectionCard } from "@/components/admin/section-card";
 import { requireAdminPermission } from "@/lib/permissions";

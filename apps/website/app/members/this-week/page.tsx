@@ -59,7 +59,7 @@ function MatchCard({ match, result }: { match: Match; result?: boolean }) {
 
 export default async function ThisWeekPage() {
   const [user, clubData] = await Promise.all([requireCurrentUser(), getClubData()]);
-  const now = Date.now();
+  const now = Number(new Date());
   const weekEnd = now + 7 * 24 * 60 * 60 * 1000;
   const upcoming = clubData.fixtures
     .filter((match) => {

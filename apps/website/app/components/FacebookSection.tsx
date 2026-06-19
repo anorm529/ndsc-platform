@@ -4,7 +4,11 @@ import { useEffect, useRef, useState } from "react";
 
 declare global {
   interface Window {
-    FB?: any;
+    FB?: {
+      XFBML?: {
+        parse?: () => void;
+      };
+    };
   }
 }
 

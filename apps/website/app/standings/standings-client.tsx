@@ -157,8 +157,8 @@ export default function StandingsClient({ rows }: { rows: Row[] }) {
 
       {/* Tables */}
       <div className="space-y-10">
-        <Table title="Division A" rows={divA as any} />
-        <Table title="Division B" rows={divB as any} />
+        <Table title="Division A" rows={divA} />
+        <Table title="Division B" rows={divB} />
       </div>
 
       

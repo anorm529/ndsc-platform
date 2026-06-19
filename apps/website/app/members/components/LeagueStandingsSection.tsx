@@ -133,8 +133,8 @@ export default function LeagueStandingsSection({ rows }: { rows: Row[] }) {
       </div>
 
       <div className="mt-5 space-y-8">
-        <StandingsTable title="Division A" rows={divA as any} />
-        <StandingsTable title="Division B" rows={divB as any} />
+        <StandingsTable title="Division A" rows={divA} />
+        <StandingsTable title="Division B" rows={divB} />
       </div>
     </div>
   );

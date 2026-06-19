@@ -1,6 +1,10 @@
 // sanity/schemaTypes/postType.ts
 import { defineArrayMember, defineField, defineType } from "sanity";
 
+type PostDocumentValue = {
+  postKind?: string;
+};
+
 export const postType = defineType({
   name: "post",
   title: "Post",
@@ -49,7 +53,7 @@ export const postType = defineType({
       hidden: ({ document }) => document?.postKind !== "teamReport",
       validation: (r) =>
         r.custom((val, ctx) => {
-          const kind = (ctx.document as any)?.postKind;
+          const kind = (ctx.document as PostDocumentValue | undefined)?.postKind;
           if (kind === "teamReport" && (!val || val.length === 0)) {
             return "Select at least one team for Team Reports.";
           }

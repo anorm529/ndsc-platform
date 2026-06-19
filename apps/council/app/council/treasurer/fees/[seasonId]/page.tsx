@@ -1,13 +1,12 @@
 import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, CheckCircle2, AlertCircle, Plus, Trash2, Clock } from "lucide-react";
+import { ArrowLeft, CheckCircle2, AlertCircle, Plus, Clock } from "lucide-react";
 import { requireCouncilUser, requireTreasurerAccess } from "@/lib/council-session";
 import {
   getFeeSeasonById,
   getPlayerFeesForSeason,
   upsertPlayerFee,
   recordFeePayment,
-  deleteFeePayment,
 } from "@/lib/treasurer-queries";
 import { getAllActiveMembers, memberDisplayName } from "@/lib/main-db";
 import { getAllTeams } from "@/lib/team-queries";
@@ -74,16 +73,6 @@ export default async function SeasonFeesPage({ params }: { params: Promise<{ sea
     });
     redirect(`/council/treasurer/fees/${seasonId}`);
   }
-
-  async function handleDeletePayment(formData: FormData) {
-    "use server";
-    await requireCouncilUser();
-    const paymentId = String(formData.get("paymentId") ?? "");
-    if (paymentId) await deleteFeePayment(paymentId);
-    redirect(`/council/treasurer/fees/${seasonId}`);
-  }
-
-  const teamById = new Map(teams.map((t) => [t.id, t]));
 
   return (
     <div className="max-w-4xl space-y-6">

@@ -88,7 +88,9 @@ function delta(a: number | null, b: number | null) {
   return Number.isFinite(d) ? d : null;
 }
 
-function num(v: any) {
+type AnalyticsTab = "offence" | "discipline" | "fielding";
+
+function num(v: unknown) {
   const n = Number(v);
   return Number.isFinite(n) ? n : 0;
 }
@@ -109,7 +111,7 @@ export default function TeamAnalytics({
   teamAvg: TeamAvg;
   seasonLabel?: string;
 }) {
-  const [tab, setTab] = useState<"offence" | "discipline" | "fielding">("offence");
+  const [tab, setTab] = useState<AnalyticsTab>("offence");
   const [selectedName, setSelectedName] = useState<string>(rows[0]?.name ?? "");
 
   const selected = useMemo(
@@ -184,7 +186,7 @@ export default function TeamAnalytics({
           ].map((t) => (
             <button
               key={t.key}
-              onClick={() => setTab(t.key as any)}
+              onClick={() => setTab(t.key as AnalyticsTab)}
               className={cn(
                 "rounded-xl px-4 py-2 text-sm font-semibold transition",
                 tab === t.key
@@ -411,7 +413,7 @@ export default function TeamAnalytics({
                   <YAxis tick={{ fill: "rgba(255,255,255,0.7)", fontSize: 12 }} />
                   <Tooltip
                     cursor={{ fill: "rgba(255,255,255,0.06)" }}
-                    formatter={(val: any, name: any, props: any) => {
+                    formatter={(val: unknown, name: unknown) => {
                       if (name === "bbRate") return [(Number(val) || 0).toFixed(3), "BB/AB"];
                       return [val, name];
                     }}
@@ -627,7 +629,7 @@ export default function TeamAnalytics({
                   <YAxis tick={{ fill: "rgba(255,255,255,0.7)", fontSize: 12 }} />
                   <Tooltip
                     cursor={{ fill: "rgba(255,255,255,0.06)" }}
-                    formatter={(val: any) => [(Number(val) || 0).toFixed(2), "Outs/inning"]}
+                    formatter={(val: unknown) => [(Number(val) || 0).toFixed(2), "Outs/inning"]}
                   />
                   <Bar dataKey="outsPerInning" fill="rgba(45,212,191,0.65)" radius={[8, 8, 0, 0]} />
                 </BarChart>

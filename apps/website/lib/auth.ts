@@ -2,6 +2,7 @@ import "server-only";
 
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
+import { createHash } from "node:crypto";
 import { isIP } from "node:net";
 import { dbQuery } from "@/lib/db";
 import {
@@ -232,7 +233,7 @@ export async function listUserSessions(userId: string): Promise<AccountSession[]
 
   return sessions.map((s) => {
     const tokenMatches = currentToken
-      ? require("crypto").createHash("sha256").update(currentToken).digest("hex") === s.sessionToken
+      ? createHash("sha256").update(currentToken).digest("hex") === s.sessionToken
       : false;
     return {
       id: s.id,

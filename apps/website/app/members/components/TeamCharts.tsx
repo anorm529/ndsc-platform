@@ -13,7 +13,6 @@ import {
   Scatter,
   ZAxis,
   CartesianGrid,
-  Legend,
 } from "recharts";
 
 type Row = {
@@ -57,7 +56,13 @@ function getTier(row: Row, teamAvg: TeamAvg): Tier {
 }
 
 // Tooltip that actually tells you the player name
-function ScatterTip({ active, payload }: any) {
+function ScatterTip({
+  active,
+  payload,
+}: {
+  active?: boolean;
+  payload?: Array<{ payload: Row & { tier?: Tier } }>;
+}) {
   if (!active || !payload?.length) return null;
   const d = payload[0].payload as Row & { tier?: Tier };
   return (
@@ -67,23 +72,6 @@ function ScatterTip({ active, payload }: any) {
         OBP: {Number(d.obp).toFixed(3)} • SLG: {Number(d.slg).toFixed(3)} • AB: {Math.round(d.ab)}
       </div>
       <div className="text-slate-200">OPS: {Number(d.ops).toFixed(3)}</div>
-    </div>
-  );
-}
-
-// Legend that matches our tiers
-function TierLegend() {
-  return (
-    <div className="flex flex-wrap items-center gap-4 text-xs text-slate-300">
-      {(Object.keys(TIER_COLORS) as Tier[]).map((t) => (
-        <div key={t} className="inline-flex items-center gap-2">
-          <span
-            className="inline-block h-2.5 w-2.5 rounded-full"
-            style={{ background: TIER_COLORS[t] }}
-          />
-          {t}
-        </div>
-      ))}
     </div>
   );
 }

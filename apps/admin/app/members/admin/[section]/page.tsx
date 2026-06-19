@@ -115,75 +115,75 @@ function GameStatsUploadOverview({
   );
 }
 
+function groupPlayersByTeam(entries: PlayerOverviewEntry[]) {
+  const map = new Map<string, PlayerOverviewEntry[]>();
+  for (const entry of entries) {
+    const key = entry.teamName ?? "Unassigned";
+    const existing = map.get(key) ?? [];
+    existing.push(entry);
+    map.set(key, existing);
+  }
+  return Array.from(map.entries()).sort(([a], [b]) =>
+    a === "Unassigned" ? 1 : b === "Unassigned" ? -1 : a.localeCompare(b),
+  );
+}
+
+function PlayerStatusGroup({
+  label,
+  entries,
+  tone,
+}: {
+  label: string;
+  entries: PlayerOverviewEntry[];
+  tone: "success" | "muted";
+}) {
+  const groups = groupPlayersByTeam(entries);
+  const uniqueCount = new Set(entries.map((e) => e.id)).size;
+  const dotClass =
+    tone === "success"
+      ? "bg-[color:var(--success)]"
+      : "bg-[color:var(--muted-foreground)]";
+
+  return (
+    <div>
+      <div className="mb-3 flex items-center gap-2">
+        <span className={`h-2 w-2 rounded-full ${dotClass}`} />
+        <h3 className="text-sm font-semibold uppercase tracking-[0.1em] text-[#dce5f2]">
+          {label}
+          <span className="ml-2 text-xs font-normal text-[#93a0b3]">({uniqueCount})</span>
+        </h3>
+      </div>
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+        {groups.map(([teamName, teamPlayers]) => (
+          <div
+            key={teamName}
+            className="rounded-xl border border-[color:var(--border)] bg-[#061321]/70 p-4"
+          >
+            <p className="mb-2 text-xs font-semibold uppercase tracking-[0.1em] text-[color:var(--accent)]">
+              {teamName}
+              <span className="ml-1.5 font-normal text-[#93a0b3]">
+                ({new Set(teamPlayers.map((p) => p.id)).size})
+              </span>
+            </p>
+            <ul className="space-y-1">
+              {teamPlayers.map((p) => (
+                <li key={p.id} className="truncate text-sm text-[#dce5f2]">
+                  {p.displayName}
+                </li>
+              ))}
+            </ul>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function PlayersOverview({ players }: { players: PlayerOverviewEntry[] }) {
   if (players.length === 0) return null;
 
   const activePlayers = players.filter((p) => p.active);
   const inactivePlayers = players.filter((p) => !p.active);
-
-  function groupByTeam(entries: PlayerOverviewEntry[]) {
-    const map = new Map<string, PlayerOverviewEntry[]>();
-    for (const entry of entries) {
-      const key = entry.teamName ?? "Unassigned";
-      const existing = map.get(key) ?? [];
-      existing.push(entry);
-      map.set(key, existing);
-    }
-    return Array.from(map.entries()).sort(([a], [b]) =>
-      a === "Unassigned" ? 1 : b === "Unassigned" ? -1 : a.localeCompare(b),
-    );
-  }
-
-  function StatusGroup({
-    label,
-    entries,
-    tone,
-  }: {
-    label: string;
-    entries: PlayerOverviewEntry[];
-    tone: "success" | "muted";
-  }) {
-    const groups = groupByTeam(entries);
-    const uniqueCount = new Set(entries.map((e) => e.id)).size;
-    const dotClass =
-      tone === "success"
-        ? "bg-[color:var(--success)]"
-        : "bg-[color:var(--muted-foreground)]";
-
-    return (
-      <div>
-        <div className="mb-3 flex items-center gap-2">
-          <span className={`h-2 w-2 rounded-full ${dotClass}`} />
-          <h3 className="text-sm font-semibold uppercase tracking-[0.1em] text-[#dce5f2]">
-            {label}
-            <span className="ml-2 text-xs font-normal text-[#93a0b3]">({uniqueCount})</span>
-          </h3>
-        </div>
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-          {groups.map(([teamName, teamPlayers]) => (
-            <div
-              key={teamName}
-              className="rounded-xl border border-[color:var(--border)] bg-[#061321]/70 p-4"
-            >
-              <p className="mb-2 text-xs font-semibold uppercase tracking-[0.1em] text-[color:var(--accent)]">
-                {teamName}
-                <span className="ml-1.5 font-normal text-[#93a0b3]">
-                  ({new Set(teamPlayers.map((p) => p.id)).size})
-                </span>
-              </p>
-              <ul className="space-y-1">
-                {teamPlayers.map((p) => (
-                  <li key={p.id} className="truncate text-sm text-[#dce5f2]">
-                    {p.displayName}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ))}
-        </div>
-      </div>
-    );
-  }
 
   return (
     <section className="admin-panel rounded-[1.5rem] p-5">
@@ -192,9 +192,9 @@ function PlayersOverview({ players }: { players: PlayerOverviewEntry[] }) {
         Grouped by global active status and most recent team assignment.
       </p>
       <div className="space-y-8">
-        <StatusGroup label="Active" entries={activePlayers} tone="success" />
+        <PlayerStatusGroup label="Active" entries={activePlayers} tone="success" />
         {inactivePlayers.length > 0 && (
-          <StatusGroup label="Inactive" entries={inactivePlayers} tone="muted" />
+          <PlayerStatusGroup label="Inactive" entries={inactivePlayers} tone="muted" />
         )}
       </div>
     </section>

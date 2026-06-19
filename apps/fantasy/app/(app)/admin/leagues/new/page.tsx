@@ -72,7 +72,7 @@ export default async function NewLeaguePage() {
                 Price Base Season <span className="text-slate-400 font-normal">(optional)</span>
               </label>
               <p className="text-xs text-slate-400 mb-2">
-                If set, the "Generate Prices" button will use end-of-season stats from this
+                If set, the &quot;Generate Prices&quot; button will use end-of-season stats from this
                 season with a 25% regression to mean. Leave blank to use current-season
                 live stats instead.
               </p>
