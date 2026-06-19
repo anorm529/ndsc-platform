@@ -12,6 +12,7 @@ const clubLinks = [
   { label: "Sponsors", href: "/#sponsors" },
   { label: "Facebook", href: "/#facebook" },
   { label: "Gallery", href: "/#gallery" },
+  { label: "Club Documents", href: "/documents" },
 ];
 
 const pageLinks = [

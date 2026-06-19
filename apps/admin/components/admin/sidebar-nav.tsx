@@ -8,6 +8,7 @@ import {
   AlertTriangle,
   CheckCircle2,
   Database,
+  FileText,
   FileUp,
   Gauge,
   History,
@@ -40,6 +41,7 @@ const adminMenu: NavItem[] = [
   { label: "Neon Database",  href: "/members/admin/database",  icon: Database,     permission: "database"   },
   { label: "Neon Uploads",   href: "/members/admin/uploads",   icon: FileUp,       permission: "database"   },
   { label: "Barracudas",     href: "/admin/barracudas",        icon: Users,        permission: "barracudas" },
+  { label: "Documents",      href: "/admin/documents",         icon: FileText,     permission: "documents"  },
   { label: "Permissions",    href: "/admin/permissions",       icon: KeyRound,     permission: "__owner__"  },
 ];
 

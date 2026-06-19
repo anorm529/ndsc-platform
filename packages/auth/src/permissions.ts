@@ -12,6 +12,7 @@ export const ADMIN_PERMISSIONS = [
   'cleanup',
   'database',
   'barracudas',
+  'documents',
 ] as const
 
 export const TOURNAMENT_PERMISSIONS = [
@@ -48,6 +49,7 @@ export const PERMISSION_LABELS: Record<App, Record<string, string>> = {
     cleanup:    'Database cleanup',
     database:   'Database management',
     barracudas: 'Barracudas roster',
+    documents:  'Club documents',
   },
   tournament: {
     tournaments: 'Tournament management',

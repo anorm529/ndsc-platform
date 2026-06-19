@@ -66,6 +66,9 @@ export default function SiteFooter({ navLinks }: { navLinks: NavLink[] }) {
                 Fantasy League
                 <ExternalLink className="h-3 w-3 opacity-50" />
               </a>
+              <Link href="/documents" className="block hover:text-white">
+                Club Documents
+              </Link>
               <Link href="/privacy-policy" className="block hover:text-white">
                 Privacy Policy
               </Link>
