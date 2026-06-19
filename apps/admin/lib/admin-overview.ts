@@ -95,9 +95,6 @@ export async function getAdminOverview(): Promise<AdminOverview> {
   }
 
   const start = performance.now();
-  const ping = await dbQuery<{ now: Date }>("select now()");
-  const connectionMs = Math.round(performance.now() - start);
-
   const [tables, accountStats, profileStats, sessionStats, resetStats, emailOverview] =
     await Promise.all([
       Promise.all(overviewTables.map((tableName) => getTableCount(tableName))),
@@ -159,6 +156,7 @@ export async function getAdminOverview(): Promise<AdminOverview> {
       getEmailDeliveryOverview(),
     ]);
 
+  const connectionMs = Math.round(performance.now() - start);
   const accounts = accountStats.rows[0];
   const profiles = profileStats.rows[0];
   const sessions = sessionStats.rows[0];
@@ -256,7 +254,7 @@ export async function getAdminOverview(): Promise<AdminOverview> {
 
   return {
     configured: true,
-    checkedAt: ping.rows[0]?.now ?? checkedAt,
+    checkedAt,
     connectionMs,
     metrics: [
       {
