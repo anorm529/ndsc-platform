@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 import { logoutAction } from "@/app/lib/actions";
 import Link from "next/link";
 import { DeleteLeagueButton } from "./delete-league-button";
+import { canAccessFantasyAdmin } from "@/app/lib/permissions";
 
 export const dynamic = 'force-dynamic';
 export const metadata = { title: "Admin — NDSC Fantasy" };
@@ -18,8 +19,9 @@ const STATUS_COLOUR: Record<string, string> = {
 
 export default async function AdminPage() {
   const session = await requireSession();
-  const pool = getMainDb();
+  if (!(await canAccessFantasyAdmin())) redirect("/home");
 
+  const pool = getMainDb();
   const userRes = await pool.query<{ display_name: string; role: string; email: string }>(
     `SELECT p.display_name, u.role, u.email
      FROM users u LEFT JOIN players p ON p.id = u.player_id
@@ -27,7 +29,6 @@ export default async function AdminPage() {
     [session.memberUserId]
   );
   const user = userRes.rows[0];
-  if (user?.role !== "owner" && user?.role !== "admin") redirect("/home");
 
   const leagues = await db.fantasyLeague.findMany({
     orderBy: { createdAt: "desc" },

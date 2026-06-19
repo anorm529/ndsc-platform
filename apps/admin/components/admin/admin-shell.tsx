@@ -16,6 +16,7 @@ const titleMap: Record<string, string> = {
   "/admin/cleanup": "Cleanup",
   "/admin/security": "Security",
   "/admin/barracudas": "Barracudas",
+  "/admin/permissions": "Permissions",
   "/members/admin": "Neon Database",
   "/members/admin/database": "Neon Database",
   "/members/admin/seasons": "Seasons",
@@ -33,10 +34,14 @@ export function AdminShell({
   children,
   userName,
   notificationCount,
+  isOwner,
+  grantedPermissions,
 }: {
   children: ReactNode;
   userName: string;
   notificationCount: number;
+  isOwner: boolean;
+  grantedPermissions: string[];
 }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const pathname = usePathname();
@@ -50,6 +55,8 @@ export function AdminShell({
         mobileOpen={mobileOpen}
         onClose={() => setMobileOpen(false)}
         userName={userName}
+        isOwner={isOwner}
+        grantedPermissions={grantedPermissions}
       />
 
       {mobileOpen ? (

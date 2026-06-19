@@ -2,6 +2,7 @@ import Link from "next/link";
 import { AlertTriangle, Link2Off, UsersRound, UserRoundX } from "lucide-react";
 import { SectionCard } from "@/components/admin/section-card";
 import { getAdminFlags } from "@/lib/admin-operations";
+import { requireAdminPermission } from "@/lib/permissions";
 
 function formatDate(value: Date) {
   return new Intl.DateTimeFormat("en-GB", {
@@ -30,6 +31,7 @@ function FlagList({
 }
 
 export default async function FlagsPage() {
+  await requireAdminPermission("flags");
   const flags = await getAdminFlags();
 
   return (

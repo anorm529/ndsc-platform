@@ -21,6 +21,7 @@ import { FormSubmitButton } from "@/components/admin/form-submit-button";
 import { SectionCard } from "@/components/admin/section-card";
 import { getAccountDetail } from "@/lib/admin-accounts";
 import { requireAdminUser } from "@/lib/admin-session";
+import { requireAdminPermission } from "@/lib/permissions";
 import {
   approveUserAction,
   addAdminNoteAction,
@@ -76,6 +77,7 @@ function formatAuditValue(value: unknown) {
 }
 
 export default async function AccountDetailPage({ params, searchParams }: PageProps) {
+  await requireAdminPermission("accounts");
   const [{ id }, resolvedSearchParams, adminUser] = await Promise.all([
     params,
     searchParams,

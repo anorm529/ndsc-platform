@@ -11,6 +11,7 @@ import {
   hashPassword,
   verifyPassword,
   isAccountStatus,
+  hasAnyAppPermission,
 } from "@ndsc/auth";
 
 export { hashPassword, verifyPassword };
@@ -59,12 +60,17 @@ export async function getAdminUser(): Promise<AdminUser | null> {
   if (!sessionUser) return null;
 
   if (!isAccountStatus(sessionUser.accountStatus) || sessionUser.accountStatus !== "active") return null;
-  if (sessionUser.role !== "admin" && sessionUser.role !== "owner") return null;
+
+  // Owners and global admins always have access; otherwise check for any admin app permission
+  if (sessionUser.role !== "admin" && sessionUser.role !== "owner") {
+    const hasPerms = await hasAnyAppPermission(sessionUser.userId, "admin");
+    if (!hasPerms) return null;
+  }
 
   return {
     id: sessionUser.userId,
     email: sessionUser.email,
-    role: sessionUser.role as AdminRole,
+    role: (sessionUser.role === "owner" ? "owner" : "admin") as AdminRole,
     accountStatus: sessionUser.accountStatus,
     playerId: sessionUser.playerId,
   };

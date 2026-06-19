@@ -11,6 +11,7 @@ import {
   FileUp,
   Gauge,
   History,
+  KeyRound,
   LogOut,
   MailCheck,
   ShieldCheck,
@@ -23,20 +24,23 @@ type NavItem = {
   label: string;
   href: string;
   icon: LucideIcon;
+  /** If set, only shown when user has this permission (or is owner). Null = always shown. */
+  permission?: string;
 };
 
 const adminMenu: NavItem[] = [
-  { label: "Overview", href: "/admin/overview", icon: Gauge },
-  { label: "Approvals", href: "/admin/approvals", icon: CheckCircle2 },
-  { label: "Flags", href: "/admin/flags", icon: AlertTriangle },
-  { label: "Member Accounts", href: "/admin/accounts", icon: ShieldCheck },
-  { label: "Audit Log", href: "/admin/audit", icon: History },
-  { label: "Email Delivery", href: "/admin/email", icon: MailCheck },
-  { label: "Cleanup", href: "/admin/cleanup", icon: Trash2 },
-  { label: "Security", href: "/admin/security", icon: ShieldCheck },
-  { label: "Neon Database", href: "/members/admin/database", icon: Database },
-  { label: "Neon Uploads", href: "/members/admin/uploads", icon: FileUp },
-  { label: "Barracudas", href: "/admin/barracudas", icon: Users },
+  { label: "Overview",       href: "/admin/overview",          icon: Gauge,        permission: "overview"   },
+  { label: "Approvals",      href: "/admin/approvals",         icon: CheckCircle2, permission: "approvals"  },
+  { label: "Flags",          href: "/admin/flags",             icon: AlertTriangle,permission: "flags"      },
+  { label: "Member Accounts",href: "/admin/accounts",          icon: ShieldCheck,  permission: "accounts"   },
+  { label: "Audit Log",      href: "/admin/audit",             icon: History,      permission: "audit"      },
+  { label: "Email Delivery", href: "/admin/email",             icon: MailCheck,    permission: "email"      },
+  { label: "Cleanup",        href: "/admin/cleanup",           icon: Trash2,       permission: "cleanup"    },
+  { label: "Security",       href: "/admin/security",          icon: ShieldCheck,  permission: "__owner__"  },
+  { label: "Neon Database",  href: "/members/admin/database",  icon: Database,     permission: "database"   },
+  { label: "Neon Uploads",   href: "/members/admin/uploads",   icon: FileUp,       permission: "database"   },
+  { label: "Barracudas",     href: "/admin/barracudas",        icon: Users,        permission: "barracudas" },
+  { label: "Permissions",    href: "/admin/permissions",       icon: KeyRound,     permission: "__owner__"  },
 ];
 
 function SidebarLink({
@@ -73,12 +77,24 @@ export function SidebarNav({
   mobileOpen,
   onClose,
   userName,
+  isOwner,
+  grantedPermissions,
 }: {
   mobileOpen: boolean;
   onClose: () => void;
   userName: string;
+  isOwner: boolean;
+  grantedPermissions: string[];
 }) {
   const pathname = usePathname();
+  const permSet = new Set(grantedPermissions);
+
+  const visibleMenu = adminMenu.filter((item) => {
+    if (!item.permission) return true;
+    if (isOwner) return true;
+    if (item.permission === "__owner__") return false;
+    return permSet.has(item.permission);
+  });
 
   return (
     <aside
@@ -127,7 +143,7 @@ export function SidebarNav({
           ADMIN
         </p>
         <nav className="mt-4 space-y-2">
-          {adminMenu.map((item) => (
+          {visibleMenu.map((item) => (
             <SidebarLink
               key={item.label}
               item={item}

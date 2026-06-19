@@ -1,7 +1,12 @@
 import { cookies } from "next/headers";
-import { validateSession, isAccountStatus } from "@ndsc/auth";
+import {
+  validateSession,
+  isAccountStatus,
+  getUserAppPermissions,
+  TOURNAMENT_PERMISSIONS,
+  PERMISSION_LABELS,
+} from "@ndsc/auth";
 import { ADMIN_SESSION_COOKIE } from "@/lib/admin-session";
-import { prisma } from "@/lib/db";
 
 export type CurrentAdminUser = {
   id: string;
@@ -35,17 +40,17 @@ export async function getCurrentAdminUser(): Promise<CurrentAdminUser | null> {
   if (!sessionUser || !isAccountStatus(sessionUser.accountStatus) || sessionUser.accountStatus !== "active") return null;
 
   const tournamentRole = mapRoleToTournamentRole(sessionUser.role);
-  if (!tournamentRole) return null;
 
-  // Derive display name: use email prefix as fallback (no main DB query needed)
+  // Also allow users who have no global admin role but have tournament app permissions
+  if (!tournamentRole) {
+    const perms = await getUserAppPermissions(sessionUser.userId, "tournament");
+    if (perms.size === 0) return null;
+    const name = sessionUser.email.split("@")[0] ?? sessionUser.email;
+    return { id: sessionUser.userId, name, email: sessionUser.email, role: "viewer" };
+  }
+
   const name = sessionUser.email.split("@")[0] ?? sessionUser.email;
-
-  return {
-    id: sessionUser.userId,
-    name,
-    email: sessionUser.email,
-    role: tournamentRole,
-  };
+  return { id: sessionUser.userId, name, email: sessionUser.email, role: tournamentRole };
 }
 
 export async function canManageAdminUsers() {
@@ -82,22 +87,14 @@ export function isAdminRole(value: string): value is AdminRole {
 
 // ─── Granular permissions ─────────────────────────────────────────────────────
 
-export const adminPermissionTypes = ["tournaments", "schedule", "scores", "check_in"] as const;
-export type AdminPermissionType = (typeof adminPermissionTypes)[number];
+export const adminPermissionTypes = TOURNAMENT_PERMISSIONS;
+export type AdminPermissionType = (typeof TOURNAMENT_PERMISSIONS)[number];
 
-export const permissionLabels: Record<AdminPermissionType, string> = {
-  tournaments: "Tournament management",
-  schedule: "Schedule & templates",
-  scores: "Score entry",
-  check_in: "Check-in",
-};
+export const permissionLabels = PERMISSION_LABELS.tournament as Record<AdminPermissionType, string>;
 
 export async function getUserPermissions(userId: string): Promise<Set<AdminPermissionType>> {
-  const rows = await prisma.adminPermission.findMany({
-    where: { userId },
-    select: { permission: true },
-  });
-  return new Set(rows.map((r) => r.permission as AdminPermissionType));
+  const perms = await getUserAppPermissions(userId, "tournament");
+  return perms as Set<AdminPermissionType>;
 }
 
 export async function hasPermission(permission: AdminPermissionType): Promise<boolean> {

@@ -1,6 +1,7 @@
 import { History } from "lucide-react";
 import { SectionCard } from "@/components/admin/section-card";
 import { getGlobalAuditLog } from "@/lib/admin-audit";
+import { requireAdminPermission } from "@/lib/permissions";
 
 function formatDate(value: Date) {
   return new Intl.DateTimeFormat("en-GB", {
@@ -22,6 +23,7 @@ function formatValue(value: unknown) {
 }
 
 export default async function AuditPage() {
+  await requireAdminPermission("audit");
   const entries = await getGlobalAuditLog(150);
 
   return (

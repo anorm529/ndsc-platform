@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { logAdminAudit } from "@/lib/admin-audit";
 import { requireAdminUser } from "@/lib/admin-session";
+import { assertAdminPermission } from "@/lib/permissions";
 import { dbQuery } from "@/lib/db";
 
 function requireConfirmation(formData: FormData, expected: string) {
@@ -14,6 +15,7 @@ function requireConfirmation(formData: FormData, expected: string) {
 }
 
 export async function deleteExpiredSessionsAction(formData: FormData) {
+  await assertAdminPermission("cleanup");
   const adminUser = await requireAdminUser();
   requireConfirmation(formData, "DELETE SESSIONS");
 
@@ -33,6 +35,7 @@ export async function deleteExpiredSessionsAction(formData: FormData) {
 }
 
 export async function deleteExpiredResetTokensAction(formData: FormData) {
+  await assertAdminPermission("cleanup");
   const adminUser = await requireAdminUser();
   requireConfirmation(formData, "DELETE TOKENS");
 
@@ -54,6 +57,7 @@ export async function deleteExpiredResetTokensAction(formData: FormData) {
 }
 
 export async function deleteOldEmailEventsAction(formData: FormData) {
+  await assertAdminPermission("cleanup");
   const adminUser = await requireAdminUser();
   requireConfirmation(formData, "DELETE EMAIL EVENTS");
 

@@ -1,7 +1,9 @@
 import { BarracudasDashboard } from "@/components/admin/barracudas-dashboard";
 import { getBarracudasPlayers, type BarracudasPlayer } from "@/lib/barracudas";
+import { requireAdminPermission } from "@/lib/permissions";
 
 export default async function BarracudasPage() {
+  await requireAdminPermission("barracudas");
   let initialPlayers: BarracudasPlayer[] = [];
   let initialError = "";
 
