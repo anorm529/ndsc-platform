@@ -8,7 +8,7 @@ export default async function LoginPage() {
 
   return (
     <main className="council-grid-bg relative flex min-h-screen items-center justify-center overflow-hidden px-6 py-10">
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(17,114,132,0.14),transparent_28%),linear-gradient(180deg,rgba(2,10,20,0.35)_0%,rgba(2,8,16,0)_20%,rgba(2,8,16,0.55)_100%)]" />
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(20,184,166,0.08),transparent_40%)]" />
 
       <section className="council-panel relative z-10 w-full max-w-[52rem] rounded-[2rem] px-6 py-10 sm:px-10 sm:py-14">
         <div className="mx-auto flex max-w-[44rem] flex-col items-center text-center">

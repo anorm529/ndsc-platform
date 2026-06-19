@@ -29,7 +29,7 @@ export default async function AccountsPage() {
         </div>
         <Link
           href="/council/treasurer/accounts/new"
-          className="flex items-center gap-2 rounded-xl bg-[color:var(--accent-muted)] px-4 py-2.5 text-[0.85rem] font-medium text-[color:var(--accent)] hover:bg-[rgba(29,215,207,0.2)]"
+          className="flex items-center gap-2 rounded-xl bg-[color:var(--accent-muted)] px-4 py-2.5 text-[0.85rem] font-medium text-[color:var(--accent)] hover:bg-[rgba(20,184,166,0.2)]"
         >
           <Plus className="h-4 w-4" />
           New account
@@ -53,7 +53,7 @@ export default async function AccountsPage() {
                 <Wallet className="h-5 w-5 text-[color:var(--accent)]" />
               </div>
               <div className="min-w-0 flex-1">
-                <p className="truncate text-[0.92rem] font-medium text-white group-hover:text-[color:var(--accent)]">
+                <p className="truncate text-[0.92rem] font-medium text-slate-800 group-hover:text-[color:var(--accent)]">
                   {acc.name}
                 </p>
                 {acc.description ? (

@@ -63,14 +63,14 @@ export default async function AccountDetailPage({ params }: { params: Promise<{ 
 
   return (
     <div className="max-w-3xl space-y-6">
-      <Link href="/council/treasurer/accounts" className="flex items-center gap-2 text-[0.82rem] text-[color:var(--muted-foreground)] hover:text-white">
+      <Link href="/council/treasurer/accounts" className="flex items-center gap-2 text-[0.82rem] text-[color:var(--muted-foreground)] hover:text-slate-900">
         <ArrowLeft className="h-3.5 w-3.5" />
         Accounts
       </Link>
 
       {/* Account header */}
       <div className="council-panel rounded-2xl border p-5">
-        <h2 className="text-[1.1rem] font-semibold text-white">{account.name}</h2>
+        <h2 className="text-[1.1rem] font-semibold text-slate-800">{account.name}</h2>
         {account.description ? (
           <p className="mt-1 text-[0.82rem] text-[color:var(--muted-foreground)]">{account.description}</p>
         ) : null}
@@ -94,7 +94,7 @@ export default async function AccountDetailPage({ params }: { params: Promise<{ 
 
       {/* Add transaction form */}
       <section className="council-panel rounded-2xl border p-5">
-        <h3 className="mb-4 flex items-center gap-2 text-[0.88rem] font-semibold text-white">
+        <h3 className="mb-4 flex items-center gap-2 text-[0.88rem] font-semibold text-slate-800">
           <Plus className="h-4 w-4 text-[color:var(--accent)]" />
           Add transaction
         </h3>
@@ -103,7 +103,7 @@ export default async function AccountDetailPage({ params }: { params: Promise<{ 
             <select
               name="type"
               required
-              className="col-span-2 rounded-xl border border-[color:var(--border)] bg-[rgba(10,24,41,0.6)] px-3 py-2.5 text-[0.85rem] text-white outline-none focus:border-[color:var(--border-strong)] sm:col-span-1"
+              className="col-span-2 rounded-xl border border-[color:var(--border)] bg-white px-3 py-2.5 text-[0.85rem] text-slate-800 outline-none focus:border-[color:var(--border-strong)] sm:col-span-1"
             >
               <option value="income">Income</option>
               <option value="expense">Expense</option>
@@ -115,11 +115,11 @@ export default async function AccountDetailPage({ params }: { params: Promise<{ 
               min="0.01"
               required
               placeholder="Amount (£)"
-              className="col-span-2 rounded-xl border border-[color:var(--border)] bg-[rgba(10,24,41,0.6)] px-3 py-2.5 text-[0.85rem] text-white outline-none placeholder:text-[#4a5568] focus:border-[color:var(--border-strong)] sm:col-span-1"
+              className="col-span-2 rounded-xl border border-[color:var(--border)] bg-white px-3 py-2.5 text-[0.85rem] text-slate-800 outline-none placeholder:text-slate-400 focus:border-[color:var(--border-strong)] sm:col-span-1"
             />
             <select
               name="category"
-              className="col-span-2 rounded-xl border border-[color:var(--border)] bg-[rgba(10,24,41,0.6)] px-3 py-2.5 text-[0.85rem] text-white outline-none focus:border-[color:var(--border-strong)] sm:col-span-1"
+              className="col-span-2 rounded-xl border border-[color:var(--border)] bg-white px-3 py-2.5 text-[0.85rem] text-slate-800 outline-none focus:border-[color:var(--border-strong)] sm:col-span-1"
             >
               {CATEGORIES.map((c) => (
                 <option key={c} value={c}>{c.replace(/_/g, " ")}</option>
@@ -130,7 +130,7 @@ export default async function AccountDetailPage({ params }: { params: Promise<{ 
               type="date"
               required
               defaultValue={new Date().toISOString().split("T")[0]}
-              className="col-span-2 rounded-xl border border-[color:var(--border)] bg-[rgba(10,24,41,0.6)] px-3 py-2.5 text-[0.85rem] text-white outline-none focus:border-[color:var(--border-strong)] sm:col-span-1"
+              className="col-span-2 rounded-xl border border-[color:var(--border)] bg-white px-3 py-2.5 text-[0.85rem] text-slate-800 outline-none focus:border-[color:var(--border-strong)] sm:col-span-1"
             />
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
@@ -138,17 +138,17 @@ export default async function AccountDetailPage({ params }: { params: Promise<{ 
               name="description"
               required
               placeholder="Description *"
-              className="rounded-xl border border-[color:var(--border)] bg-[rgba(10,24,41,0.6)] px-3 py-2.5 text-[0.85rem] text-white outline-none placeholder:text-[#4a5568] focus:border-[color:var(--border-strong)]"
+              className="rounded-xl border border-[color:var(--border)] bg-white px-3 py-2.5 text-[0.85rem] text-slate-800 outline-none placeholder:text-slate-400 focus:border-[color:var(--border-strong)]"
             />
             <input
               name="reference"
               placeholder="Reference (invoice/receipt)"
-              className="rounded-xl border border-[color:var(--border)] bg-[rgba(10,24,41,0.6)] px-3 py-2.5 text-[0.85rem] text-white outline-none placeholder:text-[#4a5568] focus:border-[color:var(--border-strong)]"
+              className="rounded-xl border border-[color:var(--border)] bg-white px-3 py-2.5 text-[0.85rem] text-slate-800 outline-none placeholder:text-slate-400 focus:border-[color:var(--border-strong)]"
             />
           </div>
           <button
             type="submit"
-            className="w-full rounded-xl bg-[linear-gradient(180deg,#3b837d_0%,#31756e_100%)] py-2.5 text-[0.85rem] font-medium text-[#04101a] hover:brightness-105"
+            className="w-full rounded-xl bg-[linear-gradient(180deg,#0d9488_0%,#0f766e_100%)] py-2.5 text-[0.85rem] font-medium text-white hover:brightness-105"
           >
             Add transaction
           </button>
@@ -157,7 +157,7 @@ export default async function AccountDetailPage({ params }: { params: Promise<{ 
 
       {/* Transaction history */}
       <section className="council-panel rounded-2xl border p-5">
-        <h3 className="mb-4 text-[0.88rem] font-semibold text-white">
+        <h3 className="mb-4 text-[0.88rem] font-semibold text-slate-800">
           Transaction history ({transactions.length})
         </h3>
 
@@ -173,7 +173,7 @@ export default async function AccountDetailPage({ params }: { params: Promise<{ 
                   <ArrowDownCircle className="h-4 w-4 shrink-0 text-[color:var(--danger)]" />
                 )}
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-[0.88rem] font-medium text-white">{tx.description}</p>
+                  <p className="truncate text-[0.88rem] font-medium text-slate-800">{tx.description}</p>
                   <p className="text-[0.72rem] text-[color:var(--muted-foreground)]">
                     {fmtDate(tx.date)} · {tx.category.replace(/_/g, " ")}
                     {tx.reference ? ` · ${tx.reference}` : ""}
@@ -189,7 +189,7 @@ export default async function AccountDetailPage({ params }: { params: Promise<{ 
                   <input type="hidden" name="txId" value={tx.id} />
                   <button
                     type="submit"
-                    className="rounded-lg p-1.5 text-[#4a5568] hover:bg-[rgba(239,75,95,0.1)] hover:text-[color:var(--danger)]"
+                    className="rounded-lg p-1.5 text-[#374151] hover:bg-[rgba(239,75,95,0.1)] hover:text-[color:var(--danger)]"
                     title="Delete"
                   >
                     <Trash2 className="h-3.5 w-3.5" />

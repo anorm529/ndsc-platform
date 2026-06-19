@@ -32,7 +32,7 @@ export default async function NewMeetingPage() {
   return (
     <div className="max-w-xl">
       <form action={handleCreate} className="council-panel rounded-2xl border p-6 space-y-5">
-        <h2 className="text-[0.95rem] font-semibold text-white">Schedule a meeting</h2>
+        <h2 className="text-[0.95rem] font-semibold text-slate-800">Schedule a meeting</h2>
 
         <label className="block space-y-1.5">
           <span className="text-[0.8rem] font-medium text-[color:var(--muted-foreground)]">Title *</span>
@@ -40,7 +40,7 @@ export default async function NewMeetingPage() {
             name="title"
             required
             placeholder="e.g. June Council Meeting"
-            className="w-full rounded-xl border border-[color:var(--border)] bg-[rgba(10,24,41,0.6)] px-4 py-3 text-[0.9rem] text-white outline-none placeholder:text-[#4a5568] focus:border-[color:var(--border-strong)]"
+            className="w-full rounded-xl border border-[color:var(--border)] bg-white px-4 py-3 text-[0.9rem] text-slate-800 outline-none placeholder:text-slate-400 focus:border-[color:var(--border-strong)]"
           />
         </label>
 
@@ -49,7 +49,7 @@ export default async function NewMeetingPage() {
             <span className="text-[0.8rem] font-medium text-[color:var(--muted-foreground)]">Type</span>
             <select
               name="type"
-              className="w-full rounded-xl border border-[color:var(--border)] bg-[rgba(10,24,41,0.6)] px-3 py-3 text-[0.88rem] text-white outline-none focus:border-[color:var(--border-strong)]"
+              className="w-full rounded-xl border border-[color:var(--border)] bg-white px-3 py-3 text-[0.88rem] text-slate-800 outline-none focus:border-[color:var(--border-strong)]"
             >
               <option value="council">Council</option>
               <option value="agm">AGM</option>
@@ -63,7 +63,7 @@ export default async function NewMeetingPage() {
               type="date"
               required
               defaultValue={today}
-              className="w-full rounded-xl border border-[color:var(--border)] bg-[rgba(10,24,41,0.6)] px-3 py-3 text-[0.88rem] text-white outline-none focus:border-[color:var(--border-strong)]"
+              className="w-full rounded-xl border border-[color:var(--border)] bg-white px-3 py-3 text-[0.88rem] text-slate-800 outline-none focus:border-[color:var(--border-strong)]"
             />
           </label>
           <label className="block space-y-1.5">
@@ -72,7 +72,7 @@ export default async function NewMeetingPage() {
               name="time"
               type="time"
               defaultValue="19:00"
-              className="w-full rounded-xl border border-[color:var(--border)] bg-[rgba(10,24,41,0.6)] px-3 py-3 text-[0.88rem] text-white outline-none focus:border-[color:var(--border-strong)]"
+              className="w-full rounded-xl border border-[color:var(--border)] bg-white px-3 py-3 text-[0.88rem] text-slate-800 outline-none focus:border-[color:var(--border-strong)]"
             />
           </label>
         </div>
@@ -82,7 +82,7 @@ export default async function NewMeetingPage() {
           <input
             name="location"
             placeholder="e.g. Club house, Zoom"
-            className="w-full rounded-xl border border-[color:var(--border)] bg-[rgba(10,24,41,0.6)] px-4 py-3 text-[0.9rem] text-white outline-none placeholder:text-[#4a5568] focus:border-[color:var(--border-strong)]"
+            className="w-full rounded-xl border border-[color:var(--border)] bg-white px-4 py-3 text-[0.9rem] text-slate-800 outline-none placeholder:text-slate-400 focus:border-[color:var(--border-strong)]"
           />
         </label>
 
@@ -92,20 +92,20 @@ export default async function NewMeetingPage() {
             name="agenda"
             rows={5}
             placeholder="Meeting agenda…"
-            className="w-full rounded-xl border border-[color:var(--border)] bg-[rgba(10,24,41,0.6)] px-4 py-3 text-[0.88rem] text-white outline-none placeholder:text-[#4a5568] focus:border-[color:var(--border-strong)] resize-y"
+            className="w-full rounded-xl border border-[color:var(--border)] bg-white px-4 py-3 text-[0.88rem] text-slate-800 outline-none placeholder:text-slate-400 focus:border-[color:var(--border-strong)] resize-y"
           />
         </label>
 
         <div className="flex gap-3">
           <button
             type="submit"
-            className="flex-1 rounded-xl bg-[linear-gradient(180deg,#3b837d_0%,#31756e_100%)] py-3 text-[0.9rem] font-medium text-[#04101a] hover:brightness-105"
+            className="flex-1 rounded-xl bg-[linear-gradient(180deg,#0d9488_0%,#0f766e_100%)] py-3 text-[0.9rem] font-medium text-white hover:brightness-105"
           >
             Schedule meeting
           </button>
           <a
             href="/council/meetings"
-            className="rounded-xl border border-[color:var(--border)] px-5 py-3 text-[0.9rem] text-[color:var(--muted-foreground)] hover:text-white"
+            className="rounded-xl border border-[color:var(--border)] px-5 py-3 text-[0.9rem] text-[color:var(--muted-foreground)] hover:text-slate-900"
           >
             Cancel
           </a>

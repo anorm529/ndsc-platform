@@ -34,12 +34,12 @@ export default async function MeetingsPage() {
     <div className="max-w-3xl space-y-6">
       <div className="flex items-center justify-between">
         <p className="text-[0.85rem] text-[color:var(--muted-foreground)]">
-          <span className="font-semibold text-white">{meetings.length}</span> meetings total
+          <span className="font-semibold text-slate-800">{meetings.length}</span> meetings total
         </p>
         {canManage ? (
           <Link
             href="/council/meetings/new"
-            className="flex items-center gap-2 rounded-xl bg-[color:var(--accent-muted)] px-4 py-2.5 text-[0.85rem] font-medium text-[color:var(--accent)] hover:bg-[rgba(29,215,207,0.2)]"
+            className="flex items-center gap-2 rounded-xl bg-[color:var(--accent-muted)] px-4 py-2.5 text-[0.85rem] font-medium text-[color:var(--accent)] hover:bg-[rgba(20,184,166,0.2)]"
           >
             <Plus className="h-4 w-4" />
             New meeting
@@ -57,7 +57,7 @@ export default async function MeetingsPage() {
       ) : (
         Array.from(groups.entries()).map(([monthLabel, monthMeetings]) => (
           <section key={monthLabel}>
-            <h2 className="mb-3 text-[0.75rem] font-semibold uppercase tracking-widest text-[#4a5568]">
+            <h2 className="mb-3 text-[0.75rem] font-semibold uppercase tracking-widest text-[#374151]">
               {monthLabel}
             </h2>
             <div className="space-y-2">
@@ -70,16 +70,16 @@ export default async function MeetingsPage() {
                     href={`/council/meetings/${m.id}`}
                     className="council-panel group flex items-center gap-4 rounded-xl border p-4 hover:border-[color:var(--border-strong)] hover:bg-[rgba(29,215,207,0.02)]"
                   >
-                    <div className="flex h-12 w-12 shrink-0 flex-col items-center justify-center rounded-xl bg-[rgba(29,215,207,0.08)]">
+                    <div className="flex h-12 w-12 shrink-0 flex-col items-center justify-center rounded-xl bg-[rgba(20,184,166,0.08)]">
                       <span className="text-[0.55rem] font-bold uppercase text-[color:var(--accent)]">
                         {m.scheduledAt.toLocaleDateString("en-GB", { month: "short" })}
                       </span>
-                      <span className="text-[1.1rem] font-bold leading-tight text-white">
+                      <span className="text-[1.1rem] font-bold leading-tight text-slate-800">
                         {m.scheduledAt.getDate()}
                       </span>
                     </div>
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-[0.92rem] font-medium text-white group-hover:text-[color:var(--accent)]">
+                      <p className="truncate text-[0.92rem] font-medium text-slate-800 group-hover:text-[color:var(--accent)]">
                         {m.title}
                       </p>
                       <p className="text-[0.75rem] text-[color:var(--muted-foreground)]">

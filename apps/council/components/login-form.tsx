@@ -42,7 +42,7 @@ export function LoginForm() {
       <button
         type="submit"
         disabled={isPending}
-        className="council-accent-glow flex h-[4.75rem] w-full items-center justify-center gap-3 rounded-[1.75rem] bg-[linear-gradient(180deg,#3b837d_0%,#31756e_100%)] text-[1.8rem] font-medium tracking-[-0.04em] text-[#04101a] hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-70 sm:h-20 sm:text-[1.15rem]"
+        className="council-accent-glow flex h-[4.75rem] w-full items-center justify-center gap-3 rounded-[1.75rem] bg-[linear-gradient(180deg,#0d9488_0%,#0f766e_100%)] text-[1.8rem] font-medium tracking-[-0.04em] text-white hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-70 sm:h-20 sm:text-[1.15rem]"
       >
         <Users className="h-5 w-5" />
         {isPending ? "Signing in…" : "Sign In"}

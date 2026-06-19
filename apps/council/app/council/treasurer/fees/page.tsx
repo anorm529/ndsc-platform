@@ -31,7 +31,7 @@ export default async function FeesSeasonsPage() {
     <div className="max-w-3xl space-y-6">
       {/* Create season */}
       <section className="council-panel rounded-2xl border p-5">
-        <h2 className="mb-4 text-[0.92rem] font-semibold text-white flex items-center gap-2">
+        <h2 className="mb-4 text-[0.92rem] font-semibold text-slate-800 flex items-center gap-2">
           <Plus className="h-4 w-4 text-[color:var(--accent)]" />
           New fee season
         </h2>
@@ -42,14 +42,14 @@ export default async function FeesSeasonsPage() {
             defaultValue={currentYear}
             required
             placeholder="Year"
-            className="rounded-xl border border-[color:var(--border)] bg-[rgba(10,24,41,0.6)] px-3 py-2.5 text-[0.85rem] text-white outline-none placeholder:text-[#4a5568] focus:border-[color:var(--border-strong)]"
+            className="rounded-xl border border-[color:var(--border)] bg-white px-3 py-2.5 text-[0.85rem] text-slate-800 outline-none placeholder:text-slate-400 focus:border-[color:var(--border-strong)]"
           />
           <input
             name="label"
             required
             placeholder="Label (e.g. 2026 Season)"
             defaultValue={`${currentYear} Season`}
-            className="rounded-xl border border-[color:var(--border)] bg-[rgba(10,24,41,0.6)] px-3 py-2.5 text-[0.85rem] text-white outline-none placeholder:text-[#4a5568] focus:border-[color:var(--border-strong)]"
+            className="rounded-xl border border-[color:var(--border)] bg-white px-3 py-2.5 text-[0.85rem] text-slate-800 outline-none placeholder:text-slate-400 focus:border-[color:var(--border-strong)]"
           />
           <input
             name="standard_fee"
@@ -57,16 +57,16 @@ export default async function FeesSeasonsPage() {
             step="0.01"
             min="0"
             placeholder="Standard fee (£)"
-            className="rounded-xl border border-[color:var(--border)] bg-[rgba(10,24,41,0.6)] px-3 py-2.5 text-[0.85rem] text-white outline-none placeholder:text-[#4a5568] focus:border-[color:var(--border-strong)]"
+            className="rounded-xl border border-[color:var(--border)] bg-white px-3 py-2.5 text-[0.85rem] text-slate-800 outline-none placeholder:text-slate-400 focus:border-[color:var(--border-strong)]"
           />
           <input
             name="due_date"
             type="date"
-            className="rounded-xl border border-[color:var(--border)] bg-[rgba(10,24,41,0.6)] px-3 py-2.5 text-[0.85rem] text-white outline-none focus:border-[color:var(--border-strong)]"
+            className="rounded-xl border border-[color:var(--border)] bg-white px-3 py-2.5 text-[0.85rem] text-slate-800 outline-none focus:border-[color:var(--border-strong)]"
           />
           <button
             type="submit"
-            className="sm:col-span-2 rounded-xl bg-[linear-gradient(180deg,#3b837d_0%,#31756e_100%)] py-2.5 text-[0.88rem] font-medium text-[#04101a] hover:brightness-105"
+            className="sm:col-span-2 rounded-xl bg-[linear-gradient(180deg,#0d9488_0%,#0f766e_100%)] py-2.5 text-[0.88rem] font-medium text-white hover:brightness-105"
           >
             Create season
           </button>
@@ -90,7 +90,7 @@ export default async function FeesSeasonsPage() {
                 <PoundSterling className="h-5 w-5 text-[color:var(--accent)]" />
               </div>
               <div className="min-w-0 flex-1">
-                <p className="text-[0.92rem] font-medium text-white group-hover:text-[color:var(--accent)]">
+                <p className="text-[0.92rem] font-medium text-slate-800 group-hover:text-[color:var(--accent)]">
                   {s.label}
                 </p>
                 <p className="text-[0.75rem] text-[color:var(--muted-foreground)]">
@@ -99,7 +99,7 @@ export default async function FeesSeasonsPage() {
                 </p>
               </div>
               {s.isActive ? (
-                <span className="shrink-0 flex items-center gap-1 rounded-full bg-[rgba(24,213,141,0.12)] px-2.5 py-1 text-[0.7rem] font-medium text-[color:var(--success)]">
+                <span className="shrink-0 flex items-center gap-1 rounded-full bg-[rgba(16,185,129,0.12)] px-2.5 py-1 text-[0.7rem] font-medium text-[color:var(--success)]">
                   <CheckCircle2 className="h-3 w-3" />
                   Active
                 </span>

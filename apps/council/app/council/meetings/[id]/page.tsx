@@ -10,7 +10,7 @@ import { getMeetingActions, createActionItem, updateMeeting } from "@/lib/meetin
 import { getAllActiveMembers, memberDisplayName } from "@/lib/main-db";
 
 const PRIORITY_COLOURS = {
-  high:   "bg-[rgba(239,75,95,0.14)] text-[color:var(--danger)]",
+  high:   "bg-[rgba(239,68,68,0.14)] text-[color:var(--danger)]",
   medium: "bg-[rgba(233,185,62,0.14)] text-[color:var(--warning)]",
   low:    "bg-[rgba(115,145,176,0.12)] text-[color:var(--muted-foreground)]",
 };
@@ -64,7 +64,7 @@ export default async function MeetingDetailPage({ params }: { params: Promise<{ 
 
   return (
     <div className="max-w-3xl space-y-6">
-      <Link href="/council/meetings" className="flex items-center gap-2 text-[0.82rem] text-[color:var(--muted-foreground)] hover:text-white">
+      <Link href="/council/meetings" className="flex items-center gap-2 text-[0.82rem] text-[color:var(--muted-foreground)] hover:text-slate-900">
         <ArrowLeft className="h-3.5 w-3.5" />
         Meetings
       </Link>
@@ -73,7 +73,7 @@ export default async function MeetingDetailPage({ params }: { params: Promise<{ 
       <div className="council-panel rounded-2xl border p-5">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <h2 className="text-[1.15rem] font-semibold text-white">{meeting.title}</h2>
+            <h2 className="text-[1.15rem] font-semibold text-slate-800">{meeting.title}</h2>
             <div className="mt-2 flex flex-wrap gap-3 text-[0.78rem] text-[color:var(--muted-foreground)]">
               <span className="flex items-center gap-1">
                 <CalendarDays className="h-3.5 w-3.5" />
@@ -91,8 +91,8 @@ export default async function MeetingDetailPage({ params }: { params: Promise<{ 
           </div>
           <span className={[
             "shrink-0 rounded-full px-2.5 py-1 text-[0.7rem] font-medium capitalize",
-            meeting.status === "scheduled" ? "bg-[rgba(29,215,207,0.1)] text-[color:var(--accent)]" :
-            meeting.status === "completed" ? "bg-[rgba(24,213,141,0.1)] text-[color:var(--success)]" :
+            meeting.status === "scheduled" ? "bg-[rgba(20,184,166,0.1)] text-[color:var(--accent)]" :
+            meeting.status === "completed" ? "bg-[rgba(16,185,129,0.1)] text-[color:var(--success)]" :
             "bg-[rgba(115,145,176,0.1)] text-[color:var(--muted-foreground)]",
           ].join(" ")}>
             {meeting.status}
@@ -101,8 +101,8 @@ export default async function MeetingDetailPage({ params }: { params: Promise<{ 
 
         {/* Agenda */}
         {meeting.agenda ? (
-          <div className="mt-4 rounded-xl bg-[rgba(10,24,41,0.5)] p-4">
-            <p className="mb-1.5 flex items-center gap-1.5 text-[0.72rem] font-semibold uppercase tracking-widest text-[#4a5568]">
+          <div className="mt-4 rounded-xl bg-slate-50 p-4">
+            <p className="mb-1.5 flex items-center gap-1.5 text-[0.72rem] font-semibold uppercase tracking-widest text-[#374151]">
               <FileText className="h-3 w-3" />
               Agenda
             </p>
@@ -114,7 +114,7 @@ export default async function MeetingDetailPage({ params }: { params: Promise<{ 
       {/* Minutes */}
       {canManage ? (
         <section className="council-panel rounded-2xl border p-5">
-          <h3 className="mb-3 text-[0.88rem] font-semibold text-white flex items-center gap-2">
+          <h3 className="mb-3 text-[0.88rem] font-semibold text-slate-800 flex items-center gap-2">
             <FileText className="h-4 w-4 text-[color:var(--accent)]" />
             Minutes
           </h3>
@@ -124,13 +124,13 @@ export default async function MeetingDetailPage({ params }: { params: Promise<{ 
               rows={8}
               defaultValue={meeting.minutes ?? ""}
               placeholder="Record meeting minutes here…"
-              className="w-full rounded-xl border border-[color:var(--border)] bg-[rgba(10,24,41,0.6)] px-4 py-3 text-[0.88rem] text-white outline-none placeholder:text-[#4a5568] focus:border-[color:var(--border-strong)] resize-y"
+              className="w-full rounded-xl border border-[color:var(--border)] bg-white px-4 py-3 text-[0.88rem] text-slate-800 outline-none placeholder:text-slate-400 focus:border-[color:var(--border-strong)] resize-y"
             />
             <div className="flex items-center gap-3">
               <select
                 name="status"
                 defaultValue={meeting.status}
-                className="rounded-xl border border-[color:var(--border)] bg-[rgba(10,24,41,0.6)] px-3 py-2.5 text-[0.85rem] text-white outline-none"
+                className="rounded-xl border border-[color:var(--border)] bg-white px-3 py-2.5 text-[0.85rem] text-slate-800 outline-none"
               >
                 <option value="scheduled">Scheduled</option>
                 <option value="completed">Completed</option>
@@ -138,7 +138,7 @@ export default async function MeetingDetailPage({ params }: { params: Promise<{ 
               </select>
               <button
                 type="submit"
-                className="flex-1 rounded-xl bg-[linear-gradient(180deg,#3b837d_0%,#31756e_100%)] py-2.5 text-[0.88rem] font-medium text-[#04101a] hover:brightness-105"
+                className="flex-1 rounded-xl bg-[linear-gradient(180deg,#0d9488_0%,#0f766e_100%)] py-2.5 text-[0.88rem] font-medium text-white hover:brightness-105"
               >
                 Save minutes
               </button>
@@ -147,7 +147,7 @@ export default async function MeetingDetailPage({ params }: { params: Promise<{ 
         </section>
       ) : meeting.minutes ? (
         <section className="council-panel rounded-2xl border p-5">
-          <h3 className="mb-3 text-[0.88rem] font-semibold text-white flex items-center gap-2">
+          <h3 className="mb-3 text-[0.88rem] font-semibold text-slate-800 flex items-center gap-2">
             <FileText className="h-4 w-4 text-[color:var(--accent)]" />
             Minutes
           </h3>
@@ -157,7 +157,7 @@ export default async function MeetingDetailPage({ params }: { params: Promise<{ 
 
       {/* Action items from this meeting */}
       <section className="council-panel rounded-2xl border p-5">
-        <h3 className="mb-4 text-[0.88rem] font-semibold text-white flex items-center gap-2">
+        <h3 className="mb-4 text-[0.88rem] font-semibold text-slate-800 flex items-center gap-2">
           <CheckSquare className="h-4 w-4 text-[color:var(--accent)]" />
           Action items ({actions.length})
         </h3>
@@ -171,11 +171,11 @@ export default async function MeetingDetailPage({ params }: { params: Promise<{ 
                 name="title"
                 required
                 placeholder="Action *"
-                className="sm:col-span-2 rounded-lg border border-[color:var(--border)] bg-[rgba(10,24,41,0.6)] px-3 py-2 text-[0.82rem] text-white outline-none placeholder:text-[#4a5568] focus:border-[color:var(--border-strong)]"
+                className="sm:col-span-2 rounded-lg border border-[color:var(--border)] bg-white px-3 py-2 text-[0.82rem] text-slate-800 outline-none placeholder:text-slate-400 focus:border-[color:var(--border-strong)]"
               />
               <select
                 name="priority"
-                className="rounded-lg border border-[color:var(--border)] bg-[rgba(10,24,41,0.6)] px-3 py-2 text-[0.82rem] text-white outline-none"
+                className="rounded-lg border border-[color:var(--border)] bg-white px-3 py-2 text-[0.82rem] text-slate-800 outline-none"
               >
                 <option value="medium">Medium priority</option>
                 <option value="high">High priority</option>
@@ -185,7 +185,7 @@ export default async function MeetingDetailPage({ params }: { params: Promise<{ 
             <div className="grid gap-2 sm:grid-cols-2">
               <select
                 name="assignedTo"
-                className="rounded-lg border border-[color:var(--border)] bg-[rgba(10,24,41,0.6)] px-3 py-2 text-[0.82rem] text-white outline-none"
+                className="rounded-lg border border-[color:var(--border)] bg-white px-3 py-2 text-[0.82rem] text-slate-800 outline-none"
               >
                 <option value="">Unassigned</option>
                 {members.map((m) => (
@@ -195,17 +195,17 @@ export default async function MeetingDetailPage({ params }: { params: Promise<{ 
               <input
                 name="dueDate"
                 type="date"
-                className="rounded-lg border border-[color:var(--border)] bg-[rgba(10,24,41,0.6)] px-3 py-2 text-[0.82rem] text-white outline-none"
+                className="rounded-lg border border-[color:var(--border)] bg-white px-3 py-2 text-[0.82rem] text-slate-800 outline-none"
               />
             </div>
             <input
               name="description"
               placeholder="Description (optional)"
-              className="w-full rounded-lg border border-[color:var(--border)] bg-[rgba(10,24,41,0.6)] px-3 py-2 text-[0.82rem] text-white outline-none placeholder:text-[#4a5568] focus:border-[color:var(--border-strong)]"
+              className="w-full rounded-lg border border-[color:var(--border)] bg-white px-3 py-2 text-[0.82rem] text-slate-800 outline-none placeholder:text-slate-400 focus:border-[color:var(--border-strong)]"
             />
             <button
               type="submit"
-              className="w-full rounded-lg bg-[rgba(29,215,207,0.12)] py-2 text-[0.82rem] font-medium text-[color:var(--accent)] hover:bg-[rgba(29,215,207,0.2)]"
+              className="w-full rounded-lg bg-[rgba(20,184,166,0.12)] py-2 text-[0.82rem] font-medium text-[color:var(--accent)] hover:bg-[rgba(20,184,166,0.2)]"
             >
               <Plus className="mr-1 inline h-3.5 w-3.5" />
               Add action
@@ -220,7 +220,7 @@ export default async function MeetingDetailPage({ params }: { params: Promise<{ 
             {actions.map((a) => {
               const assignedMember = a.assigned_to ? members.find((m) => m.id === a.assigned_to) : null;
               return (
-                <li key={a.id} className="flex items-start gap-3 rounded-xl border border-[color:var(--border)] bg-[rgba(10,24,41,0.4)] p-3">
+                <li key={a.id} className="flex items-start gap-3 rounded-xl border border-[color:var(--border)] bg-slate-50/50 p-3">
                   {a.status === "completed" ? (
                     <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-[color:var(--success)]" />
                   ) : a.due_date && new Date(a.due_date) < new Date() && a.status !== "cancelled" ? (
@@ -229,7 +229,7 @@ export default async function MeetingDetailPage({ params }: { params: Promise<{ 
                     <Clock className="mt-0.5 h-4 w-4 shrink-0 text-[color:var(--accent)]" />
                   )}
                   <div className="min-w-0 flex-1">
-                    <p className={["text-[0.88rem] font-medium", a.status === "completed" ? "line-through text-[color:var(--muted-foreground)]" : "text-white"].join(" ")}>
+                    <p className={["text-[0.88rem] font-medium", a.status === "completed" ? "line-through text-[color:var(--muted-foreground)]" : "text-slate-800"].join(" ")}>
                       {a.title}
                     </p>
                     {a.description ? (

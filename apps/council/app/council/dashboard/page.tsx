@@ -31,10 +31,10 @@ function StatCard({
   href?: string;
 }) {
   const colours = {
-    neutral: "border-[color:var(--border)] bg-[rgba(6,16,29,0.6)]",
-    success: "border-[rgba(24,213,141,0.2)] bg-[rgba(22,135,91,0.1)]",
-    warning: "border-[rgba(233,185,62,0.22)] bg-[rgba(94,68,16,0.12)]",
-    danger:  "border-[rgba(239,75,95,0.24)] bg-[rgba(125,22,38,0.12)]",
+    neutral: "border-[color:var(--border)] bg-[color:var(--panel)]",
+    success: "border-[rgba(16,185,129,0.2)] bg-[rgba(16,185,129,0.07)]",
+    warning: "border-[rgba(245,158,11,0.2)] bg-[rgba(245,158,11,0.07)]",
+    danger:  "border-[rgba(239,68,68,0.22)] bg-[rgba(239,68,68,0.07)]",
   };
   const iconColours = {
     neutral: "text-[color:var(--accent)]",
@@ -48,7 +48,7 @@ function StatCard({
       <div className="flex items-start justify-between gap-3">
         <div>
           <p className="text-[0.78rem] font-medium text-[color:var(--muted-foreground)]">{label}</p>
-          <p className="mt-1 text-[2rem] font-bold tracking-[-0.04em] text-white">{value}</p>
+          <p className="mt-1 text-[2rem] font-bold tracking-[-0.04em] text-slate-900">{value}</p>
         </div>
         <Icon className={`h-6 w-6 shrink-0 mt-0.5 ${iconColours[tone]}`} />
       </div>
@@ -118,7 +118,7 @@ export default async function DashboardPage() {
         {/* My open actions */}
         <section className="council-panel rounded-2xl border p-6">
           <div className="mb-4 flex items-center justify-between">
-            <h2 className="text-[0.95rem] font-semibold text-white flex items-center gap-2">
+            <h2 className="text-[0.95rem] font-semibold text-slate-800 flex items-center gap-2">
               <CheckSquare className="h-4 w-4 text-[color:var(--accent)]" />
               My open actions
             </h2>
@@ -137,7 +137,7 @@ export default async function DashboardPage() {
           ) : (
             <ul className="space-y-3">
               {myActions.map((a) => (
-                <li key={a.id} className="flex items-start gap-3 rounded-xl border border-[color:var(--border)] bg-[rgba(10,24,41,0.5)] p-3">
+                <li key={a.id} className="flex items-start gap-3 rounded-xl border border-[color:var(--border)] bg-slate-50 p-3">
                   <span
                     className={[
                       "mt-0.5 h-2 w-2 shrink-0 rounded-full",
@@ -147,7 +147,7 @@ export default async function DashboardPage() {
                     ].join(" ")}
                   />
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-[0.88rem] font-medium text-white">{a.title}</p>
+                    <p className="truncate text-[0.88rem] font-medium text-slate-800">{a.title}</p>
                     {a.meetingTitle ? (
                       <p className="text-[0.75rem] text-[color:var(--muted-foreground)]">
                         From: {a.meetingTitle}
@@ -168,7 +168,7 @@ export default async function DashboardPage() {
                   <span className={[
                     "shrink-0 rounded-full px-2 py-0.5 text-[0.65rem] font-medium",
                     a.status === "in_progress"
-                      ? "bg-[rgba(29,215,207,0.12)] text-[color:var(--accent)]"
+                      ? "bg-[rgba(20,184,166,0.12)] text-[color:var(--accent)]"
                       : "bg-[rgba(115,145,176,0.1)] text-[color:var(--muted-foreground)]",
                   ].join(" ")}>
                     {a.status === "in_progress" ? "In progress" : "Open"}
@@ -180,7 +180,7 @@ export default async function DashboardPage() {
 
           <Link
             href="/council/actions"
-            className="mt-4 block text-center text-[0.78rem] text-[color:var(--muted-foreground)] hover:text-white"
+            className="mt-4 block text-center text-[0.78rem] text-[color:var(--muted-foreground)] hover:text-slate-900"
           >
             View all actions →
           </Link>
@@ -189,7 +189,7 @@ export default async function DashboardPage() {
         {/* Upcoming meetings */}
         <section className="council-panel rounded-2xl border p-6">
           <div className="mb-4 flex items-center justify-between">
-            <h2 className="text-[0.95rem] font-semibold text-white flex items-center gap-2">
+            <h2 className="text-[0.95rem] font-semibold text-slate-800 flex items-center gap-2">
               <CalendarDays className="h-4 w-4 text-[color:var(--accent)]" />
               Upcoming meetings
             </h2>
@@ -211,7 +211,7 @@ export default async function DashboardPage() {
                 <li key={m.id}>
                   <Link
                     href={`/council/meetings/${m.id}`}
-                    className="flex items-start gap-4 rounded-xl border border-[color:var(--border)] bg-[rgba(10,24,41,0.5)] p-3 hover:border-[color:var(--border-strong)] hover:bg-[rgba(29,215,207,0.04)]"
+                    className="flex items-start gap-4 rounded-xl border border-[color:var(--border)] bg-slate-50 p-3 hover:border-[color:var(--border-strong)] hover:bg-[rgba(20,184,166,0.04)]"
                   >
                     <div className="flex h-10 w-10 shrink-0 flex-col items-center justify-center rounded-lg bg-[color:var(--accent-muted)] text-[color:var(--accent)]">
                       <span className="text-[0.6rem] font-bold uppercase">
@@ -222,7 +222,7 @@ export default async function DashboardPage() {
                       </span>
                     </div>
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-[0.88rem] font-medium text-white">{m.title}</p>
+                      <p className="truncate text-[0.88rem] font-medium text-slate-800">{m.title}</p>
                       <p className="text-[0.75rem] text-[color:var(--muted-foreground)]">
                         {m.scheduledAt.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}
                         {m.location ? ` · ${m.location}` : ""}
@@ -239,7 +239,7 @@ export default async function DashboardPage() {
 
           <Link
             href="/council/meetings"
-            className="mt-4 block text-center text-[0.78rem] text-[color:var(--muted-foreground)] hover:text-white"
+            className="mt-4 block text-center text-[0.78rem] text-[color:var(--muted-foreground)] hover:text-slate-900"
           >
             View all meetings →
           </Link>
@@ -249,7 +249,7 @@ export default async function DashboardPage() {
       {/* Treasurer — accounts + fee summary */}
       {(hasTreasurerAccess(user)) && accountBalances.length > 0 ? (
         <section className="council-panel rounded-2xl border p-6">
-          <h2 className="mb-4 text-[0.95rem] font-semibold text-white flex items-center gap-2">
+          <h2 className="mb-4 text-[0.95rem] font-semibold text-slate-800 flex items-center gap-2">
             <Wallet className="h-4 w-4 text-[color:var(--accent)]" />
             Club accounts
           </h2>
@@ -258,9 +258,9 @@ export default async function DashboardPage() {
               <Link
                 key={acc.id}
                 href={`/council/treasurer/accounts/${acc.id}`}
-                className="flex items-center justify-between rounded-xl border border-[color:var(--border)] bg-[rgba(10,24,41,0.5)] px-4 py-3 hover:border-[color:var(--border-strong)]"
+                className="flex items-center justify-between rounded-xl border border-[color:var(--border)] bg-slate-50 px-4 py-3 hover:border-[color:var(--border-strong)]"
               >
-                <span className="text-[0.88rem] text-white">{acc.name}</span>
+                <span className="text-[0.88rem] text-slate-800">{acc.name}</span>
                 <span className={[
                   "text-[0.95rem] font-semibold",
                   acc.balance >= 0 ? "text-[color:var(--success)]" : "text-[color:var(--danger)]",
@@ -271,10 +271,10 @@ export default async function DashboardPage() {
             ))}
           </div>
           {feeSummary ? (
-            <div className="mt-4 flex items-center gap-4 rounded-xl border border-[rgba(233,185,62,0.2)] bg-[rgba(94,68,16,0.1)] px-4 py-3">
+            <div className="mt-4 flex items-center gap-4 rounded-xl border border-[rgba(245,158,11,0.2)] bg-[rgba(245,158,11,0.07)] px-4 py-3">
               <TrendingUp className="h-5 w-5 shrink-0 text-[color:var(--warning)]" />
               <div className="min-w-0 flex-1">
-                <p className="text-[0.82rem] font-medium text-white">
+                <p className="text-[0.82rem] font-medium text-slate-800">
                   {feeSummary.label} — {fmtCurrency(feeSummary.totalPaid)} collected of {fmtCurrency(feeSummary.totalDue)}
                 </p>
                 <p className="text-[0.72rem] text-[color:var(--muted-foreground)]">

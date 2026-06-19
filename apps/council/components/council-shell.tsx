@@ -41,7 +41,7 @@ export function CouncilShell({
   const title = getTitle(pathname);
 
   return (
-    <div className="council-grid-bg min-h-screen text-white">
+    <div className="council-grid-bg min-h-screen text-[color:var(--foreground)]">
       <CouncilSidebar
         mobileOpen={mobileOpen}
         onClose={() => setMobileOpen(false)}
@@ -54,24 +54,24 @@ export function CouncilShell({
         <button
           type="button"
           aria-label="Close menu"
-          className="fixed inset-0 z-30 bg-[#020913]/70 backdrop-blur-sm lg:hidden"
+          className="fixed inset-0 z-30 bg-black/60 backdrop-blur-sm lg:hidden"
           onClick={() => setMobileOpen(false)}
         />
       ) : null}
 
       <div className="min-h-screen lg:pl-[var(--sidebar-width)]">
         {/* Top bar */}
-        <header className="sticky top-0 z-20 border-b border-[color:var(--border)] bg-[rgba(3,11,21,0.85)] px-4 py-4 backdrop-blur-md sm:px-6 lg:px-8">
+        <header className="sticky top-0 z-20 border-b border-[color:var(--border)] bg-white/90 px-4 py-3.5 backdrop-blur-md sm:px-6 lg:px-8">
           <div className="flex items-center gap-4">
             <button
               type="button"
               onClick={() => setMobileOpen(true)}
-              className="rounded-xl p-2 text-[#7a8494] hover:bg-[rgba(255,255,255,0.05)] hover:text-white lg:hidden"
+              className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700 lg:hidden"
               aria-label="Open menu"
             >
               <Menu className="h-5 w-5" />
             </button>
-            <h1 className="text-[1.1rem] font-semibold tracking-[-0.03em] text-white">
+            <h1 className="text-[1rem] font-semibold text-slate-800">
               {title}
             </h1>
           </div>

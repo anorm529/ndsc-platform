@@ -35,7 +35,7 @@ export default async function NewActionPage() {
   return (
     <div className="max-w-lg">
       <form action={handleCreate} className="council-panel rounded-2xl border p-6 space-y-5">
-        <h2 className="text-[0.95rem] font-semibold text-white">New action item</h2>
+        <h2 className="text-[0.95rem] font-semibold text-slate-800">New action item</h2>
 
         <label className="block space-y-1.5">
           <span className="text-[0.8rem] font-medium text-[color:var(--muted-foreground)]">Action *</span>
@@ -43,7 +43,7 @@ export default async function NewActionPage() {
             name="title"
             required
             placeholder="What needs to be done?"
-            className="w-full rounded-xl border border-[color:var(--border)] bg-[rgba(10,24,41,0.6)] px-4 py-3 text-[0.9rem] text-white outline-none placeholder:text-[#4a5568] focus:border-[color:var(--border-strong)]"
+            className="w-full rounded-xl border border-[color:var(--border)] bg-white px-4 py-3 text-[0.9rem] text-slate-800 outline-none placeholder:text-slate-400 focus:border-[color:var(--border-strong)]"
           />
         </label>
 
@@ -53,7 +53,7 @@ export default async function NewActionPage() {
             name="description"
             rows={3}
             placeholder="More detail…"
-            className="w-full rounded-xl border border-[color:var(--border)] bg-[rgba(10,24,41,0.6)] px-4 py-3 text-[0.88rem] text-white outline-none placeholder:text-[#4a5568] focus:border-[color:var(--border-strong)] resize-none"
+            className="w-full rounded-xl border border-[color:var(--border)] bg-white px-4 py-3 text-[0.88rem] text-slate-800 outline-none placeholder:text-slate-400 focus:border-[color:var(--border-strong)] resize-none"
           />
         </label>
 
@@ -62,7 +62,7 @@ export default async function NewActionPage() {
             <span className="text-[0.8rem] font-medium text-[color:var(--muted-foreground)]">Assign to</span>
             <select
               name="assignedTo"
-              className="w-full rounded-xl border border-[color:var(--border)] bg-[rgba(10,24,41,0.6)] px-3 py-3 text-[0.85rem] text-white outline-none focus:border-[color:var(--border-strong)]"
+              className="w-full rounded-xl border border-[color:var(--border)] bg-white px-3 py-3 text-[0.85rem] text-slate-800 outline-none focus:border-[color:var(--border-strong)]"
             >
               <option value="">Unassigned</option>
               {members.map((m) => (
@@ -74,7 +74,7 @@ export default async function NewActionPage() {
             <span className="text-[0.8rem] font-medium text-[color:var(--muted-foreground)]">Priority</span>
             <select
               name="priority"
-              className="w-full rounded-xl border border-[color:var(--border)] bg-[rgba(10,24,41,0.6)] px-3 py-3 text-[0.85rem] text-white outline-none focus:border-[color:var(--border-strong)]"
+              className="w-full rounded-xl border border-[color:var(--border)] bg-white px-3 py-3 text-[0.85rem] text-slate-800 outline-none focus:border-[color:var(--border-strong)]"
             >
               <option value="medium">Medium</option>
               <option value="high">High</option>
@@ -89,14 +89,14 @@ export default async function NewActionPage() {
             <input
               name="dueDate"
               type="date"
-              className="w-full rounded-xl border border-[color:var(--border)] bg-[rgba(10,24,41,0.6)] px-3 py-3 text-[0.85rem] text-white outline-none focus:border-[color:var(--border-strong)]"
+              className="w-full rounded-xl border border-[color:var(--border)] bg-white px-3 py-3 text-[0.85rem] text-slate-800 outline-none focus:border-[color:var(--border-strong)]"
             />
           </label>
           <label className="block space-y-1.5">
             <span className="text-[0.8rem] font-medium text-[color:var(--muted-foreground)]">Linked meeting</span>
             <select
               name="meetingId"
-              className="w-full rounded-xl border border-[color:var(--border)] bg-[rgba(10,24,41,0.6)] px-3 py-3 text-[0.85rem] text-white outline-none focus:border-[color:var(--border-strong)]"
+              className="w-full rounded-xl border border-[color:var(--border)] bg-white px-3 py-3 text-[0.85rem] text-slate-800 outline-none focus:border-[color:var(--border-strong)]"
             >
               <option value="">None</option>
               {meetings.slice(0, 20).map((m) => (
@@ -111,13 +111,13 @@ export default async function NewActionPage() {
         <div className="flex gap-3">
           <button
             type="submit"
-            className="flex-1 rounded-xl bg-[linear-gradient(180deg,#3b837d_0%,#31756e_100%)] py-3 text-[0.9rem] font-medium text-[#04101a] hover:brightness-105"
+            className="flex-1 rounded-xl bg-[linear-gradient(180deg,#0d9488_0%,#0f766e_100%)] py-3 text-[0.9rem] font-medium text-white hover:brightness-105"
           >
             Create action
           </button>
           <a
             href="/council/actions"
-            className="rounded-xl border border-[color:var(--border)] px-5 py-3 text-[0.9rem] text-[color:var(--muted-foreground)] hover:text-white"
+            className="rounded-xl border border-[color:var(--border)] px-5 py-3 text-[0.9rem] text-[color:var(--muted-foreground)] hover:text-slate-900"
           >
             Cancel
           </a>
