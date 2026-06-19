@@ -6,17 +6,12 @@ import { requireSession } from "@/app/lib/auth";
 import { getMainDb } from "@/app/lib/main-db";
 import { redirect } from "next/navigation";
 import { calculateAllPrices, calculateEOSPrices, applyPrices } from "@/app/lib/pricing";
-import { processGame, updateFantasyTeamPoints } from "@/app/lib/scoring";
+import { processGame } from "@/app/lib/scoring";
 import { generateAwards } from "@/app/lib/awards";
+import { hasFantasyPermission } from "@/app/lib/permissions";
 
-async function assertAdmin(memberUserId: string) {
-  const pool = getMainDb();
-  const res = await pool.query<{ role: string }>(
-    "SELECT role FROM users WHERE id = $1",
-    [memberUserId]
-  );
-  const role = res.rows[0]?.role;
-  if (role !== "owner" && role !== "admin") redirect("/home");
+async function assertPermission(permission: Parameters<typeof hasFantasyPermission>[0]) {
+  if (!(await hasFantasyPermission(permission))) redirect("/home");
 }
 
 async function auditLog(
@@ -34,7 +29,7 @@ async function auditLog(
 
 export async function updateLeagueStatusAction(leagueId: string, status: string) {
   const session = await requireSession();
-  await assertAdmin(session.memberUserId);
+  await assertPermission("settings");
 
   await db.fantasyLeague.update({ where: { id: leagueId }, data: { status } });
   await auditLog(session.memberUserId, leagueId, "update_league_status", "league", leagueId, `Status → ${status}`);
@@ -45,7 +40,7 @@ export async function updateLeagueStatusAction(leagueId: string, status: string)
 
 export async function toggleTransferWindowAction(leagueId: string, open: boolean) {
   const session = await requireSession();
-  await assertAdmin(session.memberUserId);
+  await assertPermission("settings");
 
   await db.fantasyLeague.update({ where: { id: leagueId }, data: { transferWindowOpen: open } });
   await auditLog(session.memberUserId, leagueId, "toggle_transfer_window", "league", leagueId, open ? "Transfer window OPENED" : "Transfer window CLOSED");
@@ -55,7 +50,7 @@ export async function toggleTransferWindowAction(leagueId: string, open: boolean
 
 export async function toggleDoublePointsAction(leagueId: string, active: boolean) {
   const session = await requireSession();
-  await assertAdmin(session.memberUserId);
+  await assertPermission("settings");
 
   await db.fantasyLeague.update({ where: { id: leagueId }, data: { doublePointsActive: active } });
   await auditLog(session.memberUserId, leagueId, "toggle_double_points", "league", leagueId, active ? "Double points ENABLED" : "Double points DISABLED");
@@ -65,7 +60,7 @@ export async function toggleDoublePointsAction(leagueId: string, active: boolean
 
 export async function updateLeagueSettingsAction(leagueId: string, formData: FormData) {
   const session = await requireSession();
-  await assertAdmin(session.memberUserId);
+  await assertPermission("settings");
 
   const squadSize = parseInt(formData.get("squad_size")?.toString() ?? "7");
   const startingBudget = parseFloat(formData.get("starting_budget")?.toString() ?? "50");
@@ -92,7 +87,7 @@ export async function generatePricesAction(
   leagueId: string
 ): Promise<{ error?: string; count?: number }> {
   const session = await requireSession();
-  await assertAdmin(session.memberUserId);
+  await assertPermission("pricing");
 
   try {
     const league = await db.fantasyLeague.findUnique({ where: { id: leagueId } });
@@ -121,7 +116,7 @@ export async function pushGameAction(
   leagueId: string
 ): Promise<{ error?: string; scoreCount?: number; priceChanges?: number }> {
   const session = await requireSession();
-  await assertAdmin(session.memberUserId);
+  await assertPermission("scoring");
 
   const result = await processGame(gameId, leagueId);
 
@@ -142,7 +137,7 @@ export async function pushGameAction(
 
 export async function setPlayerPriceAction(leagueId: string, formData: FormData) {
   const session = await requireSession();
-  await assertAdmin(session.memberUserId);
+  await assertPermission("pricing");
 
   const playerId = formData.get("player_id")?.toString();
   const price = parseFloat(formData.get("price")?.toString() ?? "0");
@@ -164,7 +159,7 @@ export async function setPlayerPriceAction(leagueId: string, formData: FormData)
 
 export async function setPlayerStatusAction(leagueId: string, formData: FormData) {
   const session = await requireSession();
-  await assertAdmin(session.memberUserId);
+  await assertPermission("pricing");
 
   const playerId = formData.get("player_id")?.toString();
   const status = formData.get("status")?.toString() ?? "active";
@@ -187,7 +182,7 @@ export async function archiveAndCloseLeagueAction(
   leagueId: string
 ): Promise<{ error?: string; deleted?: Record<string, number> }> {
   const session = await requireSession();
-  await assertAdmin(session.memberUserId);
+  await assertPermission("leagues");
 
   const pool = getMainDb();
 
@@ -302,7 +297,7 @@ export async function archiveAndCloseLeagueAction(
 
 export async function approveJoinRequestAction(requestId: string, leagueId: string) {
   const session = await requireSession();
-  await assertAdmin(session.memberUserId);
+  await assertPermission("join_requests");
 
   const request = await db.fantasyJoinRequest.findUnique({ where: { id: requestId } });
   if (!request) return;
@@ -338,7 +333,7 @@ export async function approveJoinRequestAction(requestId: string, leagueId: stri
 
 export async function rejectJoinRequestAction(requestId: string, leagueId: string) {
   const session = await requireSession();
-  await assertAdmin(session.memberUserId);
+  await assertPermission("join_requests");
 
   const request = await db.fantasyJoinRequest.findUnique({ where: { id: requestId } });
   if (!request) return;
@@ -351,7 +346,7 @@ export async function rejectJoinRequestAction(requestId: string, leagueId: strin
 
 export async function toggleJoinRequestsAction(leagueId: string, open: boolean) {
   const session = await requireSession();
-  await assertAdmin(session.memberUserId);
+  await assertPermission("settings");
 
   await db.fantasyLeague.update({ where: { id: leagueId }, data: { joinRequestsOpen: open } });
 
@@ -364,7 +359,7 @@ export async function generateAwardsAction(
   leagueId: string
 ): Promise<{ error?: string; count?: number }> {
   const session = await requireSession();
-  await assertAdmin(session.memberUserId);
+  await assertPermission("awards");
 
   try {
     await generateAwards(leagueId);

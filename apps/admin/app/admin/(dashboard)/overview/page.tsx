@@ -11,6 +11,7 @@ import {
 import { DashboardStatCard } from "@/components/admin/dashboard-stat-card";
 import { SectionCard } from "@/components/admin/section-card";
 import { getAdminOverview } from "@/lib/admin-overview";
+import { requireAdminPermission } from "@/lib/permissions";
 
 function metricClassName(tone: "success" | "warning" | "danger" | "neutral") {
   if (tone === "success") {
@@ -40,6 +41,7 @@ function tableLabel(tableName: string) {
 }
 
 export default async function AdminOverviewPage() {
+  await requireAdminPermission("overview");
   const overview = await getAdminOverview();
   const totalRecords = overview.tables.reduce(
     (sum, table) => sum + (table.count ?? 0),

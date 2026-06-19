@@ -8,6 +8,7 @@ import {
   disableUserAction,
   relinkUserAction,
 } from "../accounts/actions";
+import { requireAdminPermission } from "@/lib/permissions";
 
 function formatDate(value: Date) {
   return new Intl.DateTimeFormat("en-GB", {
@@ -17,6 +18,7 @@ function formatDate(value: Date) {
 }
 
 export default async function ApprovalsPage() {
+  await requireAdminPermission("approvals");
   const queue = await getApprovalQueue();
 
   return (

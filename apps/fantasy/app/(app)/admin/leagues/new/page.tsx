@@ -3,22 +3,16 @@ import { getMainDb } from "@/app/lib/main-db";
 import { redirect } from "next/navigation";
 import { createLeagueAction } from "./actions";
 import Link from "next/link";
+import { hasFantasyPermission } from "@/app/lib/permissions";
 
 export const dynamic = 'force-dynamic';
 export const metadata = { title: "New League — NDSC Fantasy Admin" };
 
 export default async function NewLeaguePage() {
-  const session = await requireSession();
+  await requireSession();
+  if (!(await hasFantasyPermission("leagues"))) redirect("/home");
+
   const pool = getMainDb();
-
-  const userRes = await pool.query<{ role: string }>(
-    "SELECT role FROM users WHERE id = $1",
-    [session.memberUserId]
-  );
-  if (userRes.rows[0]?.role !== "owner" && userRes.rows[0]?.role !== "admin") {
-    redirect("/home");
-  }
-
   const seasonsRes = await pool.query<{ id: string; year: number; is_active: boolean }>(
     "SELECT id, year, is_active FROM seasons ORDER BY year DESC"
   );

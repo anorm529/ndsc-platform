@@ -2,6 +2,7 @@ import Link from "next/link";
 import { AlertTriangle, CheckCircle2, Database, Timer } from "lucide-react";
 import { SectionCard } from "@/components/admin/section-card";
 import { getDatabaseOverview, neonAdminSections } from "@/lib/neon-admin";
+import { requireAdminPermission } from "@/lib/permissions";
 
 function metricClassName(tone: "success" | "warning" | "danger" | "neutral") {
   if (tone === "success") {
@@ -33,6 +34,7 @@ function formatDate(value: string | null) {
 }
 
 export default async function DatabaseOverviewPage() {
+  await requireAdminPermission("database");
   const overview = await getDatabaseOverview();
   const tableByName = new Map(overview.tables.map((table) => [table.tableName, table]));
 

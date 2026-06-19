@@ -15,6 +15,7 @@ import { FormSubmitButton } from "@/components/admin/form-submit-button";
 import { SectionCard } from "@/components/admin/section-card";
 import { getAccounts, getAccountSummary } from "@/lib/admin-accounts";
 import { requireAdminUser } from "@/lib/admin-session";
+import { requireAdminPermission } from "@/lib/permissions";
 import {
   approveUserAction,
   bulkApproveAction,
@@ -52,6 +53,7 @@ function pillClassName(tone: "green" | "gold" | "red" | "blue" | "muted") {
 }
 
 export default async function AccountsPage({ searchParams }: PageProps) {
+  await requireAdminPermission("accounts");
   const params = await searchParams;
   const filters = {
     status: firstParam(params?.status) || "",
@@ -204,7 +206,7 @@ export default async function AccountsPage({ searchParams }: PageProps) {
                     </td>
                     <td className="border-b border-[color:var(--border)] px-3 py-4">
                       <div className="text-white">{account.playerName || "Unlinked"}</div>
-                      <div className="mt-1 text-xs text-[#8b95a5]">{account.membershipStatus || account.playerId || "No player record"}</div>
+                      <div className="mt-1 text-xs text-[#8b95a5]">{account.membershipStatus || (account.playerId ? "Linked" : "No player record")}</div>
                       {!account.playerId && account.suggestedPlayers.length ? (
                         <div className="mt-3 space-y-1 rounded-lg border border-yellow-400/15 bg-yellow-400/5 p-2">
                           <div className="flex items-center gap-1.5 text-[0.7rem] font-semibold uppercase tracking-[0.1em] text-yellow-200">

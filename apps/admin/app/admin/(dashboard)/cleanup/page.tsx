@@ -7,8 +7,10 @@ import {
   deleteExpiredResetTokensAction,
   deleteExpiredSessionsAction,
 } from "./actions";
+import { requireAdminPermission } from "@/lib/permissions";
 
 export default async function CleanupPage() {
+  await requireAdminPermission("cleanup");
   const cleanup = await getCleanupOverview();
 
   return (

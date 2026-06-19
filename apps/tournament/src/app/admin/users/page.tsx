@@ -9,8 +9,8 @@ import {
   getUserPermissions,
   type AdminPermissionType,
 } from "@/lib/current-admin";
+import { getAppPermissionGrants } from "@ndsc/auth";
 import { mainDbPool } from "@/lib/main-db";
-import { prisma } from "@/lib/db";
 
 import { saveUserPermissions } from "./actions";
 
@@ -53,7 +53,7 @@ export default async function AdminUsersPage() {
 
   const [mainUsers, allPermissions] = await Promise.all([
     getAdminUsersFromMainDb(),
-    prisma.adminPermission.findMany(),
+    getAppPermissionGrants("tournament"),
   ]);
 
   const permissionsByUser = new Map<string, Set<AdminPermissionType>>();

@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { BarChart3, CheckCircle2, CircleDashed } from "lucide-react";
 import { NeonTableAdmin } from "@/components/admin/neon-table-admin";
 import { SectionCard } from "@/components/admin/section-card";
+import { requireAdminPermission } from "@/lib/permissions";
 import {
   getNeonAdminSection,
   getGameStatsUploadOverview,
@@ -205,6 +206,7 @@ export default async function NeonAdminSectionPage({
 }: {
   params: Promise<{ section: string }>;
 }) {
+  await requireAdminPermission("database");
   const { section: sectionSlug } = await params;
   const section = getNeonAdminSection(sectionSlug);
 

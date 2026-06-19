@@ -63,3 +63,28 @@ export { createVerificationToken, consumeVerificationToken } from './verify'
 // Rate limiting
 export { checkRateLimit } from './rate-limit'
 export type { RateLimitResult } from './rate-limit'
+
+// App permissions
+export {
+  getUserAppPermissions,
+  getAllUserPermissions,
+  getAppPermissionGrants,
+  grantAppPermission,
+  revokeAppPermission,
+  setUserAppPermissions,
+  hasAppPermission,
+  hasAnyAppPermission,
+  ADMIN_PERMISSIONS,
+  TOURNAMENT_PERMISSIONS,
+  FANTASY_PERMISSIONS,
+  PERMISSION_LABELS,
+  ALL_PERMISSIONS,
+} from './permissions'
+export type {
+  AdminPermission,
+  TournamentPermission,
+  FantasyPermission,
+  AppPermission,
+  App,
+  AppPermissionRow,
+} from './permissions'

@@ -2,6 +2,7 @@ import { MailCheck, MailWarning } from "lucide-react";
 import { DashboardStatCard } from "@/components/admin/dashboard-stat-card";
 import { SectionCard } from "@/components/admin/section-card";
 import { getEmailDeliveryOverview } from "@/lib/email-events";
+import { requireAdminPermission } from "@/lib/permissions";
 
 function formatDate(value: Date | null) {
   return value
@@ -25,6 +26,7 @@ function statusClassName(status: string) {
 }
 
 export default async function EmailPage() {
+  await requireAdminPermission("email");
   const overview = await getEmailDeliveryOverview();
 
   return (
