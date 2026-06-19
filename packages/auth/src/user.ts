@@ -8,6 +8,7 @@ function mapRow(row: Record<string, unknown>): User {
     passwordHash: row.password_hash as string,
     role: row.role as UserRole,
     playerId: (row.player_id as string | null) ?? null,
+    registrationName: (row.registration_name as string | null) ?? null,
     emailVerified: row.email_verified as boolean,
     accountStatus: row.account_status as AccountStatus,
     lastLogin: row.last_login ? new Date(row.last_login as string) : null,
@@ -16,7 +17,7 @@ function mapRow(row: Record<string, unknown>): User {
   }
 }
 
-const USER_COLS = 'id, email, password_hash, role, player_id, email_verified, account_status, last_login, created_at, updated_at'
+const USER_COLS = 'id, email, password_hash, role, player_id, registration_name, email_verified, account_status, last_login, created_at, updated_at'
 
 export async function getUserByEmail(email: string): Promise<User | null> {
   const db = getAuthDb()
@@ -48,8 +49,8 @@ export async function getUserByPlayerId(playerId: string): Promise<User | null> 
 export async function createUser(data: CreateUserData): Promise<User> {
   const db = getAuthDb()
   const result = await db.query(
-    `INSERT INTO users (email, password_hash, role, account_status, player_id)
-     VALUES ($1, $2, $3, $4, $5)
+    `INSERT INTO users (email, password_hash, role, account_status, player_id, registration_name)
+     VALUES ($1, $2, $3, $4, $5, $6)
      RETURNING *`,
     [
       data.email.toLowerCase().trim(),
@@ -57,6 +58,7 @@ export async function createUser(data: CreateUserData): Promise<User> {
       data.role ?? 'player',
       data.accountStatus ?? 'pending',
       data.playerId ?? null,
+      data.registrationName ?? null,
     ]
   )
   return mapRow(result.rows[0])

@@ -26,6 +26,7 @@ export type AdminAccountRow = {
   accountStatus: AccountStatus;
   emailVerified: boolean;
   playerId: string | null;
+  registrationName: string | null;
   playerName: string | null;
   membershipStatus: string | null;
   lastLogin: Date | null;
@@ -45,6 +46,7 @@ export type PlayerSuggestion = {
 export type PlayerSearchRow = PlayerSuggestion;
 
 export type AccountDetail = AdminAccountRow & {
+  registrationName: string | null;
   profile: {
     position: string | null;
     bats: string | null;
@@ -131,6 +133,7 @@ export async function getAccounts(filters: UserFilter) {
     account_status: AccountStatus;
     email_verified: boolean;
     player_id: string | null;
+    registration_name: string | null;
     player_name: string | null;
     membership_status: string | null;
     last_login: Date | null;
@@ -145,6 +148,7 @@ export async function getAccounts(filters: UserFilter) {
         u.account_status,
         u.email_verified,
         u.player_id,
+        u.registration_name,
         p.display_name as player_name,
         pp.membership_status,
         u.last_login,
@@ -179,7 +183,10 @@ export async function getAccounts(filters: UserFilter) {
           pp.membership_status,
           (
             select count(*)::int
-            from unnest(regexp_split_to_array(lower(split_part(fu.email, '@', 1)), '[^a-z]+')) token
+            from unnest(regexp_split_to_array(
+              coalesce(lower(fu.registration_name), lower(split_part(fu.email, '@', 1))),
+              '[^a-z]+'
+            )) token
             where length(token) > 1 and p.normalized_name like '%' || token || '%'
           ) as match_score
         from players p
@@ -187,7 +194,10 @@ export async function getAccounts(filters: UserFilter) {
         where fu.player_id is null
           and exists (
             select 1
-            from unnest(regexp_split_to_array(lower(split_part(fu.email, '@', 1)), '[^a-z]+')) token
+            from unnest(regexp_split_to_array(
+              coalesce(lower(fu.registration_name), lower(split_part(fu.email, '@', 1))),
+              '[^a-z]+'
+            )) token
             where length(token) > 1 and p.normalized_name like '%' || token || '%'
           )
         order by match_score desc, p.display_name asc
@@ -208,6 +218,7 @@ export async function getAccounts(filters: UserFilter) {
     accountStatus: row.account_status,
     emailVerified: row.email_verified,
     playerId: row.player_id,
+    registrationName: row.registration_name,
     playerName: row.player_name,
     membershipStatus: row.membership_status,
     lastLogin: row.last_login,
@@ -303,6 +314,7 @@ export async function getAccountDetail(userId: string, playerQuery = "") {
     account_status: AccountStatus;
     email_verified: boolean;
     player_id: string | null;
+    registration_name: string | null;
     player_name: string | null;
     membership_status: string | null;
     last_login: Date | null;
@@ -323,6 +335,7 @@ export async function getAccountDetail(userId: string, playerQuery = "") {
       u.account_status,
       u.email_verified,
       u.player_id,
+      u.registration_name,
       p.display_name as player_name,
       pp.membership_status,
       u.last_login,
@@ -367,7 +380,9 @@ export async function getAccountDetail(userId: string, playerQuery = "") {
       ? searchPlayers(playerQuery)
       : row.player_id
         ? Promise.resolve([] as PlayerSuggestion[])
-        : suggestPlayersForEmail(row.email),
+        : row.registration_name
+          ? searchPlayers(row.registration_name)
+          : suggestPlayersForEmail(row.email),
     getAuditLogForAccount(userId),
     getAdminNotesForAccount(userId),
   ]);
@@ -379,6 +394,7 @@ export async function getAccountDetail(userId: string, playerQuery = "") {
     accountStatus: row.account_status,
     emailVerified: row.email_verified,
     playerId: row.player_id,
+    registrationName: row.registration_name,
     playerName: row.player_name,
     membershipStatus: row.membership_status,
     lastLogin: row.last_login,

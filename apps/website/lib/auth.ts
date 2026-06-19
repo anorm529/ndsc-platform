@@ -151,7 +151,9 @@ export async function registerUser({ name, email, password }: { name: string; em
     throw new Error("An account already exists for that email address.");
   }
 
-  const playerId = await findOrCreatePlayer(name);
+  const cleanName = name.trim().replace(/\s+/g, " ");
+  if (cleanName.length < 2) throw new Error("Please enter your full name.");
+
   const passwordHash = await hashPassword(password);
 
   const user = await createUser({
@@ -159,7 +161,8 @@ export async function registerUser({ name, email, password }: { name: string; em
     passwordHash,
     role: "player",
     accountStatus: "pending",
-    playerId,
+    playerId: null,
+    registrationName: cleanName,
   });
 
   return user.id;

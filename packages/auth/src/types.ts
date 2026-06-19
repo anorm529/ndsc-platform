@@ -18,6 +18,7 @@ export interface User {
   passwordHash: string
   role: UserRole
   playerId: string | null
+  registrationName: string | null
   emailVerified: boolean
   accountStatus: AccountStatus
   lastLogin: Date | null
@@ -52,7 +53,8 @@ export interface CreateUserData {
   passwordHash: string
   role?: UserRole
   accountStatus?: AccountStatus
-  playerId?: string
+  playerId?: string | null
+  registrationName?: string | null
 }
 
 export interface UserFilters {

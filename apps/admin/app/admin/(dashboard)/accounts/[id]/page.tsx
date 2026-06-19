@@ -7,6 +7,7 @@ import {
   ClipboardPen,
   History,
   KeyRound,
+  Link2Off,
   LinkIcon,
   Monitor,
   Save,
@@ -96,6 +97,8 @@ export default async function AccountDetailPage({ params, searchParams }: PagePr
     </p>
   );
 
+  const needsPlayerLink = !account.playerId;
+
   return (
     <div className="space-y-6">
       <Link
@@ -105,6 +108,26 @@ export default async function AccountDetailPage({ params, searchParams }: PagePr
         <ArrowLeft className="h-4 w-4" />
         Accounts
       </Link>
+
+      {needsPlayerLink ? (
+        <div className="flex items-start gap-4 rounded-xl border border-orange-500/30 bg-orange-500/10 p-5">
+          <Link2Off className="mt-0.5 h-5 w-5 shrink-0 text-orange-400" />
+          <div className="min-w-0">
+            <p className="font-semibold text-orange-300">No player linked — action required before approval</p>
+            <p className="mt-1 text-sm text-[#c5cfdb]">
+              This account registered as{" "}
+              <span className="font-semibold text-white">
+                {account.registrationName ?? account.email}
+              </span>
+              . This name did not exactly match any existing player record, so no link was created automatically.
+            </p>
+            <p className="mt-2 text-sm text-[#c5cfdb]">
+              Search the <span className="font-medium text-white">Player Link</span> panel below to find the correct player and link them before approving.
+              If they are a new member with no player record yet, create one in the database first.
+            </p>
+          </div>
+        </div>
+      ) : null}
 
       <SectionCard title={account.email} subtitle="Account, player link, profile metadata, and session controls." icon={UserRoundCog}>
         <div className="mt-6 grid gap-4 lg:grid-cols-4">
@@ -116,9 +139,18 @@ export default async function AccountDetailPage({ params, searchParams }: PagePr
             <div className="text-xs uppercase tracking-[0.12em] text-[#8b95a5]">Status</div>
             <div className="mt-2 text-lg font-semibold capitalize text-white">{account.accountStatus}</div>
           </div>
-          <div className="admin-panel-soft rounded-lg p-4">
+          <div className={`rounded-lg p-4 ${needsPlayerLink ? "border border-orange-500/25 bg-orange-500/8" : "admin-panel-soft"}`}>
             <div className="text-xs uppercase tracking-[0.12em] text-[#8b95a5]">Linked player</div>
-            <div className="mt-2 text-lg font-semibold text-white">{account.playerName || "Unlinked"}</div>
+            {needsPlayerLink ? (
+              <>
+                <div className="mt-2 text-sm font-semibold text-orange-300">Not linked</div>
+                {account.registrationName ? (
+                  <div className="mt-0.5 text-xs text-[#8b95a5]">Registered as: {account.registrationName}</div>
+                ) : null}
+              </>
+            ) : (
+              <div className="mt-2 text-lg font-semibold text-white">{account.playerName}</div>
+            )}
           </div>
           <div className="admin-panel-soft rounded-lg p-4">
             <div className="text-xs uppercase tracking-[0.12em] text-[#8b95a5]">Last login</div>
@@ -132,13 +164,7 @@ export default async function AccountDetailPage({ params, searchParams }: PagePr
             {canMutate ? (
               <div className="grid gap-3">
                 {account.accountStatus === "pending" ? (
-                  account.emailVerified ? (
-                    <form action={approveUserAction} className="admin-panel-soft flex flex-wrap items-center justify-between gap-3 rounded-lg p-4">
-                      <input type="hidden" name="userId" value={account.id} />
-                      <span className="text-sm text-[#c5cfdb]">Approve this pending account.</span>
-                      <FormSubmitButton idleLabel="Approve" pendingLabel="Approving..." />
-                    </form>
-                  ) : (
+                  !account.emailVerified ? (
                     <div className="flex items-start gap-3 rounded-lg border border-yellow-500/25 bg-yellow-500/8 p-4">
                       <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-yellow-400" />
                       <div className="text-sm">
@@ -150,6 +176,22 @@ export default async function AccountDetailPage({ params, searchParams }: PagePr
                         </p>
                       </div>
                     </div>
+                  ) : needsPlayerLink ? (
+                    <div className="flex items-start gap-3 rounded-lg border border-orange-500/25 bg-orange-500/8 p-4">
+                      <Link2Off className="mt-0.5 h-4 w-4 shrink-0 text-orange-400" />
+                      <div className="text-sm">
+                        <p className="font-semibold text-orange-300">Player not linked</p>
+                        <p className="mt-1 text-[#c5cfdb]">
+                          Link this account to an existing player record using the panel below before approving.
+                        </p>
+                      </div>
+                    </div>
+                  ) : (
+                    <form action={approveUserAction} className="admin-panel-soft flex flex-wrap items-center justify-between gap-3 rounded-lg p-4">
+                      <input type="hidden" name="userId" value={account.id} />
+                      <span className="text-sm text-[#c5cfdb]">Approve this pending account.</span>
+                      <FormSubmitButton idleLabel="Approve" pendingLabel="Approving..." />
+                    </form>
                   )
                 ) : null}
 
