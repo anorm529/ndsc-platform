@@ -25,6 +25,7 @@ const APP_LABELS: Record<App, string> = {
   admin:      "Admin panel",
   tournament: "Tournament",
   fantasy:    "Fantasy",
+  council:    "Council",
 };
 
 async function getGrantableUsers(): Promise<UserRow[]> {

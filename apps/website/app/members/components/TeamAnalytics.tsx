@@ -413,9 +413,9 @@ export default function TeamAnalytics({
                   <YAxis tick={{ fill: "rgba(255,255,255,0.7)", fontSize: 12 }} />
                   <Tooltip
                     cursor={{ fill: "rgba(255,255,255,0.06)" }}
-                    formatter={(val: unknown, name: unknown) => {
+                    formatter={(val, name) => {
                       if (name === "bbRate") return [(Number(val) || 0).toFixed(3), "BB/AB"];
-                      return [val, name];
+                      return [String(val), String(name)];
                     }}
                   />
                   <Bar dataKey="bbRate" fill="rgba(96,165,250,0.75)" radius={[8, 8, 0, 0]} />
@@ -629,7 +629,7 @@ export default function TeamAnalytics({
                   <YAxis tick={{ fill: "rgba(255,255,255,0.7)", fontSize: 12 }} />
                   <Tooltip
                     cursor={{ fill: "rgba(255,255,255,0.06)" }}
-                    formatter={(val: unknown) => [(Number(val) || 0).toFixed(2), "Outs/inning"]}
+                    formatter={(val) => [(Number(val) || 0).toFixed(2), "Outs/inning"]}
                   />
                   <Bar dataKey="outsPerInning" fill="rgba(45,212,191,0.65)" radius={[8, 8, 0, 0]} />
                 </BarChart>
