@@ -455,6 +455,53 @@ export async function deleteUserAction(formData: FormData) {
   redirect("/admin/accounts");
 }
 
+export async function createAndLinkPlayerAction(formData: FormData) {
+  const { adminUser, target } = await loadAuthorizedTarget(formData);
+
+  if (target.player_id) {
+    throw new Error("This account is already linked to a player.");
+  }
+
+  const displayName = String(formData.get("displayName") ?? "").trim();
+
+  if (displayName.length < 2) {
+    throw new Error("Player name must be at least 2 characters.");
+  }
+
+  const existing = await dbQuery<{ id: string }>(
+    "select id from players where lower(display_name) = lower($1) limit 1",
+    [displayName],
+  );
+  if (existing.rowCount) {
+    throw new Error(
+      `A player named "${displayName}" already exists. Use the search above to find and link them instead.`,
+    );
+  }
+
+  const playerResult = await dbQuery<{ id: string }>(
+    "insert into players (display_name) values ($1) returning id",
+    [displayName],
+  );
+  const newPlayerId = playerResult.rows[0]?.id;
+  if (!newPlayerId) throw new Error("Failed to create player record.");
+
+  await dbQuery("update users set player_id = $2, updated_at = now() where id = $1", [
+    target.id,
+    newPlayerId,
+  ]);
+  await logAdminAudit({
+    actorUserId: adminUser.id,
+    targetUserId: target.id,
+    targetPlayerId: newPlayerId,
+    action: "account.create_and_link_player",
+    fieldName: "player_id",
+    previousValue: null,
+    newValue: newPlayerId,
+  });
+  revalidatePath("/admin/accounts");
+  revalidatePath(`/admin/accounts/${target.id}`);
+}
+
 export async function searchPlayersForAccountAction(formData: FormData) {
   const userId = getUserId(formData);
   const q = encodeURIComponent(String(formData.get("playerSearch") ?? ""));

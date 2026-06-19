@@ -14,6 +14,7 @@ import {
   Search,
   ShieldCheck,
   Sparkles,
+  UserPlus,
   UserRoundCog,
 } from "lucide-react";
 import { FormSubmitButton } from "@/components/admin/form-submit-button";
@@ -24,6 +25,7 @@ import {
   approveUserAction,
   addAdminNoteAction,
   changeRoleAction,
+  createAndLinkPlayerAction,
   deleteUserAction,
   disableUserAction,
   relinkUserAction,
@@ -294,6 +296,36 @@ export default async function AccountDetailPage({ params, searchParams }: PagePr
                 ))}
                 <FormSubmitButton idleLabel="Save player link" pendingLabel="Saving..." />
               </form>
+
+              {needsPlayerLink ? (
+                <>
+                  <div className="my-5 flex items-center gap-3">
+                    <div className="h-px flex-1 bg-[color:var(--border)]" />
+                    <span className="text-xs font-semibold uppercase tracking-[0.1em] text-[#8b95a5]">Or create new</span>
+                    <div className="h-px flex-1 bg-[color:var(--border)]" />
+                  </div>
+                  <form action={createAndLinkPlayerAction} className="space-y-3">
+                    <input type="hidden" name="userId" value={account.id} />
+                    <p className="text-sm text-[#c5cfdb]">
+                      Only use this if the person is a brand new member not yet in the players database.
+                      If they are an existing player, search above instead.
+                    </p>
+                    <div className="flex gap-3">
+                      <label className="admin-panel-soft flex h-11 flex-1 items-center gap-3 rounded-lg px-3">
+                        <UserPlus className="h-4 w-4 shrink-0 text-[#8d97a7]" />
+                        <input
+                          name="displayName"
+                          defaultValue={account.registrationName ?? ""}
+                          placeholder="Full name for new player record"
+                          className="w-full bg-transparent text-sm text-white outline-none placeholder:text-[#7f8a9a]"
+                          required
+                        />
+                      </label>
+                      <FormSubmitButton idleLabel="Create & link" pendingLabel="Creating..." variant="ghost" />
+                    </div>
+                  </form>
+                </>
+              ) : null}
             </>
           ) : protectedOwnerMessage}
         </SectionCard>
