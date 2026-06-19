@@ -760,8 +760,10 @@ export async function getDatabaseOverview(): Promise<DatabaseOverview> {
     const connectionMs = Math.round(performance.now() - start);
     const totalRows = tables.reduce((sum, table) => sum + (table.totalRows || 0), 0);
     const missingTables = tables.filter((table) => !table.exists);
-    const recentErrors = await getRecentUploadErrors();
-    const recentBatches = await getRecentUploadBatches();
+    const [recentErrors, recentBatches] = await Promise.all([
+      getRecentUploadErrors(),
+      getRecentUploadBatches(),
+    ]);
     const failedBatchCount = recentBatches.filter((batch) => batch.status.toLowerCase() === "failed").length;
     const metrics: DatabaseHealthMetric[] = [
       {
