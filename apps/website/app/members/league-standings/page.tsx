@@ -6,8 +6,7 @@ import { getClubData } from "@/lib/ndsc-data";
 export const dynamic = "force-dynamic";
 
 export default async function MemberLeagueStandingsPage() {
-  const user = await requireCurrentUser();
-  const clubData = await getClubData();
+  const [user, clubData] = await Promise.all([requireCurrentUser(), getClubData()]);
 
   return (
     <main className="min-h-screen bg-[#0F172A] text-white">

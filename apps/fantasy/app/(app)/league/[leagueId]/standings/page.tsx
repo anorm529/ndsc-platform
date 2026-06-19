@@ -14,75 +14,71 @@ export default async function StandingsPage({
   const { leagueId } = await params;
   await requireSession();
 
-  const league = await db.fantasyLeague.findUnique({ where: { id: leagueId } });
-  if (!league) notFound();
-
   const pool = getMainDb();
 
-  const teams = await db.fantasyTeam.findMany({
-    where: { leagueId },
-    orderBy: { totalPoints: "desc" },
-    include: { user: true },
-  });
+  // Wave 1 — all independent of each other
+  const [league, teams, latestGame, mostCaptained, mostOwned] = await Promise.all([
+    db.fantasyLeague.findUnique({ where: { id: leagueId } }),
+    db.fantasyTeam.findMany({
+      where: { leagueId },
+      orderBy: { totalPoints: "desc" },
+      include: { user: true },
+    }),
+    db.fantasyProcessedGame.findFirst({
+      where: { leagueId },
+      orderBy: { processedAt: "desc" },
+    }),
+    db.fantasyRoster.groupBy({
+      by: ["playerId"],
+      where: { isCaptain: true, team: { leagueId } },
+      _count: { playerId: true },
+      orderBy: { _count: { playerId: "desc" } },
+      take: 3,
+    }),
+    db.fantasyRoster.groupBy({
+      by: ["playerId"],
+      _count: { playerId: true },
+      where: { team: { leagueId } },
+      orderBy: { _count: { playerId: "desc" } },
+      take: 3,
+    }),
+  ]);
 
+  if (!league) notFound();
+
+  // Wave 2 — depends on wave 1 results
   const fantasyUserIds = teams.map((t) => t.user.memberUserId);
-  let memberNames: { id: string; display_name: string }[] = [];
-  if (fantasyUserIds.length > 0) {
-    const res = await pool.query<{ id: string; display_name: string }>(
-      `SELECT u.id, COALESCE(p.display_name, u.email) as display_name
-       FROM users u
-       LEFT JOIN players p ON p.id = u.player_id
-       WHERE u.id = ANY($1::uuid[])`,
-      [fantasyUserIds]
-    );
-    memberNames = res.rows;
-  }
+  const allPlayerIds = [...new Set([...mostCaptained.map((m) => m.playerId), ...mostOwned.map((m) => m.playerId)])];
 
-  const latestGame = await db.fantasyProcessedGame.findFirst({
-    where: { leagueId },
-    orderBy: { processedAt: "desc" },
-  });
+  const [memberNamesRes, latestGameScores, playerNamesRes] = await Promise.all([
+    fantasyUserIds.length > 0
+      ? pool.query<{ id: string; display_name: string }>(
+          `SELECT u.id, COALESCE(p.display_name, u.email) as display_name
+           FROM users u
+           LEFT JOIN players p ON p.id = u.player_id
+           WHERE u.id = ANY($1::uuid[])`,
+          [fantasyUserIds]
+        )
+      : Promise.resolve({ rows: [] as { id: string; display_name: string }[] }),
+    latestGame
+      ? db.fantasyScore.groupBy({
+          by: ["playerId"],
+          where: { processedGameId: latestGame.id },
+          _sum: { fantasyPoints: true },
+          orderBy: { _sum: { fantasyPoints: "desc" } },
+          take: 10,
+        })
+      : Promise.resolve([]),
+    allPlayerIds.length > 0
+      ? pool.query<{ id: string; display_name: string }>(
+          "SELECT id, display_name FROM players WHERE id = ANY($1::uuid[])",
+          [allPlayerIds]
+        )
+      : Promise.resolve({ rows: [] as { id: string; display_name: string }[] }),
+  ]);
 
-  const latestGameScores = latestGame
-    ? await db.fantasyScore.groupBy({
-        by: ["playerId"],
-        where: { processedGameId: latestGame.id },
-        _sum: { fantasyPoints: true },
-        orderBy: { _sum: { fantasyPoints: "desc" } },
-        take: 10,
-      })
-    : [];
-
-  const mostCaptained = await db.fantasyRoster.groupBy({
-    by: ["playerId"],
-    where: { isCaptain: true, team: { leagueId } },
-    _count: { playerId: true },
-    orderBy: { _count: { playerId: "desc" } },
-    take: 3,
-  });
-
-  const mostOwned = await db.fantasyRoster.groupBy({
-    by: ["playerId"],
-    _count: { playerId: true },
-    where: { team: { leagueId } },
-    orderBy: { _count: { playerId: "desc" } },
-    take: 3,
-  });
-
-  const allPlayerIds = [
-    ...new Set([
-      ...mostCaptained.map((m) => m.playerId),
-      ...mostOwned.map((m) => m.playerId),
-    ]),
-  ];
-  let playerNames: { id: string; display_name: string }[] = [];
-  if (allPlayerIds.length > 0) {
-    const pRes = await pool.query<{ id: string; display_name: string }>(
-      "SELECT id, display_name FROM players WHERE id = ANY($1::uuid[])",
-      [allPlayerIds]
-    );
-    playerNames = pRes.rows;
-  }
+  const memberNames = memberNamesRes.rows;
+  const playerNames = playerNamesRes.rows;
 
   return (
     <div className="space-y-6">

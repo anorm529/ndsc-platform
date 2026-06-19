@@ -348,28 +348,29 @@ export async function getAccountDetail(userId: string, playerQuery = "") {
     return null;
   }
 
-  const sessionsResult = await dbQuery<{
-    id: string;
-    expires_at: Date;
-    created_at: Date;
-    last_seen: Date | null;
-    device_name: string | null;
-    ip_address: string | null;
-  }>(
-    `select id, expires_at, created_at, last_seen, device_name, ip_address
-    from user_sessions
-    where user_id = $1 and expires_at > now()
-    order by last_seen desc nulls last, created_at desc`,
-    [userId],
-  );
-
-  const playerMatches = playerQuery
-    ? await searchPlayers(playerQuery)
-    : row.player_id
-      ? []
-      : await suggestPlayersForEmail(row.email);
-  const auditLog = await getAuditLogForAccount(userId);
-  const notes = await getAdminNotesForAccount(userId);
+  const [sessionsResult, playerMatches, auditLog, notes] = await Promise.all([
+    dbQuery<{
+      id: string;
+      expires_at: Date;
+      created_at: Date;
+      last_seen: Date | null;
+      device_name: string | null;
+      ip_address: string | null;
+    }>(
+      `select id, expires_at, created_at, last_seen, device_name, ip_address
+      from user_sessions
+      where user_id = $1 and expires_at > now()
+      order by last_seen desc nulls last, created_at desc`,
+      [userId],
+    ),
+    playerQuery
+      ? searchPlayers(playerQuery)
+      : row.player_id
+        ? Promise.resolve([] as PlayerSuggestion[])
+        : suggestPlayersForEmail(row.email),
+    getAuditLogForAccount(userId),
+    getAdminNotesForAccount(userId),
+  ]);
 
   return {
     id: row.id,
