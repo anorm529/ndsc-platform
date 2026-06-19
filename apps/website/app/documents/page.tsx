@@ -7,6 +7,8 @@ import { primaryNavLinks } from "@/lib/site-nav";
 import { buildMetadata, buildPageTitle } from "@/lib/seo";
 import { dbQuery } from "@/lib/db";
 
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = buildMetadata({
   title: buildPageTitle("Club Documents"),
   description:
