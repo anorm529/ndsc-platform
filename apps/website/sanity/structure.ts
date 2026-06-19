@@ -20,6 +20,17 @@ export const structure: StructureResolver = (S) =>
             .schemaType('post')
             .filter('_type == "post" && postKind == "teamReport"')
         ),
+      S.listItem()
+        .title('Featured Posts')
+        .child(
+          S.documentList()
+            .title('Featured Posts')
+            .schemaType('post')
+            .filter('_type == "post" && featured == true')
+        ),
       S.divider(),
       S.documentTypeListItem('post').title('All Posts'),
+      S.divider(),
+      S.documentTypeListItem('author').title('Authors'),
+      S.documentTypeListItem('category').title('Categories'),
     ])

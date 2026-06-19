@@ -183,13 +183,34 @@ export const postType = defineType({
     },
 
     defineField({
+      name: "author",
+      title: "Author",
+      type: "reference",
+      to: [{ type: "author" }],
+    }),
+
+    defineField({
+      name: "categories",
+      title: "Categories",
+      type: "array",
+      of: [{ type: "reference", to: [{ type: "category" }] }],
+    }),
+
+    defineField({
+      name: "featured",
+      title: "Featured",
+      type: "boolean",
+      description: "Pin this post to the top of the news feed.",
+      initialValue: false,
+    }),
+
+    defineField({
       name: "publishedAt",
       title: "Published at",
       type: "datetime",
       initialValue: () => new Date().toISOString(),
     }),
 
-    // existing body/block content
     defineField({ name: "body", type: "blockContent" }),
   ],
 });
