@@ -15,6 +15,7 @@ export const POSTS_BY_KIND = `
   coverImage,
   teams,
   opponent,
+  opponentTeam->{ name, "logo": logo },
   scoreFor,
   scoreAgainst
 }
@@ -32,6 +33,7 @@ export const POST_BY_SLUG = `
   teams,
   teamDisplay,
   opponent,
+  opponentTeam->{ name, "logo": logo },
   scoreFor,
   scoreAgainst,
   venue,
@@ -65,5 +67,22 @@ export const RECENT_POSTS = `
   excerpt,
   publishedAt,
   postKind
+}
+`;
+
+export const SITE_SETTINGS = `
+*[_type == "siteSettings" && _id == "siteSettings"][0]{
+  clubReportBanner,
+  matchReportBanner
+}
+`;
+
+export const TEAMS = `
+*[_type == "team"] | order(isNDSC desc, name asc){
+  _id,
+  name,
+  "slug": slug.current,
+  "logo": logo,
+  isNDSC
 }
 `;

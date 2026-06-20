@@ -9,20 +9,34 @@ export const postType = defineType({
   name: "post",
   title: "Post",
   type: "document",
+
+  groups: [
+    { name: "content", title: "Content", default: true },
+    { name: "media", title: "Media" },
+    { name: "matchDetails", title: "Match Details" },
+    { name: "publishing", title: "Publishing" },
+  ],
+
   fields: [
-    defineField({ name: "title", type: "string", validation: (r) => r.required() }),
+    // ── Content ───────────────────────────────────────────────────────────
+    defineField({
+      name: "title",
+      type: "string",
+      group: "content",
+      validation: (r) => r.required(),
+    }),
     defineField({
       name: "slug",
       type: "slug",
+      group: "content",
       options: { source: "title" },
       validation: (r) => r.required(),
     }),
-
-    // ✅ NEW: kind
     defineField({
       name: "postKind",
       title: "Post kind",
       type: "string",
+      group: "content",
       options: {
         list: [
           { title: "Club News", value: "clubNews" },
@@ -33,11 +47,54 @@ export const postType = defineType({
       initialValue: "clubNews",
       validation: (r) => r.required(),
     }),
+    defineField({
+      name: "excerpt",
+      title: "Excerpt / SEO Description",
+      description:
+        "Shown on news cards and used as the Google meta description and social preview. Aim for 120–155 characters. If left blank, the description is auto-generated from the article body (or match score for team reports).",
+      type: "text",
+      rows: 3,
+      group: "content",
+      validation: (r) =>
+        r.max(155).warning("Over 155 characters — Google may truncate this in search results."),
+    }),
+    defineField({
+      name: "body",
+      type: "blockContent",
+      group: "content",
+    }),
 
+    // ── Media ─────────────────────────────────────────────────────────────
+    defineField({
+      name: "coverImage",
+      title: "Cover image",
+      type: "image",
+      group: "media",
+      options: { hotspot: true },
+    }),
+    {
+      name: "gallery",
+      title: "Gallery",
+      type: "array",
+      group: "media",
+      of: [
+        {
+          type: "image",
+          options: { hotspot: true },
+          fields: [
+            { name: "alt", title: "Alt text", type: "string" },
+            { name: "caption", title: "Caption", type: "string" },
+          ],
+        },
+      ],
+    },
+
+    // ── Match Details ─────────────────────────────────────────────────────
     defineField({
       name: "teams",
-      title: "Teams (Team Reports only)",
+      title: "NDSC Team(s)",
       type: "array",
+      group: "matchDetails",
       of: [{ type: "string" }],
       options: {
         list: [
@@ -60,26 +117,35 @@ export const postType = defineType({
           return true;
         }),
     }),
-
     defineField({
       name: "teamDisplay",
       title: "Team display name",
       type: "string",
+      group: "matchDetails",
       description: "Shown on the post itself, e.g. 'Barracudas' or 'Barracudas vs Sluggers'",
       hidden: ({ document }) => document?.postKind !== "teamReport",
     }),
-
-    // ✅ Match report fields (Team Reports only)
     defineField({
       name: "opponent",
-      title: "Opponent",
+      title: "Opponent name",
       type: "string",
+      group: "matchDetails",
+      hidden: ({ document }) => document?.postKind !== "teamReport",
+    }),
+    defineField({
+      name: "opponentTeam",
+      title: "Opponent team (for logo)",
+      description: "Link to a Team document to pull in the opposition logo.",
+      type: "reference",
+      to: [{ type: "team" }],
+      group: "matchDetails",
       hidden: ({ document }) => document?.postKind !== "teamReport",
     }),
     defineField({
       name: "scoreFor",
       title: "Runs (NDSC)",
       type: "number",
+      group: "matchDetails",
       validation: (r) => r.min(0),
       hidden: ({ document }) => document?.postKind !== "teamReport",
     }),
@@ -87,6 +153,7 @@ export const postType = defineType({
       name: "scoreAgainst",
       title: "Runs (Opponent)",
       type: "number",
+      group: "matchDetails",
       validation: (r) => r.min(0),
       hidden: ({ document }) => document?.postKind !== "teamReport",
     }),
@@ -94,14 +161,15 @@ export const postType = defineType({
       name: "venue",
       title: "Match Venue",
       type: "string",
+      group: "matchDetails",
       description: "Where the match was played, e.g. Ward Park or Mallusk",
       hidden: ({ document }) => document?.postKind !== "teamReport",
     }),
-
     defineField({
       name: "mvps",
       title: "MVPs",
       type: "array",
+      group: "matchDetails",
       of: [
         defineArrayMember({
           type: "object",
@@ -134,87 +202,53 @@ export const postType = defineType({
       ],
       hidden: ({ document }) => document?.postKind !== "teamReport",
     }),
-
     defineField({
       name: "debutants",
       title: "Debutants",
       description: "Players making their first appearance — shown on the match report",
       type: "array",
+      group: "matchDetails",
       of: [{ type: "string" }],
       hidden: ({ document }) => document?.postKind !== "teamReport",
     }),
-
     defineField({
       name: "highlights",
       title: "Highlights",
       type: "array",
+      group: "matchDetails",
       of: [{ type: "string" }],
       hidden: ({ document }) => document?.postKind !== "teamReport",
     }),
 
-    defineField({
-      name: "excerpt",
-      title: "Excerpt / SEO Description",
-      description:
-        "Shown on news cards and used as the Google meta description and social preview. Aim for 120–155 characters. If left blank, the description is auto-generated from the article body (or match score for team reports).",
-      type: "text",
-      rows: 3,
-      validation: (r) => r.max(155).warning("Over 155 characters — Google may truncate this in search results."),
-    }),
-
-    // ✅ NEW: cover image
-    defineField({
-      name: "coverImage",
-      title: "Cover image",
-      type: "image",
-      options: { hotspot: true },
-    }),
-
-    {
-      name: "gallery",
-      title: "Gallery",
-      type: "array",
-      of: [
-        {
-          type: "image",
-          options: { hotspot: true },
-          fields: [
-            { name: "alt", title: "Alt text", type: "string" },
-            { name: "caption", title: "Caption", type: "string" },
-          ],
-        },
-      ],
-    },
-
+    // ── Publishing ────────────────────────────────────────────────────────
     defineField({
       name: "author",
       title: "Author",
       type: "reference",
+      group: "publishing",
       to: [{ type: "author" }],
     }),
-
     defineField({
       name: "categories",
       title: "Categories",
       type: "array",
+      group: "publishing",
       of: [{ type: "reference", to: [{ type: "category" }] }],
     }),
-
     defineField({
       name: "featured",
       title: "Featured",
       type: "boolean",
+      group: "publishing",
       description: "Pin this post to the top of the news feed.",
       initialValue: false,
     }),
-
     defineField({
       name: "publishedAt",
       title: "Published at",
       type: "datetime",
+      group: "publishing",
       initialValue: () => new Date().toISOString(),
     }),
-
-    defineField({ name: "body", type: "blockContent" }),
   ],
 });
