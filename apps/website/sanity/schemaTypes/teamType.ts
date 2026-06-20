@@ -33,7 +33,7 @@ export const teamType = defineType({
   ],
   preview: {
     select: { title: "name", subtitle: "isNDSC", media: "logo" },
-    prepare({ title, subtitle, media }: { title?: string; subtitle?: boolean; media?: unknown }) {
+    prepare({ title, subtitle, media }) {
       return { title: title || "Unnamed", subtitle: subtitle ? "NDSC" : "Opposition", media };
     },
   },
