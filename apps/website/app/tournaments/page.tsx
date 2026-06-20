@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import Image from "next/image";
 import Link from "next/link";
 import {
   ArrowRight,
@@ -9,14 +8,10 @@ import {
   UserPlus,
 } from "lucide-react";
 import JsonLd from "@/app/components/JsonLd";
+import Navbar from "@/app/components/Navbar";
 import { absoluteUrl, buildMetadata, buildPageTitle } from "@/lib/seo";
-import { primaryNavLinks } from "@/lib/site-nav";
 import TournamentPhotoGrid from "./tournament-photo-grid";
-
-const playerInterestFormUrl =
-  "https://docs.google.com/forms/d/e/1FAIpQLSfmLHwuXDLQiBxivhCRsPfD7CdiK7xpt1WrlFjuBhv9S6WgMw/viewform?usp=publish-editor";
-const teamInterestFormUrl =
-  "https://docs.google.com/forms/d/e/1FAIpQLScp8tP1P_PlHI9TU1952N233dVWtgrhu3hiXOZGkje4rHtjPg/viewform?usp=header";
+import { PlayerInterestForm, TeamInterestForm } from "./interest-forms";
 const sponsorEmailUrl =
   `mailto:northdownsoftballclub@gmail.com?cc=${encodeURIComponent(
     "anorman529@gmail.com,gilpin16@hotmail.com"
@@ -102,45 +97,6 @@ export const metadata: Metadata = buildMetadata({
   image: "/pop-icons-banner.png",
 });
 
-function TournamentHeader() {
-  return (
-    <header className="relative z-30 border-b border-white/12 bg-[#2B2254] text-white">
-      <div className="h-2 w-full bg-[linear-gradient(90deg,#ff4aa8_0%,#1ed0d8_35%,#ffd84d_68%,#95d28c_100%)]" />
-      <div className="mx-auto flex max-w-7xl flex-col gap-4 px-4 py-4 sm:px-6 lg:flex-row lg:items-center lg:justify-between">
-        <Link href="/" className="flex items-center gap-3">
-          <Image
-            src="/logo.png"
-            alt="North Down Softball Club Logo"
-            width={96}
-            height={96}
-            className="h-16 w-auto object-contain lg:h-20"
-            priority
-          />
-          <div>
-            <div className="text-xs font-semibold uppercase tracking-[0.28em] text-[#ff79ca]">
-              North Down Softball Club
-            </div>
-            <div className="text-xl font-black uppercase italic tracking-tight text-white sm:text-2xl">
-              Women&apos;s Tournaments
-            </div>
-          </div>
-        </Link>
-
-        <nav className="flex flex-wrap items-center gap-2 text-xs font-semibold uppercase tracking-[0.16em] text-white/80">
-          {primaryNavLinks.map((link) => (
-            <a
-              key={link.href}
-              href={link.href}
-              className="rounded-full border border-white/14 bg-white/8 px-3 py-2 transition hover:border-[#1ed0d8] hover:bg-white/14 hover:text-white"
-            >
-              {link.label}
-            </a>
-          ))}
-        </nav>
-      </div>
-    </header>
-  );
-}
 
 function TournamentShowcase({
   tournament,
@@ -261,15 +217,7 @@ function InterestSection() {
             <p className="mt-3 text-base leading-7 text-[#55466f]">
               Best for players who want to join but do not yet have a full team.
             </p>
-            <a
-              href={playerInterestFormUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="mt-7 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-[#1cbbc5] px-6 py-4 text-base font-black uppercase tracking-wide text-white shadow-[0_8px_0_rgba(43,34,84,0.18)] transition hover:translate-y-[1px]"
-            >
-              Player Interest
-              <ArrowRight className="h-5 w-5" />
-            </a>
+            <PlayerInterestForm />
           </div>
 
           <div className="rounded-[30px] border-2 border-[#2B2254] bg-white p-6 shadow-[0_14px_0_rgba(43,34,84,0.2)] sm:p-8">
@@ -282,15 +230,7 @@ function InterestSection() {
             <p className="mt-3 text-base leading-7 text-[#55466f]">
               Best for captains, coaches, or groups planning to bring a full squad.
             </p>
-            <a
-              href={teamInterestFormUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="mt-7 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-[#e33ea8] px-6 py-4 text-base font-black uppercase tracking-wide text-white shadow-[0_8px_0_rgba(43,34,84,0.18)] transition hover:translate-y-[1px]"
-            >
-              Team Interest
-              <ArrowRight className="h-5 w-5" />
-            </a>
+            <TeamInterestForm />
           </div>
         </div>
       </div>
@@ -436,7 +376,7 @@ export default function TournamentsPage() {
   return (
     <main className="min-h-screen bg-[#2B2254] text-white">
       <JsonLd data={tournamentsSchema} />
-      <TournamentHeader />
+      <Navbar headerClassName="bg-[#2B2254]" />
 
       <section className="relative overflow-hidden bg-[#E84AA5] px-4 py-16 text-white sm:px-6 md:py-24">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(255,216,77,0.36),transparent_28%),radial-gradient(circle_at_bottom_right,rgba(30,208,216,0.35),transparent_30%)]" />
