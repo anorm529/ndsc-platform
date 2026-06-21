@@ -31,25 +31,50 @@ type NavItem = {
   permission?: string | null;
 };
 
-const mainNav: NavItem[] = [
-  { label: "Dashboard",  href: "/council/dashboard", icon: LayoutDashboard, permission: null },
-  { label: "Members",    href: "/council/members",   icon: Users,            permission: null },
-  { label: "Seasons",    href: "/council/seasons",   icon: Trophy,           permission: "chairman" },
-  { label: "Captains",   href: "/council/captains",  icon: Shield,           permission: "captain" },
-  { label: "Fixtures",   href: "/council/fixtures",  icon: CalendarDays,     permission: null },
-  { label: "Stats",      href: "/council/stats",     icon: BarChart2,        permission: "chairman" },
-  { label: "Standings",  href: "/council/standings", icon: TrendingUp,       permission: "chairman" },
-  { label: "Awards",     href: "/council/awards",    icon: Medal,            permission: "chairman" },
-  { label: "Archive",    href: "/council/archive",   icon: Archive,          permission: null },
-  { label: "Audit Log",  href: "/council/audit",     icon: ScrollText,       permission: "chairman" },
-  { label: "Meetings",   href: "/council/meetings",  icon: CalendarDays,     permission: null },
-  { label: "Actions",    href: "/council/actions",   icon: CheckSquare,      permission: null },
-  { label: "Signups",    href: "/council/signups",   icon: ClipboardList,    permission: null },
+type NavGroup = {
+  label: string;
+  items: NavItem[];
+};
+
+const topNav: NavItem[] = [
+  { label: "Dashboard", href: "/council/dashboard", icon: LayoutDashboard, permission: null },
+  { label: "Members",   href: "/council/members",   icon: Users,            permission: null },
 ];
 
-const treasurerNav: NavItem[] = [
-  { label: "Club Accounts", href: "/council/treasurer/accounts", icon: Wallet,        permission: "treasurer" },
-  { label: "Player Fees",   href: "/council/treasurer/fees",     icon: PoundSterling, permission: "treasurer" },
+const navGroups: NavGroup[] = [
+  {
+    label: "Season",
+    items: [
+      { label: "Seasons",   href: "/council/seasons",   icon: Trophy,      permission: "chairman" },
+      { label: "Captains",  href: "/council/captains",  icon: Shield,      permission: "captain" },
+      { label: "Fixtures",  href: "/council/fixtures",  icon: CalendarDays, permission: null },
+      { label: "Stats",     href: "/council/stats",     icon: BarChart2,   permission: "chairman" },
+      { label: "Standings", href: "/council/standings", icon: TrendingUp,  permission: "chairman" },
+      { label: "Awards",    href: "/council/awards",    icon: Medal,       permission: "chairman" },
+    ],
+  },
+  {
+    label: "Governance",
+    items: [
+      { label: "Meetings", href: "/council/meetings", icon: CalendarDays,  permission: null },
+      { label: "Actions",  href: "/council/actions",  icon: CheckSquare,   permission: null },
+      { label: "Signups",  href: "/council/signups",  icon: ClipboardList, permission: null },
+    ],
+  },
+  {
+    label: "Treasurer",
+    items: [
+      { label: "Club Accounts", href: "/council/treasurer/accounts", icon: Wallet,        permission: "treasurer" },
+      { label: "Player Fees",   href: "/council/treasurer/fees",     icon: PoundSterling, permission: "treasurer" },
+    ],
+  },
+  {
+    label: "Records",
+    items: [
+      { label: "Archive",   href: "/council/archive", icon: Archive,    permission: null },
+      { label: "Audit Log", href: "/council/audit",   icon: ScrollText, permission: "chairman" },
+    ],
+  },
 ];
 
 function SidebarLink({ item, active }: { item: NavItem; active: boolean }) {
@@ -75,6 +100,16 @@ function SidebarLink({ item, active }: { item: NavItem; active: boolean }) {
   );
 }
 
+function GroupLabel({ label }: { label: string }) {
+  return (
+    <div className="px-3 pb-1.5 pt-5">
+      <p className="text-[0.65rem] font-semibold uppercase tracking-wider text-slate-600">
+        {label}
+      </p>
+    </div>
+  );
+}
+
 export function CouncilSidebar({
   mobileOpen,
   onClose,
@@ -90,7 +125,6 @@ export function CouncilSidebar({
 }) {
   const pathname = usePathname();
   const permSet = new Set(councilPermissions);
-
   const isElevated = [...permSet].some((p) => ELEVATED_ROLES.has(p));
 
   const canSee = (item: NavItem) => {
@@ -99,11 +133,13 @@ export function CouncilSidebar({
     return permSet.has(item.permission);
   };
 
-  const visibleMain = mainNav.filter(canSee);
-  const visibleTreasurer = treasurerNav.filter(canSee);
-
   const isActive = (href: string) =>
     pathname === href || (href !== "/council/dashboard" && pathname.startsWith(href));
+
+  const visibleTop = topNav.filter(canSee);
+  const visibleGroups = navGroups
+    .map((g) => ({ ...g, items: g.items.filter(canSee) }))
+    .filter((g) => g.items.length > 0);
 
   return (
     <aside
@@ -138,22 +174,18 @@ export function CouncilSidebar({
 
       {/* Nav */}
       <nav className="flex-1 overflow-y-auto px-2 py-3 space-y-0.5">
-        {visibleMain.map((item) => (
+        {visibleTop.map((item) => (
           <SidebarLink key={item.href} item={item} active={isActive(item.href)} />
         ))}
 
-        {visibleTreasurer.length > 0 ? (
-          <>
-            <div className="px-3 pt-5 pb-1.5">
-              <p className="text-[0.65rem] font-semibold uppercase tracking-wider text-slate-600">
-                Treasurer
-              </p>
-            </div>
-            {visibleTreasurer.map((item) => (
+        {visibleGroups.map((group) => (
+          <div key={group.label}>
+            <GroupLabel label={group.label} />
+            {group.items.map((item) => (
               <SidebarLink key={item.href} item={item} active={isActive(item.href)} />
             ))}
-          </>
-        ) : null}
+          </div>
+        ))}
       </nav>
 
       {/* Footer */}
