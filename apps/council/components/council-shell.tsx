@@ -23,6 +23,7 @@ const titleMap: Record<string, string> = {
   "/council/stats":               "Game Stats Upload",
   "/council/standings":           "League Standings",
   "/council/awards":              "Awards",
+  "/council/audit":               "Audit Log",
   "/council/archive":             "Season Archives",
   "/council/archive/stats":       "Membership Stats",
 };

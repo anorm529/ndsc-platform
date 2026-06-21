@@ -1,10 +1,53 @@
 import Link from "next/link";
-import { Shield, Users } from "lucide-react";
+import { Shield, Users, ArrowRight, History } from "lucide-react";
 import { requireCouncilUser, hasRosterManagementAccess } from "@/lib/council-session";
 import { getAllSeasons, getSeasonEnrollments, getAllTeams, type EnrollmentRow, type TeamRow, type SeasonRow } from "@/lib/season-queries";
 import { getPlayerProfiles, getCurrentFeeStatuses, type PlayerProfile, type PlayerFeeStatus } from "@/lib/council-queries";
 import { getCaptainTeamIdsForSeason } from "@/lib/captain-queries";
+import { getRosterTransfersForSeason, type RosterTransfer } from "@/lib/audit-queries";
 import { AssignTeamForm } from "../seasons/[seasonId]/assign-team-form";
+
+function formatDateTime(d: Date): string {
+  return new Date(d).toLocaleString("en-GB", {
+    day: "numeric", month: "short", hour: "2-digit", minute: "2-digit",
+  });
+}
+
+function TransferHistory({ transfers }: { transfers: RosterTransfer[] }) {
+  if (transfers.length === 0) {
+    return (
+      <p className="py-4 text-center text-[0.82rem] italic text-[color:var(--muted-foreground)]">
+        No roster moves recorded yet.
+      </p>
+    );
+  }
+  return (
+    <ul className="divide-y divide-[color:var(--border)]">
+      {transfers.map((t) => (
+        <li key={t.id} className="flex items-start gap-3 py-2.5 text-[0.8rem]">
+          <div className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[rgba(20,184,166,0.08)]">
+            <ArrowRight className="h-3 w-3 text-[color:var(--accent)]" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="font-medium text-slate-800">{t.playerName}</p>
+            <p className="text-[0.72rem] text-[color:var(--muted-foreground)]">
+              {t.fromTeam ? t.fromTeam : "Unassigned"}
+              {" → "}
+              {t.toTeam ? t.toTeam : "Unassigned"}
+              {t.notes && <span className="ml-1 italic">· {t.notes}</span>}
+            </p>
+          </div>
+          <div className="shrink-0 text-right">
+            <p className="text-[0.68rem] text-[color:var(--muted-foreground)]">{formatDateTime(t.transferredAt)}</p>
+            {t.actorName && (
+              <p className="text-[0.65rem] text-slate-400">{t.actorName}</p>
+            )}
+          </div>
+        </li>
+      ))}
+    </ul>
+  );
+}
 
 // ─── Player row ───────────────────────────────────────────────────────────────
 
@@ -211,6 +254,12 @@ export default async function CaptainsPage() {
     getCaptainTeamIdsForSeason(user.id, season.year),
   ]);
 
+  // Fetch transfer history — scoped to captain's teams, or all for management
+  const transfers = await getRosterTransfersForSeason(
+    season.id,
+    canManage ? undefined : captainTeamIds
+  );
+
   // Determine which teams to show
   // Captains: only their team(s) + unassigned pool
   // Owners/chairs: all teams
@@ -322,6 +371,18 @@ export default async function CaptainsPage() {
           )}
         </div>
       )}
+
+      {/* Transfer history */}
+      <section className="council-panel rounded-2xl border p-5">
+        <div className="mb-4 flex items-center gap-2">
+          <History className="h-4 w-4 text-[color:var(--accent)]" />
+          <h3 className="text-[0.92rem] font-semibold text-slate-800">Transfer history</h3>
+          <span className="ml-auto text-[0.72rem] text-[color:var(--muted-foreground)]">
+            {season.year} season · last {transfers.length}
+          </span>
+        </div>
+        <TransferHistory transfers={transfers} />
+      </section>
     </div>
   );
 }

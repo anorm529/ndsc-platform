@@ -21,6 +21,7 @@ import {
   Archive,
   Medal,
   TrendingUp,
+  ScrollText,
 } from "lucide-react";
 
 type NavItem = {
@@ -40,6 +41,7 @@ const mainNav: NavItem[] = [
   { label: "Standings",  href: "/council/standings", icon: TrendingUp,       permission: "chairman" },
   { label: "Awards",     href: "/council/awards",    icon: Medal,            permission: "chairman" },
   { label: "Archive",    href: "/council/archive",   icon: Archive,          permission: null },
+  { label: "Audit Log",  href: "/council/audit",     icon: ScrollText,       permission: "chairman" },
   { label: "Meetings",   href: "/council/meetings",  icon: CalendarDays,     permission: null },
   { label: "Actions",    href: "/council/actions",   icon: CheckSquare,      permission: null },
   { label: "Signups",    href: "/council/signups",   icon: ClipboardList,    permission: null },
