@@ -777,6 +777,47 @@ export async function saveAnnouncement(data: {
   );
 }
 
+// ─── Dashboard alert counts ───────────────────────────────────────────────────
+
+export async function countPendingAccounts(): Promise<number> {
+  const res = await mainQuery<{ count: string }>(
+    `SELECT COUNT(*)::text AS count FROM users WHERE account_status = 'pending'`
+  );
+  return parseInt(res.rows[0]?.count ?? "0", 10);
+}
+
+export interface DataFlagCounts {
+  unlinked: number;
+  multiUser: number;
+  stalePending: number;
+  noAccount: number;
+  total: number;
+}
+
+export async function countDataFlags(): Promise<DataFlagCounts> {
+  const [unlinkedRes, multiRes, staleRes, noAccountRes] = await Promise.all([
+    mainQuery<{ count: string }>(
+      `SELECT COUNT(*)::text AS count FROM users WHERE account_status = 'active' AND player_id IS NULL`
+    ),
+    mainQuery<{ count: string }>(
+      `SELECT COUNT(*)::text AS count FROM (
+         SELECT player_id FROM users WHERE player_id IS NOT NULL GROUP BY player_id HAVING COUNT(*) > 1
+       ) sub`
+    ),
+    mainQuery<{ count: string }>(
+      `SELECT COUNT(*)::text AS count FROM users WHERE account_status = 'pending' AND created_at < NOW() - INTERVAL '14 days'`
+    ),
+    mainQuery<{ count: string }>(
+      `SELECT COUNT(*)::text AS count FROM players p WHERE p.active = true AND NOT EXISTS (SELECT 1 FROM users u WHERE u.player_id = p.id)`
+    ),
+  ]);
+  const unlinked    = parseInt(unlinkedRes.rows[0]?.count ?? "0", 10);
+  const multiUser   = parseInt(multiRes.rows[0]?.count ?? "0", 10);
+  const stalePending = parseInt(staleRes.rows[0]?.count ?? "0", 10);
+  const noAccount   = parseInt(noAccountRes.rows[0]?.count ?? "0", 10);
+  return { unlinked, multiUser, stalePending, noAccount, total: unlinked + multiUser + stalePending + noAccount };
+}
+
 // ─── Membership analytics ─────────────────────────────────────────────────────
 
 export interface MembershipStats {
