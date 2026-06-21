@@ -161,16 +161,24 @@ export function StatsUploadForm() {
 
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
             <Stat label="Rows" value={preview.totalRows} />
-            <Stat label="Unique games" value={preview.uniqueGames} />
-            <Stat label="Games to create" value={preview.newGames} accent={preview.newGames > 0} />
-            <Stat label="Existing games" value={preview.existingGames} />
+            <Stat label="Games matched" value={preview.matchedGames} accent={preview.matchedGames > 0} />
+            <Stat label="Games not in calendar" value={preview.unmatchedGames.length} danger={preview.unmatchedGames.length > 0} />
             <Stat label="Players matched" value={preview.matchedPlayers} />
-            <Stat
-              label="Unmatched players"
-              value={preview.unmatchedPlayers.length}
-              danger={preview.unmatchedPlayers.length > 0}
-            />
+            <Stat label="Unmatched players" value={preview.unmatchedPlayers.length} danger={preview.unmatchedPlayers.length > 0} />
           </div>
+
+          {preview.unmatchedGames.length > 0 && (
+            <div className="rounded-xl bg-red-50 border border-red-200 p-3">
+              <p className="mb-1.5 text-[0.75rem] font-semibold text-red-700">
+                Games not found in calendar — those rows will be skipped. Add them in Fixtures first.
+              </p>
+              <ul className="space-y-0.5">
+                {preview.unmatchedGames.map((g) => (
+                  <li key={g} className="text-[0.78rem] text-red-800">· {g}</li>
+                ))}
+              </ul>
+            </div>
+          )}
 
           {preview.unmatchedPlayers.length > 0 && (
             <div className="rounded-xl bg-amber-50 border border-amber-200 p-3">
@@ -189,7 +197,7 @@ export function StatsUploadForm() {
             <button
               type="button"
               onClick={handleImport}
-              disabled={preview.matchedPlayers === 0}
+              disabled={preview.matchedGames === 0 || preview.matchedPlayers === 0}
               className="flex-1 rounded-xl bg-[color:var(--accent)] py-2.5 text-[0.85rem] font-semibold text-white hover:bg-[color:var(--accent-hover)] disabled:opacity-40"
             >
               Confirm import
@@ -221,12 +229,22 @@ export function StatsUploadForm() {
             <h3 className="text-[0.9rem] font-semibold text-slate-800">Import complete</h3>
           </div>
 
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
             <Stat label="Inserted" value={result.inserted} accent />
             <Stat label="Updated" value={result.updated} />
             <Stat label="Skipped" value={result.skipped} danger={result.skipped > 0} />
-            <Stat label="Games created" value={result.gamesCreated} accent={result.gamesCreated > 0} />
           </div>
+
+          {result.unmatchedGames.length > 0 && (
+            <div className="rounded-xl bg-red-50 border border-red-200 p-3">
+              <p className="mb-1.5 text-[0.75rem] font-semibold text-red-700">
+                Games not found in calendar — add fixtures first:
+              </p>
+              {result.unmatchedGames.map((g) => (
+                <p key={g} className="text-[0.78rem] text-red-800">· {g}</p>
+              ))}
+            </div>
+          )}
 
           {result.unmatchedPlayers.length > 0 && (
             <div className="rounded-xl bg-amber-50 border border-amber-200 p-3">

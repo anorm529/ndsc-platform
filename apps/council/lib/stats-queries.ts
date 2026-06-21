@@ -15,16 +15,16 @@ export interface ImportResult {
   inserted: number;
   updated: number;
   skipped: number;
-  gamesCreated: number;
   unmatchedPlayers: string[];
+  unmatchedGames: string[];
   errors: string[];
 }
 
 export interface PreviewResult {
   totalRows: number;
   uniqueGames: number;
-  existingGames: number;
-  newGames: number;
+  matchedGames: number;
+  unmatchedGames: string[];
   matchedPlayers: number;
   unmatchedPlayers: string[];
 }
@@ -87,23 +87,14 @@ export async function findGameId(params: {
   return result.rows[0]?.id ?? null;
 }
 
-export async function findOrCreateGame(params: {
+export async function findMatchingGame(params: {
   seasonId: string;
   teamId: string;
   opponent: string;
   gameDate: string;
-  homeAway: string;
-}): Promise<{ id: string; created: boolean }> {
-  const existing = await findGameId(params);
-  if (existing) return { id: existing, created: false };
-
-  const result = await mainQuery<{ id: string }>(
-    `INSERT INTO public.games (team_id, season_id, opponent, game_date, home_away)
-     VALUES ($1, $2, $3, $4::date, $5)
-     RETURNING id::text AS id`,
-    [params.teamId, params.seasonId, params.opponent, params.gameDate, params.homeAway || "home"],
-  );
-  return { id: result.rows[0].id, created: true };
+  homeAway?: string;
+}): Promise<string | null> {
+  return findGameId(params);
 }
 
 // ─── Stat upsert ──────────────────────────────────────────────────────────────
@@ -286,17 +277,22 @@ export async function previewCsvImport(rows: StatRow[]): Promise<PreviewResult> 
     if (row.player?.trim()) playerNames.add(row.player.trim());
   }
 
-  // Check games
-  let existingGames = 0;
-  let newGames = 0;
+  // Check games — match only, never create
+  let matchedGames = 0;
+  const unmatchedGames: string[] = [];
 
   for (const key of gameKeys) {
     const [year, team, opponent, gameDate, homeAway] = key.split("::");
     const teamId = await findTeamId(team);
     const seasonId = await findSeasonId(parseInt(year, 10));
-    if (!teamId || !seasonId) { newGames++; continue; }
-    const existing = await findGameId({ seasonId, teamId, opponent, gameDate: normDate(gameDate), homeAway });
-    if (existing) existingGames++; else newGames++;
+    const existing = teamId && seasonId
+      ? await findGameId({ seasonId, teamId, opponent, gameDate: normDate(gameDate), homeAway })
+      : null;
+    if (existing) {
+      matchedGames++;
+    } else {
+      unmatchedGames.push(`${team} vs ${opponent} on ${gameDate}`);
+    }
   }
 
   // Check players
@@ -312,8 +308,8 @@ export async function previewCsvImport(rows: StatRow[]): Promise<PreviewResult> 
   return {
     totalRows: rows.length,
     uniqueGames: gameKeys.size,
-    existingGames,
-    newGames,
+    matchedGames,
+    unmatchedGames,
     matchedPlayers,
     unmatchedPlayers,
   };
@@ -324,8 +320,8 @@ export async function importCsvRows(rows: StatRow[]): Promise<ImportResult> {
     inserted: 0,
     updated: 0,
     skipped: 0,
-    gamesCreated: 0,
     unmatchedPlayers: [],
+    unmatchedGames: [],
     errors: [],
   };
 
@@ -333,7 +329,7 @@ export async function importCsvRows(rows: StatRow[]): Promise<ImportResult> {
   const teamCache = new Map<string, string | null>();
   const seasonCache = new Map<number, string | null>();
   const playerCache = new Map<string, string | null>();
-  const gameCache = new Map<string, string>();
+  const gameCache = new Map<string, string | null>();
 
   for (const row of rows) {
     const playerName = row.player?.trim();
@@ -359,20 +355,21 @@ export async function importCsvRows(rows: StatRow[]): Promise<ImportResult> {
       continue;
     }
 
-    // Resolve or create game
+    // Match game — never auto-create
     const gameDate = normDate(row.game_date);
     const gameKey = `${seasonId}::${teamId}::${row.opponent}::${gameDate}::${row.home_away}`;
     if (!gameCache.has(gameKey)) {
-      const { id, created } = await findOrCreateGame({
-        seasonId, teamId,
-        opponent: row.opponent,
-        gameDate,
-        homeAway: row.home_away || "home",
-      });
+      const id = await findMatchingGame({ seasonId, teamId, opponent: row.opponent, gameDate, homeAway: row.home_away });
       gameCache.set(gameKey, id);
-      if (created) result.gamesCreated++;
+      if (!id) {
+        const label = `${row.team} vs ${row.opponent} on ${gameDate}`;
+        if (!result.unmatchedGames.includes(label)) result.unmatchedGames.push(label);
+      }
     }
-    const gameId = gameCache.get(gameKey)!;
+    const gameId = gameCache.get(gameKey);
+
+    // Skip rows whose game isn't in the calendar
+    if (!gameId) { result.skipped++; continue; }
 
     // Resolve player
     const playerKey = playerName.toLowerCase();

@@ -19,6 +19,7 @@ const titleMap: Record<string, string> = {
   "/council/treasurer/fees":      "Player Fees",
   "/council/signups":             "Tournament Signups",
   "/council/captains":            "Captains & Rosters",
+  "/council/fixtures":            "Fixtures & Results",
   "/council/stats":               "Game Stats Upload",
   "/council/archive":             "Season Archives",
   "/council/archive/stats":       "Membership Stats",
