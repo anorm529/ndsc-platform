@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Archive, Users } from "lucide-react";
+import { Archive, Users, TrendingUp } from "lucide-react";
 import { requireCouncilUser } from "@/lib/council-session";
 import { getSeasonArchiveYears } from "@/lib/council-queries";
 
@@ -9,6 +9,17 @@ export default async function ArchivePage() {
 
   return (
     <div className="max-w-4xl space-y-6">
+      {/* Stats link — always shown */}
+      <div className="flex justify-end">
+        <Link
+          href="/council/archive/stats"
+          className="flex items-center gap-1.5 rounded-xl bg-[rgba(20,184,166,0.08)] px-3 py-1.5 text-[0.78rem] font-medium text-[color:var(--accent)] hover:bg-[rgba(20,184,166,0.15)] transition-colors"
+        >
+          <TrendingUp className="h-3.5 w-3.5" />
+          Year-on-year stats
+        </Link>
+      </div>
+
       <section className="council-panel rounded-2xl border p-5">
         <div className="mb-4 flex items-center gap-2">
           <Archive className="h-4 w-4 text-[color:var(--accent)]" />

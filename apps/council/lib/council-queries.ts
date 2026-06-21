@@ -566,3 +566,104 @@ export async function getMembershipSnapshot(year: number): Promise<MembershipSna
     snapshottedAt: r.snapshotted_at,
   }));
 }
+
+// ─── Year-on-year stats ───────────────────────────────────────────────────────
+
+export interface YearStats {
+  year: number;
+  total: number;
+  female: number;
+  male: number;
+  rookies: number;
+  umpires: number;
+  paid: number;
+  partial: number;
+  unpaid: number;
+  noFeeRecord: number;
+  totalDue: number;
+  totalPaid: number;
+  returners: number;
+  newPlayers: number;
+  teamBreakdown: { teamName: string; count: number }[];
+}
+
+export async function getYearOnYearStats(): Promise<YearStats[]> {
+  // Summary per year with returner calc via self-join
+  const summaryResult = await councilQuery<{
+    year: number;
+    total: string;
+    female: string;
+    male: string;
+    rookies: string;
+    umpires: string;
+    paid: string;
+    partial: string;
+    unpaid: string;
+    no_fee_record: string;
+    total_due: string;
+    total_paid: string;
+    returners: string;
+    new_players: string;
+  }>(`
+    SELECT
+      ms.season_year                                                        AS year,
+      COUNT(*)::text                                                        AS total,
+      COUNT(*) FILTER (WHERE ms.gender ILIKE 'female')::text               AS female,
+      COUNT(*) FILTER (WHERE ms.gender ILIKE 'male')::text                 AS male,
+      COUNT(*) FILTER (WHERE ms.is_rookie)::text                           AS rookies,
+      COUNT(*) FILTER (WHERE ms.is_umpire)::text                           AS umpires,
+      COUNT(*) FILTER (WHERE ms.fee_status = 'paid')::text                 AS paid,
+      COUNT(*) FILTER (WHERE ms.fee_status = 'partial')::text              AS partial,
+      COUNT(*) FILTER (WHERE ms.fee_status = 'unpaid')::text               AS unpaid,
+      COUNT(*) FILTER (WHERE ms.fee_status IS NULL)::text                  AS no_fee_record,
+      COALESCE(SUM(ms.amount_due),  0)::text                               AS total_due,
+      COALESCE(SUM(ms.amount_paid), 0)::text                               AS total_paid,
+      COUNT(prev.player_id)::text                                          AS returners,
+      (COUNT(*) - COUNT(prev.player_id))::text                             AS new_players
+    FROM membership_snapshots ms
+    LEFT JOIN membership_snapshots prev
+      ON prev.player_id    = ms.player_id
+     AND prev.season_year  = ms.season_year - 1
+    GROUP BY ms.season_year
+    ORDER BY ms.season_year DESC
+  `);
+
+  // Team breakdown per year
+  const teamResult = await councilQuery<{
+    year: number;
+    team_name: string;
+    count: string;
+  }>(`
+    SELECT season_year AS year, team_name, COUNT(*)::text AS count
+    FROM membership_snapshots
+    WHERE team_name IS NOT NULL
+    GROUP BY season_year, team_name
+    ORDER BY season_year DESC, COUNT(*) DESC
+  `);
+
+  // Index team rows by year
+  const teamsByYear = new Map<number, { teamName: string; count: number }[]>();
+  for (const r of teamResult.rows) {
+    const list = teamsByYear.get(r.year) ?? [];
+    list.push({ teamName: r.team_name, count: parseInt(r.count, 10) });
+    teamsByYear.set(r.year, list);
+  }
+
+  return summaryResult.rows.map((r) => ({
+    year: r.year,
+    total: parseInt(r.total, 10),
+    female: parseInt(r.female, 10),
+    male: parseInt(r.male, 10),
+    rookies: parseInt(r.rookies, 10),
+    umpires: parseInt(r.umpires, 10),
+    paid: parseInt(r.paid, 10),
+    partial: parseInt(r.partial, 10),
+    unpaid: parseInt(r.unpaid, 10),
+    noFeeRecord: parseInt(r.no_fee_record, 10),
+    totalDue: parseFloat(r.total_due),
+    totalPaid: parseFloat(r.total_paid),
+    returners: parseInt(r.returners, 10),
+    newPlayers: parseInt(r.new_players, 10),
+    teamBreakdown: teamsByYear.get(r.year) ?? [],
+  }));
+}

@@ -21,6 +21,7 @@ const titleMap: Record<string, string> = {
   "/council/captains":            "Captains & Rosters",
   "/council/stats":               "Game Stats Upload",
   "/council/archive":             "Season Archives",
+  "/council/archive/stats":       "Membership Stats",
 };
 
 function getTitle(pathname: string): string {
