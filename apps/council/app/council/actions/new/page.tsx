@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { requireCouncilUser, requireSecretaryAccess } from "@/lib/council-session";
-import { getAllActiveMembers, memberDisplayName } from "@/lib/main-db";
+import { getCouncilMembers, memberDisplayName } from "@/lib/main-db";
 import { getAllMeetings } from "@/lib/council-queries";
 import { createActionItem } from "@/lib/meeting-actions";
 
@@ -9,7 +9,7 @@ export default async function NewActionPage() {
   await requireSecretaryAccess(user);
 
   const [members, meetings] = await Promise.all([
-    getAllActiveMembers(),
+    getCouncilMembers(),
     getAllMeetings(),
   ]);
 

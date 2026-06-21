@@ -39,6 +39,7 @@ export function SignupCard({ signup }: { signup: Signup }) {
   const [currentStatus, setCurrentStatus] = useState(signup.status);
   const [deleteState, setDeleteState] = useState<"idle" | "confirm" | "deleting">("idle");
   const [deleted, setDeleted] = useState(false);
+  const isDeleting = deleteState === "deleting";
 
   const recipientName =
     signup.type === "team" ? signup.team_name ?? signup.name : signup.name;
@@ -163,10 +164,10 @@ export function SignupCard({ signup }: { signup: Signup }) {
             <button
               type="button"
               onClick={handleDelete}
-              disabled={deleteState === "deleting"}
+              disabled={isDeleting}
               className="rounded-md bg-red-600 px-2.5 py-1 text-[0.72rem] font-semibold text-white transition hover:bg-red-700 disabled:opacity-50"
             >
-              {deleteState === "deleting" ? <Loader2 className="h-3 w-3 animate-spin" /> : "Yes, delete"}
+              {isDeleting ? <Loader2 className="h-3 w-3 animate-spin" /> : "Yes, delete"}
             </button>
             <button
               type="button"

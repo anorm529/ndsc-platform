@@ -16,6 +16,7 @@ const titleMap: Record<string, string> = {
   "/council/treasurer/accounts":  "Club Accounts",
   "/council/treasurer/fees":      "Player Fees",
   "/council/signups":             "Tournament Signups",
+  "/council/captains":            "Captains & Rosters",
 };
 
 function getTitle(pathname: string): string {

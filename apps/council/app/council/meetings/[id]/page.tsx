@@ -7,7 +7,7 @@ import {
 import { requireCouncilUser, hasSecretaryAccess } from "@/lib/council-session";
 import { getMeetingById } from "@/lib/council-queries";
 import { getMeetingActions, createActionItem, updateMeeting } from "@/lib/meeting-actions";
-import { getAllActiveMembers, memberDisplayName } from "@/lib/main-db";
+import { getCouncilMembers, memberDisplayName } from "@/lib/main-db";
 
 const PRIORITY_COLOURS = {
   high:   "bg-[rgba(239,68,68,0.14)] text-[color:var(--danger)]",
@@ -27,7 +27,7 @@ export default async function MeetingDetailPage({ params }: { params: Promise<{ 
   const [meeting, actions, members] = await Promise.all([
     getMeetingById(id),
     getMeetingActions(id),
-    getAllActiveMembers(),
+    getCouncilMembers(),
   ]);
 
   if (!meeting) notFound();

@@ -12,6 +12,7 @@ import {
   CalendarDays,
   CheckSquare,
   ClipboardList,
+  Shield,
   LogOut,
   X,
   PoundSterling,
@@ -30,6 +31,7 @@ const mainNav: NavItem[] = [
   { label: "Meetings",   href: "/council/meetings",  icon: CalendarDays,     permission: null },
   { label: "Actions",    href: "/council/actions",   icon: CheckSquare,      permission: null },
   { label: "Signups",    href: "/council/signups",   icon: ClipboardList,    permission: null },
+  { label: "Captains",  href: "/council/captains",  icon: Shield,           permission: "captain" },
 ];
 
 const treasurerNav: NavItem[] = [

@@ -19,7 +19,7 @@ type UserRow = {
   display_name: string | null;
 };
 
-const APPS: App[] = ["admin", "tournament", "fantasy"];
+const APPS: App[] = ["admin", "tournament", "fantasy", "council"];
 
 const APP_LABELS: Record<App, string> = {
   admin:      "Admin panel",

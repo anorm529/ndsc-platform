@@ -292,3 +292,109 @@ export async function getAccountBalances(): Promise<AccountBalance[]> {
     balance: parseFloat(r.balance),
   }));
 }
+
+// ─── Player Profiles ──────────────────────────────────────────────────────────
+
+export interface PlayerProfile {
+  playerId: string;
+  yearOfBirth: number | null;
+  postcode: string | null;
+  isRookie: boolean;
+  isUmpire: boolean;
+  notes: string | null;
+}
+
+export async function getPlayerProfiles(): Promise<Map<string, PlayerProfile>> {
+  const result = await councilQuery<{
+    player_id: string;
+    year_of_birth: number | null;
+    postcode: string | null;
+    is_rookie: boolean;
+    is_umpire: boolean;
+    notes: string | null;
+  }>(`SELECT player_id, year_of_birth, postcode, is_rookie, is_umpire, notes FROM player_profiles`);
+
+  const map = new Map<string, PlayerProfile>();
+  for (const r of result.rows) {
+    map.set(r.player_id, {
+      playerId: r.player_id,
+      yearOfBirth: r.year_of_birth,
+      postcode: r.postcode,
+      isRookie: r.is_rookie,
+      isUmpire: r.is_umpire,
+      notes: r.notes,
+    });
+  }
+  return map;
+}
+
+export async function upsertPlayerProfile(
+  playerId: string,
+  data: { yearOfBirth: number | null; postcode: string | null; isRookie: boolean; isUmpire: boolean; notes: string | null }
+): Promise<void> {
+  await councilQuery(
+    `INSERT INTO player_profiles (player_id, year_of_birth, postcode, is_rookie, is_umpire, notes, updated_at)
+     VALUES ($1, $2, $3, $4, $5, $6, NOW())
+     ON CONFLICT (player_id) DO UPDATE SET
+       year_of_birth = EXCLUDED.year_of_birth,
+       postcode      = EXCLUDED.postcode,
+       is_rookie     = EXCLUDED.is_rookie,
+       is_umpire     = EXCLUDED.is_umpire,
+       notes         = EXCLUDED.notes,
+       updated_at    = NOW()`,
+    [playerId, data.yearOfBirth, data.postcode, data.isRookie, data.isUmpire, data.notes]
+  );
+}
+
+// ─── Fee Status ───────────────────────────────────────────────────────────────
+
+export type FeeStatus = "paid" | "partial" | "unpaid";
+
+export interface PlayerFeeStatus {
+  playerId: string;
+  feeType: string;
+  amountDue: number;
+  amountPaid: number;
+  status: FeeStatus;
+}
+
+export async function getCurrentFeeStatuses(): Promise<Map<string, PlayerFeeStatus>> {
+  // Use the active season; fall back to the most recent season
+  const seasonResult = await councilQuery<{ id: string }>(
+    `SELECT id FROM fee_seasons
+     ORDER BY is_active DESC, year DESC
+     LIMIT 1`
+  );
+  const seasonId = seasonResult.rows[0]?.id;
+  if (!seasonId) return new Map();
+
+  const result = await councilQuery<{
+    player_id: string;
+    fee_type: string;
+    amount_due: string;
+    amount_paid: string;
+  }>(
+    `SELECT pf.player_id, pf.fee_type, pf.amount_due::text,
+            COALESCE(SUM(fp.amount), 0)::text AS amount_paid
+     FROM player_fees pf
+     LEFT JOIN fee_payments fp ON fp.player_fee_id = pf.id
+     WHERE pf.season_id = $1
+     GROUP BY pf.player_id, pf.fee_type, pf.amount_due`,
+    [seasonId]
+  );
+
+  const map = new Map<string, PlayerFeeStatus>();
+  for (const r of result.rows) {
+    const due = parseFloat(r.amount_due);
+    const paid = parseFloat(r.amount_paid);
+    const status: FeeStatus = paid >= due ? "paid" : paid > 0 ? "partial" : "unpaid";
+    map.set(r.player_id, {
+      playerId: r.player_id,
+      feeType: r.fee_type,
+      amountDue: due,
+      amountPaid: paid,
+      status,
+    });
+  }
+  return map;
+}
