@@ -12,6 +12,7 @@ export interface SeasonRow {
   year: number;
   status: SeasonStatus;
   isActive: boolean;
+  transfersLocked: boolean;
   createdAt: Date;
   enrolledCount?: number;
   assignedCount?: number;
@@ -47,14 +48,14 @@ export interface PreviousSeasonPlayer extends PlayerRow {
 export async function getAllSeasons(): Promise<SeasonRow[]> {
   const result = await mainQuery<{
     id: string; year: number; status: string; is_active: boolean;
-    created_at: Date; enrolled: string; assigned: string;
+    transfers_locked: boolean; created_at: Date; enrolled: string; assigned: string;
   }>(
-    `SELECT s.id, s.year, s.status, s.is_active, s.created_at,
+    `SELECT s.id, s.year, s.status, s.is_active, s.transfers_locked, s.created_at,
             COUNT(se.id)::text AS enrolled,
             COUNT(se.id) FILTER (WHERE se.current_team_id IS NOT NULL)::text AS assigned
      FROM seasons s
      LEFT JOIN season_enrollments se ON se.season_id = s.id
-     GROUP BY s.id, s.year, s.status, s.is_active
+     GROUP BY s.id, s.year, s.status, s.is_active, s.transfers_locked
      ORDER BY s.year DESC`
   );
 
@@ -63,6 +64,7 @@ export async function getAllSeasons(): Promise<SeasonRow[]> {
     year: r.year,
     status: r.status as SeasonStatus,
     isActive: r.is_active,
+    transfersLocked: r.transfers_locked,
     createdAt: r.created_at,
     enrolledCount: parseInt(r.enrolled, 10),
     assignedCount: parseInt(r.assigned, 10),
@@ -72,15 +74,15 @@ export async function getAllSeasons(): Promise<SeasonRow[]> {
 export async function getSeasonById(id: string): Promise<SeasonRow | null> {
   const result = await mainQuery<{
     id: string; year: number; status: string; is_active: boolean;
-    created_at: Date; enrolled: string; assigned: string;
+    transfers_locked: boolean; created_at: Date; enrolled: string; assigned: string;
   }>(
-    `SELECT s.id, s.year, s.status, s.is_active, s.created_at,
+    `SELECT s.id, s.year, s.status, s.is_active, s.transfers_locked, s.created_at,
             COUNT(se.id)::text AS enrolled,
             COUNT(se.id) FILTER (WHERE se.current_team_id IS NOT NULL)::text AS assigned
      FROM seasons s
      LEFT JOIN season_enrollments se ON se.season_id = s.id
      WHERE s.id = $1
-     GROUP BY s.id, s.year, s.status, s.is_active`,
+     GROUP BY s.id, s.year, s.status, s.is_active, s.transfers_locked`,
     [id]
   );
   if (!result.rows[0]) return null;
@@ -90,6 +92,7 @@ export async function getSeasonById(id: string): Promise<SeasonRow | null> {
     year: r.year,
     status: r.status as SeasonStatus,
     isActive: r.is_active,
+    transfersLocked: r.transfers_locked,
     createdAt: r.created_at,
     enrolledCount: parseInt(r.enrolled, 10),
     assignedCount: parseInt(r.assigned, 10),
@@ -105,7 +108,6 @@ export async function createSeason(year: number, status: SeasonStatus = "draft")
 }
 
 export async function updateSeasonStatus(id: string, status: SeasonStatus): Promise<void> {
-  // Only one season can be is_active at a time
   if (status === "active") {
     await mainQuery(`UPDATE seasons SET is_active = false WHERE id != $1`, [id]);
   }
@@ -113,6 +115,10 @@ export async function updateSeasonStatus(id: string, status: SeasonStatus): Prom
     `UPDATE seasons SET status = $1, is_active = $2 WHERE id = $3`,
     [status, status === "active", id]
   );
+}
+
+export async function setTransfersLocked(id: string, locked: boolean): Promise<void> {
+  await mainQuery(`UPDATE seasons SET transfers_locked = $1 WHERE id = $2`, [locked, id]);
 }
 
 // ─── Teams ────────────────────────────────────────────────────────────────────
@@ -277,6 +283,70 @@ export async function enrollPlayers(
      ON CONFLICT (player_id, season_id) DO NOTHING`,
     values
   );
+
+  // Sync to player_team_seasons so the council is the master for team assignments.
+  // Only for players being enrolled with a known team.
+  if (teamId) {
+    const ptPlaceholders = playerIds
+      .map((_, i) => `($${i * 3 + 1}, $${i * 3 + 2}, $${i * 3 + 3})`)
+      .join(", ");
+    const ptValues = playerIds.flatMap((pid) => [pid, teamId, seasonId]);
+    await mainQuery(
+      `INSERT INTO player_team_seasons (player_id, team_id, season_id)
+       VALUES ${ptPlaceholders}
+       ON CONFLICT (player_id, team_id, season_id) DO NOTHING`,
+      ptValues
+    );
+  }
+}
+
+// Enroll players preserving their individual team assignments (for season rollover)
+export async function enrollPlayersWithTeams(
+  entries: { playerId: string; teamId: string | null }[],
+  seasonId: string,
+  enrolledBy: string
+): Promise<{ enrolled: number }> {
+  if (entries.length === 0) return { enrolled: 0 };
+
+  // Group by teamId so we can batch-insert per team
+  const byTeam = new Map<string | null, string[]>();
+  for (const { playerId, teamId } of entries) {
+    const list = byTeam.get(teamId) ?? [];
+    list.push(playerId);
+    byTeam.set(teamId, list);
+  }
+
+  let enrolled = 0;
+  for (const [teamId, playerIds] of byTeam.entries()) {
+    const placeholders = playerIds
+      .map((_, i) => `($${i * 4 + 1}, $${i * 4 + 2}, $${i * 4 + 3}, $${i * 4 + 4})`)
+      .join(", ");
+    const values = playerIds.flatMap((pid) => [pid, seasonId, enrolledBy, teamId]);
+    const res = await mainQuery<{ id: string }>(
+      `INSERT INTO season_enrollments (player_id, season_id, enrolled_by, current_team_id)
+       VALUES ${placeholders}
+       ON CONFLICT (player_id, season_id) DO NOTHING
+       RETURNING id`,
+      values
+    );
+    enrolled += res.rowCount ?? 0;
+
+    // Sync team assignments to player_team_seasons
+    if (teamId && playerIds.length > 0) {
+      const ptPlaceholders = playerIds
+        .map((_, i) => `($${i * 3 + 1}, $${i * 3 + 2}, $${i * 3 + 3})`)
+        .join(", ");
+      const ptValues = playerIds.flatMap((pid) => [pid, teamId, seasonId]);
+      await mainQuery(
+        `INSERT INTO player_team_seasons (player_id, team_id, season_id)
+         VALUES ${ptPlaceholders}
+         ON CONFLICT (player_id, team_id, season_id) DO NOTHING`,
+        ptValues
+      );
+    }
+  }
+
+  return { enrolled };
 }
 
 export async function unenrollPlayer(playerId: string, seasonId: string): Promise<void> {

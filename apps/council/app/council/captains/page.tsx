@@ -1,11 +1,12 @@
 import Link from "next/link";
-import { Shield, Users, ArrowRight, History } from "lucide-react";
+import { Users, ArrowRight, History, Shield, Lock } from "lucide-react";
 import { requireCouncilUser, hasRosterManagementAccess } from "@/lib/council-session";
 import { getAllSeasons, getSeasonEnrollments, getAllTeams, type EnrollmentRow, type TeamRow, type SeasonRow } from "@/lib/season-queries";
 import { getPlayerProfiles, getCurrentFeeStatuses, type PlayerProfile, type PlayerFeeStatus } from "@/lib/council-queries";
 import { getCaptainTeamIdsForSeason } from "@/lib/captain-queries";
 import { getRosterTransfersForSeason, type RosterTransfer } from "@/lib/audit-queries";
 import { AssignTeamForm } from "../seasons/[seasonId]/assign-team-form";
+import { CollapsibleTeamCard } from "@/components/collapsible-team-card";
 
 function formatDateTime(d: Date): string {
   return new Date(d).toLocaleString("en-GB", {
@@ -156,23 +157,12 @@ function TeamCard({
     .sort((a, b) => (a.registrationName || a.displayName).localeCompare(b.registrationName || b.displayName));
 
   return (
-    <section className={[
-      "council-panel rounded-2xl border p-5",
-      highlight ? "border-[color:var(--accent)] ring-1 ring-[color:var(--accent)] ring-opacity-20" : "",
-    ].join(" ")}>
-      <div className="mb-4 flex items-center gap-2">
-        <Shield className={`h-4 w-4 ${highlight ? "text-[color:var(--accent)]" : "text-slate-400"}`} />
-        <h3 className="text-[0.92rem] font-semibold text-slate-800">{team.name}</h3>
-        {highlight && (
-          <span className="rounded-full bg-[rgba(20,184,166,0.1)] px-2 py-0.5 text-[0.65rem] font-medium text-[color:var(--accent)]">
-            Your team
-          </span>
-        )}
-        <span className="ml-auto rounded-full bg-[rgba(20,184,166,0.08)] px-2 py-0.5 text-[0.7rem] text-[color:var(--accent)]">
-          {roster.length} {roster.length === 1 ? "player" : "players"}
-        </span>
-      </div>
-
+    <CollapsibleTeamCard
+      teamName={team.name}
+      count={roster.length}
+      highlight={highlight}
+      defaultOpen={highlight}
+    >
       <div className="grid gap-4 sm:grid-cols-2">
         {female.length > 0 && (
           <div>
@@ -216,7 +206,7 @@ function TeamCard({
           </p>
         )}
       </div>
-    </section>
+    </CollapsibleTeamCard>
   );
 }
 
@@ -323,6 +313,19 @@ export default async function CaptainsPage() {
           </Link>
         )}
       </div>
+
+      {/* Transfers locked banner */}
+      {season.transfersLocked && (
+        <div className="flex items-center gap-2 rounded-xl border border-[rgba(239,68,68,0.2)] bg-[rgba(239,68,68,0.06)] px-4 py-3 text-[0.82rem] text-[color:var(--danger)]">
+          <Lock className="h-3.5 w-3.5 shrink-0" />
+          Transfers are locked — captains cannot move players between teams.
+          {canManage && (
+            <Link href={`/council/seasons/${season.id}`} className="ml-auto shrink-0 underline underline-offset-2">
+              Manage →
+            </Link>
+          )}
+        </div>
+      )}
 
       {/* Team cards */}
       {visibleTeams.map((team) => (

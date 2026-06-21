@@ -41,7 +41,15 @@ function SeasonCard({ season }: { season: SeasonRow }) {
             </p>
           </div>
         </div>
-        <StatusBadge status={season.status} />
+        <div className="flex items-center gap-2">
+          {season.status === "active" && season.transfersLocked && (
+            <span className="flex items-center gap-1 rounded-full bg-[rgba(239,68,68,0.08)] px-2.5 py-0.5 text-[0.68rem] font-medium text-[color:var(--danger)]">
+              <Lock className="h-3 w-3" />
+              Locked
+            </span>
+          )}
+          <StatusBadge status={season.status} />
+        </div>
       </div>
 
       {(season.enrolledCount ?? 0) > 0 && (

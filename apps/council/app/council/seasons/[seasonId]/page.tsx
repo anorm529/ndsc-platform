@@ -6,7 +6,7 @@ import {
 } from "lucide-react";
 import { requireCouncilUser, hasRosterManagementAccess, type CouncilUser } from "@/lib/council-session";
 import {
-  getSeasonById, getSeasonEnrollments, getAllTeams, updateSeasonStatus,
+  getSeasonById, getSeasonEnrollments, getAllTeams, updateSeasonStatus, setTransfersLocked,
   type SeasonRow, type SeasonStatus, type EnrollmentRow, type TeamRow,
 } from "@/lib/season-queries";
 import {
@@ -28,12 +28,6 @@ const STATUS_CONFIG: Record<SeasonStatus, { label: string; bg: string; text: str
   active:   { label: "Active",   bg: "bg-[rgba(16,185,129,0.1)]",       text: "text-[color:var(--success)]" },
   closed:   { label: "Closed",   bg: "bg-[rgba(233,185,62,0.1)]",       text: "text-[color:var(--warning)]" },
   archived: { label: "Archived", bg: "bg-[rgba(115,145,176,0.08)]",     text: "text-[color:var(--muted-foreground)]" },
-};
-
-const NEXT_STATUS: Partial<Record<SeasonStatus, { to: SeasonStatus; label: string; danger?: boolean }>> = {
-  draft:  { to: "active",   label: "Open for enrollment" },
-  active: { to: "closed",   label: "Close season",  danger: true },
-  closed: { to: "archived", label: "Archive season", danger: true },
 };
 
 // ─── Fee badge ────────────────────────────────────────────────────────────────
@@ -135,7 +129,6 @@ export default async function SeasonDetailPage({
     }
   }
 
-  const nextStatus = NEXT_STATUS[season.status];
   const statusCfg = STATUS_CONFIG[season.status];
 
   async function handleTransition(formData: FormData) {
@@ -145,7 +138,6 @@ export default async function SeasonDetailPage({
     const to = String(formData.get("to")) as SeasonStatus;
 
     if (to === "archived") {
-      // Take a point-in-time membership snapshot before archiving
       const [allEnrollments, profiles, fees] = await Promise.all([
         getSeasonEnrollments(seasonId),
         getPlayerProfiles(),
@@ -155,6 +147,15 @@ export default async function SeasonDetailPage({
     }
 
     await updateSeasonStatus(seasonId, to);
+    redirect("/council/seasons/" + seasonId);
+  }
+
+  async function handleToggleLock(formData: FormData) {
+    "use server";
+    const u = await requireCouncilUser();
+    if (!u.isOwner) redirect("/council/seasons/" + seasonId);
+    const lock = formData.get("lock") === "true";
+    await setTransfersLocked(seasonId, lock);
     redirect("/council/seasons/" + seasonId);
   }
 
@@ -197,28 +198,88 @@ export default async function SeasonDetailPage({
           </div>
         </div>
 
-        {/* Status transition (owner only) */}
-        {user.isOwner && nextStatus && (
-          <div className="mt-4 flex flex-wrap items-center gap-3 border-t border-[color:var(--border)] pt-4">
-            <p className="text-[0.78rem] text-[color:var(--muted-foreground)] mr-auto">
-              {season.status === "draft"   && "Open this season to start enrolling players."}
-              {season.status === "active"  && "Close the season when it's over to lock rosters. You can still upload stats after closing."}
-              {season.status === "closed"  && "Archive the season to take a membership snapshot and mark it as fully historical."}
-            </p>
-            <form action={handleTransition}>
-              <input type="hidden" name="to" value={nextStatus.to} />
-              <button
-                type="submit"
-                className={[
-                  "rounded-xl px-4 py-2 text-[0.82rem] font-medium",
-                  nextStatus.danger
-                    ? "bg-[rgba(239,68,68,0.08)] text-[color:var(--danger)] hover:bg-[rgba(239,68,68,0.15)]"
-                    : "bg-[linear-gradient(180deg,#0d9488_0%,#0f766e_100%)] text-white hover:brightness-105",
-                ].join(" ")}
-              >
-                {nextStatus.label}
-              </button>
-            </form>
+        {/* Status controls (owner only) */}
+        {user.isOwner && season.status !== "archived" && (
+          <div className="mt-4 space-y-3 border-t border-[color:var(--border)] pt-4">
+
+            {/* Draft → Active */}
+            {season.status === "draft" && (
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-[0.78rem] text-[color:var(--muted-foreground)]">
+                  Open this season to start enrolling players.
+                </p>
+                <form action={handleTransition}>
+                  <input type="hidden" name="to" value="active" />
+                  <button type="submit" className="rounded-xl bg-[linear-gradient(180deg,#0d9488_0%,#0f766e_100%)] px-4 py-2 text-[0.82rem] font-medium text-white hover:brightness-105">
+                    Open for enrollment
+                  </button>
+                </form>
+              </div>
+            )}
+
+            {/* Active: lock toggle + close */}
+            {season.status === "active" && (
+              <>
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-[0.82rem] font-medium text-slate-700">
+                      {season.transfersLocked ? "Transfers locked" : "Transfers open"}
+                    </p>
+                    <p className="text-[0.72rem] text-[color:var(--muted-foreground)]">
+                      {season.transfersLocked
+                        ? "Captains cannot move players between teams."
+                        : "Captains can move players between teams."}
+                    </p>
+                  </div>
+                  <form action={handleToggleLock}>
+                    <input type="hidden" name="lock" value={season.transfersLocked ? "false" : "true"} />
+                    <button
+                      type="submit"
+                      className={season.transfersLocked
+                        ? "rounded-xl bg-[linear-gradient(180deg,#0d9488_0%,#0f766e_100%)] px-4 py-2 text-[0.82rem] font-medium text-white hover:brightness-105"
+                        : "rounded-xl bg-[rgba(239,68,68,0.08)] px-4 py-2 text-[0.82rem] font-medium text-[color:var(--danger)] hover:bg-[rgba(239,68,68,0.15)]"}
+                    >
+                      {season.transfersLocked ? "Unlock transfers" : "Lock transfers"}
+                    </button>
+                  </form>
+                </div>
+                <div className="flex items-center justify-between gap-3 border-t border-[color:var(--border)] pt-3">
+                  <p className="text-[0.78rem] text-[color:var(--muted-foreground)]">
+                    Close the season when it is fully over. This prevents new enrollments.
+                  </p>
+                  <form action={handleTransition}>
+                    <input type="hidden" name="to" value="closed" />
+                    <button type="submit" className="rounded-xl bg-[rgba(239,68,68,0.08)] px-4 py-2 text-[0.82rem] font-medium text-[color:var(--danger)] hover:bg-[rgba(239,68,68,0.15)]">
+                      Close season
+                    </button>
+                  </form>
+                </div>
+              </>
+            )}
+
+            {/* Closed: reopen or archive */}
+            {season.status === "closed" && (
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-[0.78rem] text-[color:var(--muted-foreground)]">
+                  Season is closed. Archive to create a permanent membership snapshot, or reopen if needed.
+                </p>
+                <div className="flex gap-2">
+                  <form action={handleTransition}>
+                    <input type="hidden" name="to" value="active" />
+                    <button type="submit" className="rounded-xl bg-[linear-gradient(180deg,#0d9488_0%,#0f766e_100%)] px-4 py-2 text-[0.82rem] font-medium text-white hover:brightness-105">
+                      Reopen season
+                    </button>
+                  </form>
+                  <form action={handleTransition}>
+                    <input type="hidden" name="to" value="archived" />
+                    <button type="submit" className="rounded-xl bg-[rgba(239,68,68,0.08)] px-4 py-2 text-[0.82rem] font-medium text-[color:var(--danger)] hover:bg-[rgba(239,68,68,0.15)]">
+                      Archive season
+                    </button>
+                  </form>
+                </div>
+              </div>
+            )}
+
           </div>
         )}
       </div>
