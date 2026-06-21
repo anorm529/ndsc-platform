@@ -50,13 +50,18 @@ export async function getMyOpenActions(userId: string): Promise<ActionItem[]> {
   return result.rows.map(mapAction);
 }
 
-export async function getAllActions(opts?: { status?: string }): Promise<ActionItem[]> {
+export async function getAllActions(opts?: { status?: string; assignedTo?: string }): Promise<ActionItem[]> {
   const conditions: string[] = [];
   const values: unknown[] = [];
 
   if (opts?.status) {
     values.push(opts.status);
     conditions.push(`a.status = $${values.length}`);
+  }
+
+  if (opts?.assignedTo) {
+    values.push(opts.assignedTo);
+    conditions.push(`a.assigned_to = $${values.length}`);
   }
 
   const where = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
