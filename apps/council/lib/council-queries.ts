@@ -1,6 +1,7 @@
 import "server-only";
 
 import { councilQuery } from "@/db/council-db";
+import { mainQuery } from "@/lib/main-db";
 import type { EnrollmentRow } from "@/lib/season-queries";
 
 // ─── Action Items ─────────────────────────────────────────────────────────────
@@ -774,4 +775,68 @@ export async function saveAnnouncement(data: {
       data.sentCount, data.failedCount, data.sentBy,
     ]
   );
+}
+
+// ─── Membership analytics ─────────────────────────────────────────────────────
+
+export interface MembershipStats {
+  total: number;
+  male: number;
+  female: number;
+  withLogin: number;
+  byTeam: { name: string; total: number; male: number; female: number }[];
+}
+
+export async function getMembershipStats(): Promise<MembershipStats> {
+  const [overviewRes, teamRes] = await Promise.all([
+    mainQuery<{ total: string; male: string; female: string; with_login: string }>(
+      `SELECT
+         COUNT(*)::text AS total,
+         COUNT(*) FILTER (WHERE p.gender ILIKE 'male')::text AS male,
+         COUNT(*) FILTER (WHERE p.gender ILIKE 'female')::text AS female,
+         COUNT(*) FILTER (WHERE u.id IS NOT NULL AND u.account_status = 'active')::text AS with_login
+       FROM players p
+       LEFT JOIN users u ON u.player_id = p.id
+       WHERE p.active = true`
+    ),
+    mainQuery<{ team_name: string | null; total: string; male: string; female: string }>(
+      `SELECT
+         t.name AS team_name,
+         COUNT(*)::text AS total,
+         COUNT(*) FILTER (WHERE p.gender ILIKE 'male')::text AS male,
+         COUNT(*) FILTER (WHERE p.gender ILIKE 'female')::text AS female
+       FROM players p
+       LEFT JOIN LATERAL (
+         SELECT pts.team_id
+         FROM player_team_seasons pts
+         JOIN seasons s ON s.id = pts.season_id
+         WHERE pts.player_id = p.id
+           AND s.year = (
+             SELECT MAX(s2.year)
+             FROM player_team_seasons pts2
+             JOIN seasons s2 ON s2.id = pts2.season_id
+             WHERE pts2.player_id = p.id
+           )
+         LIMIT 1
+       ) ct ON true
+       LEFT JOIN teams t ON t.id = ct.team_id
+       WHERE p.active = true
+       GROUP BY t.name
+       ORDER BY COUNT(*) DESC`
+    ),
+  ]);
+
+  const ov = overviewRes.rows[0]!;
+  return {
+    total: parseInt(ov.total, 10),
+    male: parseInt(ov.male, 10),
+    female: parseInt(ov.female, 10),
+    withLogin: parseInt(ov.with_login, 10),
+    byTeam: teamRes.rows.map((r) => ({
+      name: r.team_name ?? "Unassigned",
+      total: parseInt(r.total, 10),
+      male: parseInt(r.male, 10),
+      female: parseInt(r.female, 10),
+    })),
+  };
 }

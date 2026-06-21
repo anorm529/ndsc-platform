@@ -6,6 +6,7 @@ import {
   Clock,
   PoundSterling,
   TrendingUp,
+  Users,
   Wallet,
 } from "lucide-react";
 import { requireCouncilUser, hasTreasurerAccess } from "@/lib/council-session";
@@ -15,6 +16,8 @@ import {
   getUpcomingMeetings,
   getActiveFeeSummary,
   getAccountBalances,
+  getMembershipStats,
+  type MembershipStats,
 } from "@/lib/council-queries";
 
 function StatCard({
@@ -61,10 +64,102 @@ function StatCard({
   return inner;
 }
 
+function MembershipSection({ membership }: { membership: MembershipStats }) {
+  const { total, male, female, withLogin, byTeam } = membership;
+  const maxTeamCount = Math.max(...byTeam.map((t) => t.total), 1);
+  const loginPct = total > 0 ? Math.round((withLogin / total) * 100) : 0;
+  const malePct  = total > 0 ? Math.round((male  / total) * 100) : 0;
+  const femalePct = total > 0 ? Math.round((female / total) * 100) : 0;
+
+  return (
+    <section className="council-panel rounded-2xl border p-6">
+      <h2 className="mb-5 text-[0.95rem] font-semibold text-slate-800 flex items-center gap-2">
+        <Users className="h-4 w-4 text-[color:var(--accent)]" />
+        Membership
+      </h2>
+
+      <div className="grid gap-6 sm:grid-cols-2">
+        {/* Left: gender + login summary */}
+        <div className="space-y-4">
+          {/* Gender split */}
+          <div>
+            <div className="mb-1.5 flex items-center justify-between text-[0.75rem] text-[color:var(--muted-foreground)]">
+              <span>Gender split</span>
+              <span className="flex gap-3">
+                <span className="text-[#E84AA5]">{female}F · {femalePct}%</span>
+                <span className="text-[#1ED0D8]">{male}M · {malePct}%</span>
+              </span>
+            </div>
+            <div className="flex h-2.5 w-full overflow-hidden rounded-full bg-[rgba(115,145,176,0.12)]">
+              <div className="h-full bg-[#E84AA5] transition-all" style={{ width: `${femalePct}%` }} />
+              <div className="h-full bg-[#1ED0D8] transition-all" style={{ width: `${malePct}%` }} />
+            </div>
+          </div>
+
+          {/* Login adoption */}
+          <div>
+            <div className="mb-1.5 flex items-center justify-between text-[0.75rem] text-[color:var(--muted-foreground)]">
+              <span>Login accounts</span>
+              <span>{withLogin} of {total} · {loginPct}%</span>
+            </div>
+            <div className="h-2.5 w-full overflow-hidden rounded-full bg-[rgba(115,145,176,0.12)]">
+              <div
+                className="h-full rounded-full bg-[color:var(--success)] transition-all"
+                style={{ width: `${loginPct}%` }}
+              />
+            </div>
+          </div>
+
+          {/* Mini stat row */}
+          <div className="grid grid-cols-3 gap-3 pt-1">
+            {[
+              { label: "Female", value: female, color: "text-[#E84AA5]" },
+              { label: "Male",   value: male,   color: "text-[#1ED0D8]" },
+              { label: "No login", value: total - withLogin, color: "text-[color:var(--muted-foreground)]" },
+            ].map(({ label, value, color }) => (
+              <div key={label} className="rounded-xl border border-[color:var(--border)] p-3 text-center">
+                <p className={`text-[1.3rem] font-bold ${color}`}>{value}</p>
+                <p className="text-[0.65rem] text-[color:var(--muted-foreground)]">{label}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Right: team breakdown */}
+        <div>
+          <p className="mb-3 text-[0.75rem] text-[color:var(--muted-foreground)]">Team breakdown</p>
+          <div className="space-y-2.5">
+            {byTeam.map((team) => (
+              <div key={team.name}>
+                <div className="mb-1 flex items-center justify-between text-[0.75rem]">
+                  <span className="font-medium text-slate-700">{team.name}</span>
+                  <span className="text-[color:var(--muted-foreground)]">
+                    {team.female}F · {team.male}M · <span className="font-semibold text-slate-800">{team.total}</span>
+                  </span>
+                </div>
+                <div className="flex h-2 w-full overflow-hidden rounded-full bg-[rgba(115,145,176,0.12)]">
+                  <div
+                    className="h-full bg-[#E84AA5]"
+                    style={{ width: `${(team.female / maxTeamCount) * 100}%` }}
+                  />
+                  <div
+                    className="h-full bg-[#1ED0D8]"
+                    style={{ width: `${(team.male / maxTeamCount) * 100}%` }}
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 export default async function DashboardPage() {
   const user = await requireCouncilUser();
 
-  const [stats, myActions, upcoming, feeSummary, accountBalances] = await Promise.all([
+  const [stats, myActions, upcoming, feeSummary, accountBalances, membership] = await Promise.all([
     getDashboardStats(),
     getMyOpenActions(user.id),
     getUpcomingMeetings(3),
@@ -74,6 +169,7 @@ export default async function DashboardPage() {
     hasTreasurerAccess(user)
       ? getAccountBalances()
       : Promise.resolve([] as Awaited<ReturnType<typeof getAccountBalances>>),
+    getMembershipStats(),
   ]);
 
   const fmtCurrency = (n: number) =>
@@ -83,6 +179,12 @@ export default async function DashboardPage() {
     <div className="space-y-8 max-w-5xl">
       {/* Stats row */}
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+        <StatCard
+          label="Active members"
+          value={membership.total}
+          icon={Users}
+          href="/council/members"
+        />
         <StatCard
           label="Open actions"
           value={stats.openActions}
@@ -103,15 +205,6 @@ export default async function DashboardPage() {
           tone={stats.overdueActions > 0 ? "danger" : "neutral"}
           href="/council/actions"
         />
-        {feeSummary ? (
-          <StatCard
-            label={`${feeSummary.label} fees paid`}
-            value={`${feeSummary.paidCount}/${feeSummary.totalPlayers}`}
-            icon={PoundSterling}
-            tone={feeSummary.paidCount === feeSummary.totalPlayers ? "success" : "warning"}
-            href="/council/treasurer/fees"
-          />
-        ) : null}
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
@@ -245,6 +338,9 @@ export default async function DashboardPage() {
           </Link>
         </section>
       </div>
+
+      {/* Membership analytics */}
+      <MembershipSection membership={membership} />
 
       {/* Treasurer — accounts + fee summary */}
       {(hasTreasurerAccess(user)) && accountBalances.length > 0 ? (

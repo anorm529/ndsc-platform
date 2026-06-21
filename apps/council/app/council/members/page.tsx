@@ -129,82 +129,129 @@ export default async function MembersPage() {
   );
 }
 
+function GenderBadge({ gender }: { gender: string | null | undefined }) {
+  if (gender?.toLowerCase() === "female")
+    return <span className="rounded-full bg-[rgba(232,74,165,0.1)] px-2 py-0.5 text-[0.65rem] font-medium text-[#E84AA5]">F</span>;
+  if (gender?.toLowerCase() === "male")
+    return <span className="rounded-full bg-[rgba(30,208,216,0.1)] px-2 py-0.5 text-[0.65rem] font-medium text-[#1ED0D8]">M</span>;
+  return <span className="text-[0.65rem] text-[color:var(--muted-foreground)]">—</span>;
+}
+
+function FeeBadge({ status }: { status: PlayerFeeStatus | null }) {
+  if (!status) return <span className="text-[0.65rem] text-[color:var(--muted-foreground)]">—</span>;
+  if (status.status === "paid")
+    return <span className="rounded-full bg-[rgba(16,185,129,0.1)] px-2 py-0.5 text-[0.65rem] font-medium text-[color:var(--success)]">Paid</span>;
+  if (status.status === "partial")
+    return <span className="rounded-full bg-[rgba(233,185,62,0.1)] px-2 py-0.5 text-[0.65rem] font-medium text-[color:var(--warning)]">Part paid</span>;
+  return <span className="rounded-full bg-[rgba(239,68,68,0.1)] px-2 py-0.5 text-[0.65rem] font-medium text-[color:var(--danger)]">Due</span>;
+}
+
+function LoginBadge({ userId, accountStatus }: { userId: string | null; accountStatus: string | null }) {
+  if (userId && accountStatus === "active")
+    return <span className="rounded-full bg-[rgba(16,185,129,0.1)] px-2 py-0.5 text-[0.65rem] font-medium text-[color:var(--success)]">Active</span>;
+  if (userId && accountStatus === "pending")
+    return <span className="rounded-full bg-[rgba(233,185,62,0.1)] px-2 py-0.5 text-[0.65rem] font-medium text-[color:var(--warning)]">Pending</span>;
+  return <span className="rounded-full bg-[rgba(115,145,176,0.1)] px-2 py-0.5 text-[0.65rem] font-medium text-[color:var(--muted-foreground)]">No login</span>;
+}
+
 function PlayerList({ players, profileMap, feeStatusMap }: {
   players: PlayerRow[];
   profileMap: Map<string, PlayerProfile>;
   feeStatusMap: Map<string, PlayerFeeStatus>;
 }) {
   return (
-    <ul className="divide-y divide-[color:var(--border)]">
-      {players.map((p) => {
-        const name = playerDisplayName(p);
-        const hasActiveLogin = p.userId && p.accountStatus === "active";
-        const hasPendingLogin = p.userId && p.accountStatus === "pending";
-        const profile = profileMap.get(p.playerId) ?? null;
-        const feeStatus = feeStatusMap.get(p.playerId) ?? null;
+    <div>
+      {/* Column headers */}
+      <div className="mb-2 hidden grid-cols-[2rem_1fr_3rem_5rem_5rem_5.5rem] items-center gap-4 px-1 sm:grid">
+        <div />
+        <span className="text-[0.65rem] font-semibold uppercase tracking-wider text-[color:var(--muted-foreground)]">Player</span>
+        <span className="text-center text-[0.65rem] font-semibold uppercase tracking-wider text-[color:var(--muted-foreground)]">Gender</span>
+        <span className="text-center text-[0.65rem] font-semibold uppercase tracking-wider text-[color:var(--muted-foreground)]">Fees</span>
+        <span className="text-center text-[0.65rem] font-semibold uppercase tracking-wider text-[color:var(--muted-foreground)]">Login</span>
+        <span className="text-center text-[0.65rem] font-semibold uppercase tracking-wider text-[color:var(--muted-foreground)]">DOB / Bat</span>
+      </div>
 
-        return (
-          <li key={p.playerId} className="py-3">
-            <div className="flex items-start gap-3">
-              <div className={[
-                "mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[0.8rem] font-semibold",
-                hasActiveLogin
-                  ? "bg-[rgba(20,184,166,0.08)] text-[color:var(--accent)]"
-                  : "bg-[rgba(115,145,176,0.08)] text-[color:var(--muted-foreground)]",
-              ].join(" ")}>
-                {name.charAt(0).toUpperCase()}
-              </div>
+      <ul className="divide-y divide-[color:var(--border)]">
+        {players.map((p) => {
+          const name = playerDisplayName(p);
+          const hasActiveLogin = p.userId && p.accountStatus === "active";
+          const profile = profileMap.get(p.playerId) ?? null;
+          const feeStatus = feeStatusMap.get(p.playerId) ?? null;
 
-              <div className="min-w-0 flex-1">
-                <p className="text-[0.88rem] font-medium text-slate-800">{name}</p>
-                {p.email ? (
-                  <p className="truncate text-[0.73rem] text-[color:var(--muted-foreground)]">{p.email}</p>
-                ) : (
-                  <p className="text-[0.73rem] italic text-[color:var(--muted-foreground)]">No account</p>
-                )}
-                <PlayerProfileEditor playerId={p.playerId} profile={profile} />
-              </div>
-
-              <div className="flex shrink-0 flex-col items-end gap-1">
-                <div className="flex items-center gap-1">
-                  {p.teamName ? (
-                    <span className="rounded-full bg-[rgba(43,34,84,0.08)] px-2 py-0.5 text-[0.65rem] font-medium text-[#2B2254]">
-                      {p.teamName}
-                    </span>
-                  ) : null}
-                  {p.gender?.toLowerCase() === "female" ? (
-                    <span className="rounded-full bg-[rgba(232,74,165,0.1)] px-2 py-0.5 text-[0.65rem] font-medium text-[#E84AA5]">F</span>
-                  ) : p.gender?.toLowerCase() === "male" ? (
-                    <span className="rounded-full bg-[rgba(30,208,216,0.1)] px-2 py-0.5 text-[0.65rem] font-medium text-[#1ED0D8]">M</span>
-                  ) : null}
+          return (
+            <li key={p.playerId} className="py-3">
+              {/* Desktop: column grid */}
+              <div className="hidden grid-cols-[2rem_1fr_3rem_5rem_5rem_5.5rem] items-center gap-4 sm:grid">
+                {/* Avatar */}
+                <div className={[
+                  "flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[0.8rem] font-semibold",
+                  hasActiveLogin
+                    ? "bg-[rgba(20,184,166,0.08)] text-[color:var(--accent)]"
+                    : "bg-[rgba(115,145,176,0.08)] text-[color:var(--muted-foreground)]",
+                ].join(" ")}>
+                  {name.charAt(0).toUpperCase()}
                 </div>
-                {feeStatus ? (
-                feeStatus.status === "paid" ? (
-                  <span className="rounded-full bg-[rgba(16,185,129,0.1)] px-2 py-0.5 text-[0.65rem] font-medium text-[color:var(--success)]">Fees paid</span>
-                ) : feeStatus.status === "partial" ? (
-                  <span className="rounded-full bg-[rgba(233,185,62,0.1)] px-2 py-0.5 text-[0.65rem] font-medium text-[color:var(--warning)]">Part paid</span>
-                ) : (
-                  <span className="rounded-full bg-[rgba(239,68,68,0.1)] px-2 py-0.5 text-[0.65rem] font-medium text-[color:var(--danger)]">Fees due</span>
-                )
-              ) : null}
-              {hasActiveLogin ? (
-                  <span className="rounded-full bg-[rgba(16,185,129,0.1)] px-2 py-0.5 text-[0.65rem] font-medium text-[color:var(--success)]">
-                    Active login
-                  </span>
-                ) : hasPendingLogin ? (
-                  <span className="rounded-full bg-[rgba(233,185,62,0.1)] px-2 py-0.5 text-[0.65rem] font-medium text-[color:var(--warning)]">
-                    Pending login
-                  </span>
-                ) : (
-                  <span className="rounded-full bg-[rgba(115,145,176,0.1)] px-2 py-0.5 text-[0.65rem] font-medium text-[color:var(--muted-foreground)]">
-                    No login
-                  </span>
-                )}
+
+                {/* Name + email */}
+                <div className="min-w-0">
+                  <p className="truncate text-[0.88rem] font-medium text-slate-800">{name}</p>
+                  {p.email ? (
+                    <p className="truncate text-[0.72rem] text-[color:var(--muted-foreground)]">{p.email}</p>
+                  ) : (
+                    <p className="text-[0.72rem] italic text-[color:var(--muted-foreground)]">No account</p>
+                  )}
+                </div>
+
+                {/* Gender */}
+                <div className="flex justify-center">
+                  <GenderBadge gender={p.gender} />
+                </div>
+
+                {/* Fees */}
+                <div className="flex justify-center">
+                  <FeeBadge status={feeStatus} />
+                </div>
+
+                {/* Login */}
+                <div className="flex justify-center">
+                  <LoginBadge userId={p.userId} accountStatus={p.accountStatus} />
+                </div>
+
+                {/* Profile (DOB + bat hand) */}
+                <div className="flex justify-center">
+                  <PlayerProfileEditor playerId={p.playerId} profile={profile} />
+                </div>
               </div>
-            </div>
-          </li>
-        );
-      })}
-    </ul>
+
+              {/* Mobile: stacked layout */}
+              <div className="flex items-start gap-3 sm:hidden">
+                <div className={[
+                  "mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[0.8rem] font-semibold",
+                  hasActiveLogin
+                    ? "bg-[rgba(20,184,166,0.08)] text-[color:var(--accent)]"
+                    : "bg-[rgba(115,145,176,0.08)] text-[color:var(--muted-foreground)]",
+                ].join(" ")}>
+                  {name.charAt(0).toUpperCase()}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-[0.88rem] font-medium text-slate-800">{name}</p>
+                  {p.email ? (
+                    <p className="truncate text-[0.73rem] text-[color:var(--muted-foreground)]">{p.email}</p>
+                  ) : (
+                    <p className="text-[0.73rem] italic text-[color:var(--muted-foreground)]">No account</p>
+                  )}
+                  <PlayerProfileEditor playerId={p.playerId} profile={profile} />
+                </div>
+                <div className="flex shrink-0 flex-col items-end gap-1">
+                  <GenderBadge gender={p.gender} />
+                  <FeeBadge status={feeStatus} />
+                  <LoginBadge userId={p.userId} accountStatus={p.accountStatus} />
+                </div>
+              </div>
+            </li>
+          );
+        })}
+      </ul>
+    </div>
   );
 }
