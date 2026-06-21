@@ -4,9 +4,10 @@ import { requireCouncilUser, hasSecretaryAccess } from "@/lib/council-session";
 import { getAllMeetings } from "@/lib/council-queries";
 
 const TYPE_LABELS: Record<string, string> = {
-  agm: "AGM",
   council: "Council",
-  committee: "Committee",
+  agm: "AGM",
+  egm: "EGM",
+  committee: "Council", // legacy — treat old committee records as Council
 };
 
 const STATUS_CONFIG = {
