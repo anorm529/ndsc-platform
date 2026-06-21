@@ -10,8 +10,9 @@ import {
   type SeasonRow, type SeasonStatus, type EnrollmentRow, type TeamRow,
 } from "@/lib/season-queries";
 import { getPlayerProfiles, getCurrentFeeStatuses, type PlayerProfile, type PlayerFeeStatus } from "@/lib/council-queries";
+import { getUnenrolledActivePlayers } from "@/lib/season-queries";
 import { AssignTeamForm } from "./assign-team-form";
-import { EnrollExistingForm } from "./enroll-existing-form";
+import { AddPlayerForm } from "./add-player-form";
 
 // ─── Status helpers ───────────────────────────────────────────────────────────
 
@@ -98,6 +99,10 @@ export default async function SeasonDetailPage({
     getPlayerProfiles(),
     getCurrentFeeStatuses(),
   ]);
+
+  const unenrolled = canManage && season && (season.status === "draft" || season.status === "active")
+    ? await getUnenrolledActivePlayers(seasonId)
+    : [];
 
   if (!season) notFound();
 
@@ -210,7 +215,7 @@ export default async function SeasonDetailPage({
             </Link>
           </div>
           <div className="mt-3 border-t border-[color:var(--border)] pt-3">
-            <EnrollExistingForm seasonId={season.id} userId={user.id} />
+            <AddPlayerForm seasonId={season.id} userId={user.id} unenrolled={unenrolled} />
           </div>
         </div>
       )}

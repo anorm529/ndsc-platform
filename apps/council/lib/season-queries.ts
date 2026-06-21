@@ -176,35 +176,36 @@ export async function getPreviousSeasonPlayers(currentYear: number): Promise<Pre
          SELECT MAX(year) FROM seasons WHERE year < $1
        )
      )
-     -- Prefer season_enrollments if that season was council-managed
-     SELECT p.id AS player_id, p.display_name, p.gender,
-            u.id AS user_id, u.email, u.account_status, u.registration_name,
-            t.name AS team_name, t.id AS team_id
-     FROM season_enrollments se
-     JOIN prev_season ps ON ps.id = se.season_id
-     JOIN players p ON p.id = se.player_id
-     LEFT JOIN users u ON u.player_id = p.id
-     LEFT JOIN teams t ON t.id = se.current_team_id
-     WHERE p.active = true
+     SELECT * FROM (
+       -- Prefer season_enrollments if that season was council-managed
+       SELECT p.id AS player_id, p.display_name, p.gender,
+              u.id AS user_id, u.email, u.account_status, u.registration_name,
+              t.name AS team_name, t.id AS team_id
+       FROM season_enrollments se
+       JOIN prev_season ps ON ps.id = se.season_id
+       JOIN players p ON p.id = se.player_id
+       LEFT JOIN users u ON u.player_id = p.id
+       LEFT JOIN teams t ON t.id = se.current_team_id
+       WHERE p.active = true
 
-     UNION
+       UNION
 
-     -- Fallback: player_team_seasons (pre-council-management data)
-     SELECT p.id AS player_id, p.display_name, p.gender,
-            u.id AS user_id, u.email, u.account_status, u.registration_name,
-            t.name AS team_name, t.id AS team_id
-     FROM player_team_seasons pts
-     JOIN prev_season ps ON ps.id = pts.season_id
-     JOIN players p ON p.id = pts.player_id
-     LEFT JOIN users u ON u.player_id = p.id
-     LEFT JOIN teams t ON t.id = pts.team_id
-     WHERE p.active = true
-       AND NOT EXISTS (
-         SELECT 1 FROM season_enrollments se2
-         JOIN prev_season ps2 ON ps2.id = se2.season_id
-         WHERE se2.player_id = pts.player_id
-       )
-
+       -- Fallback: player_team_seasons (pre-council-management data)
+       SELECT p.id AS player_id, p.display_name, p.gender,
+              u.id AS user_id, u.email, u.account_status, u.registration_name,
+              t.name AS team_name, t.id AS team_id
+       FROM player_team_seasons pts
+       JOIN prev_season ps ON ps.id = pts.season_id
+       JOIN players p ON p.id = pts.player_id
+       LEFT JOIN users u ON u.player_id = p.id
+       LEFT JOIN teams t ON t.id = pts.team_id
+       WHERE p.active = true
+         AND NOT EXISTS (
+           SELECT 1 FROM season_enrollments se2
+           JOIN prev_season ps2 ON ps2.id = se2.season_id
+           WHERE se2.player_id = pts.player_id
+         )
+     ) combined
      ORDER BY team_name ASC NULLS LAST,
               COALESCE(registration_name, display_name) ASC`,
     [currentYear]
