@@ -47,24 +47,24 @@ const topNav: NavItem[] = [
 
 const navGroups: NavGroup[] = [
   {
-    label: "Season",
-    items: [
-      { label: "Seasons",   href: "/council/seasons",   icon: Trophy,      permission: "chairman" },
-      { label: "Captains",  href: "/council/captains",  icon: Shield,      permission: "captain" },
-      { label: "Fixtures",  href: "/council/fixtures",  icon: CalendarDays, permission: null },
-      { label: "Stats",     href: "/council/stats",     icon: BarChart2,   permission: "chairman" },
-      { label: "Standings", href: "/council/standings", icon: TrendingUp,  permission: "chairman" },
-      { label: "Awards",    href: "/council/awards",    icon: Medal,       permission: "chairman" },
-    ],
-  },
-  {
     label: "Governance",
     items: [
       { label: "Meetings",      href: "/council/meetings",      icon: CalendarDays,  permission: null },
       { label: "Actions",       href: "/council/actions",       icon: CheckSquare,   permission: null },
       { label: "Announcements", href: "/council/announcements", icon: Megaphone,     permission: null },
-      { label: "Signups",       href: "/council/signups",       icon: ClipboardList, permission: null },
       { label: "Accounts",      href: "/council/accounts",      icon: UserCheck,     permission: "chairman" },
+      { label: "Flags",         href: "/council/flags",         icon: AlertTriangle, permission: null },
+    ],
+  },
+  {
+    label: "Season",
+    items: [
+      { label: "Seasons",   href: "/council/seasons",   icon: Trophy,       permission: "chairman" },
+      { label: "Captains",  href: "/council/captains",  icon: Shield,       permission: "captain" },
+      { label: "Fixtures",  href: "/council/fixtures",  icon: CalendarDays, permission: null },
+      { label: "Stats",     href: "/council/stats",     icon: BarChart2,    permission: "chairman" },
+      { label: "Standings", href: "/council/standings", icon: TrendingUp,   permission: "chairman" },
+      { label: "Awards",    href: "/council/awards",    icon: Medal,        permission: "chairman" },
     ],
   },
   {
@@ -75,12 +75,17 @@ const navGroups: NavGroup[] = [
     ],
   },
   {
+    label: "Website",
+    items: [
+      { label: "Signups",   href: "/council/signups",   icon: ClipboardList, permission: null },
+      { label: "Documents", href: "/council/documents", icon: FileText,      permission: null },
+    ],
+  },
+  {
     label: "Records",
     items: [
-      { label: "Archive",   href: "/council/archive",    icon: Archive,        permission: null },
-      { label: "Documents", href: "/council/documents",  icon: FileText,       permission: null },
-      { label: "Flags",     href: "/council/flags",      icon: AlertTriangle,  permission: null },
-      { label: "Audit Log", href: "/council/audit",      icon: ScrollText,     permission: "chairman" },
+      { label: "Archive",   href: "/council/archive", icon: Archive,    permission: null },
+      { label: "Audit Log", href: "/council/audit",   icon: ScrollText, permission: "chairman" },
     ],
   },
 ];
