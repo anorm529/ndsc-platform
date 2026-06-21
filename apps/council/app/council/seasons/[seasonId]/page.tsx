@@ -11,8 +11,11 @@ import {
 } from "@/lib/season-queries";
 import { getPlayerProfiles, getCurrentFeeStatuses, type PlayerProfile, type PlayerFeeStatus } from "@/lib/council-queries";
 import { getUnenrolledActivePlayers } from "@/lib/season-queries";
+import { getCouncilMembers } from "@/lib/main-db";
+import { getAllCaptainAssignmentsForSeason } from "@/lib/captain-queries";
 import { AssignTeamForm } from "./assign-team-form";
 import { AddPlayerForm } from "./add-player-form";
+import { CaptainAssignmentForm } from "./captain-assignment-form";
 
 // ─── Status helpers ───────────────────────────────────────────────────────────
 
@@ -103,6 +106,13 @@ export default async function SeasonDetailPage({
   const unenrolled = canManage && season && (season.status === "draft" || season.status === "active")
     ? await getUnenrolledActivePlayers(seasonId)
     : [];
+
+  const [captainAssignments, councilMembers] = canManage
+    ? await Promise.all([
+        getAllCaptainAssignmentsForSeason(season!.year),
+        getCouncilMembers(),
+      ])
+    : [[], []];
 
   if (!season) notFound();
 
@@ -303,6 +313,29 @@ export default async function SeasonDetailPage({
           )}
         </div>
       )}
+
+      {/* Captain assignment management — owner/chair only */}
+      {canManage && (() => {
+        const captainMap = Object.fromEntries(
+          teams.map((t) => {
+            const assignment = captainAssignments.find((a) => a.teamId === t.id);
+            if (!assignment) return [t.id, null];
+            const member = councilMembers.find((m) => m.id === assignment.userId);
+            const name = member
+              ? (member.registrationName || member.displayName || member.email.split("@")[0])
+              : "Unknown";
+            return [t.id, { userId: assignment.userId, name }];
+          })
+        );
+        return (
+          <CaptainAssignmentForm
+            teams={teams}
+            seasonYear={season.year}
+            captainMap={captainMap}
+            members={councilMembers}
+          />
+        );
+      })()}
     </div>
   );
 }
