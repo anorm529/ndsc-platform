@@ -1,12 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireCouncilUser } from "@/lib/council-session";
+import { getCouncilUser, hasTreasurerAccess } from "@/lib/council-session";
 import { upsertPlayerFee, deletePlayerFee, type FeeType } from "@/lib/treasurer-queries";
 
 export async function POST(req: NextRequest) {
-  try {
-    await requireCouncilUser();
-  } catch {
-    return NextResponse.json({ error: "Unauthorised" }, { status: 401 });
+  const user = await getCouncilUser();
+  if (!user || !hasTreasurerAccess(user)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
   const body = await req.json().catch(() => null);
@@ -38,10 +37,9 @@ export async function POST(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
-  try {
-    await requireCouncilUser();
-  } catch {
-    return NextResponse.json({ error: "Unauthorised" }, { status: 401 });
+  const user = await getCouncilUser();
+  if (!user || !hasTreasurerAccess(user)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
   const { id } = await req.json().catch(() => ({}));

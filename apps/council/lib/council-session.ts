@@ -10,12 +10,14 @@ import {
   getUserAppPermissions,
   isAccountStatus,
 } from "@ndsc/auth";
+import { mainQuery } from "@/lib/main-db";
 
 export const COOKIE_NAME = "ndsc_council_session";
 
 export type CouncilUser = {
   id: string;
   email: string;
+  displayName: string;
   role: "player" | "admin" | "owner";
   accountStatus: "active" | "pending" | "disabled";
   playerId: string | null;
@@ -86,13 +88,23 @@ export async function getCouncilUser(): Promise<CouncilUser | null> {
     if (!hasAccess) return null;
   }
 
-  const councilPermissions = isOwner
-    ? new Set(["chairman", "vice_chair", "treasurer", "captain", "secretary", "social_media"])
-    : await getUserAppPermissions(sessionUser.userId, "council");
+  const [councilPermissions, nameResult] = await Promise.all([
+    isOwner
+      ? Promise.resolve(new Set(["chairman", "vice_chair", "treasurer", "captain", "secretary", "social_media"]))
+      : getUserAppPermissions(sessionUser.userId, "council"),
+    mainQuery<{ registration_name: string | null }>(
+      "SELECT registration_name FROM users WHERE id = $1",
+      [sessionUser.userId]
+    ),
+  ]);
+
+  const displayName =
+    nameResult.rows[0]?.registration_name ?? sessionUser.email.split("@")[0];
 
   return {
     id: sessionUser.userId,
     email: sessionUser.email,
+    displayName,
     role: sessionUser.role,
     accountStatus: sessionUser.accountStatus,
     playerId: sessionUser.playerId,

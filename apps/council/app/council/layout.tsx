@@ -9,7 +9,7 @@ export default async function CouncilLayout({ children }: { children: ReactNode 
 
   return (
     <CouncilShell
-      userName={user.email}
+      userName={user.displayName}
       councilPermissions={Array.from(user.councilPermissions)}
       isOwner={user.isOwner}
     >
