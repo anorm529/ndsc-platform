@@ -1,7 +1,9 @@
 import { BarChart2, Calendar, Home, Navigation } from "lucide-react";
 import { requireCouncilUser, hasRosterManagementAccess } from "@/lib/council-session";
 import { getRecentGamesWithStats } from "@/lib/stats-queries";
+import { getAllTeams } from "@/lib/season-queries";
 import { StatsUploadForm } from "./upload-form";
+import { EosStatsPanel } from "./eos-form";
 
 function formatDate(dateStr: string): string {
   try {
@@ -18,7 +20,7 @@ function formatDate(dateStr: string): string {
 export default async function StatsPage() {
   const user = await requireCouncilUser();
   const canManage = hasRosterManagementAccess(user);
-  const recentGames = await getRecentGamesWithStats(25);
+  const [recentGames, teams] = await Promise.all([getRecentGamesWithStats(25), getAllTeams()]);
 
   return (
     <div className="max-w-4xl space-y-6">
@@ -31,6 +33,9 @@ export default async function StatsPage() {
           <p className="text-[0.9rem]">Stats uploads require chairman or owner access.</p>
         </div>
       )}
+
+      {/* EOS Stats — refresh and archive */}
+      {canManage && <EosStatsPanel teams={teams} />}
 
       {/* Recent games */}
       <section className="council-panel rounded-2xl border p-5">

@@ -19,6 +19,8 @@ import {
   Trophy,
   BarChart2,
   Archive,
+  Medal,
+  TrendingUp,
 } from "lucide-react";
 
 type NavItem = {
@@ -35,6 +37,8 @@ const mainNav: NavItem[] = [
   { label: "Captains",   href: "/council/captains",  icon: Shield,           permission: "captain" },
   { label: "Fixtures",   href: "/council/fixtures",  icon: CalendarDays,     permission: null },
   { label: "Stats",      href: "/council/stats",     icon: BarChart2,        permission: "chairman" },
+  { label: "Standings",  href: "/council/standings", icon: TrendingUp,       permission: "chairman" },
+  { label: "Awards",     href: "/council/awards",    icon: Medal,            permission: "chairman" },
   { label: "Archive",    href: "/council/archive",   icon: Archive,          permission: null },
   { label: "Meetings",   href: "/council/meetings",  icon: CalendarDays,     permission: null },
   { label: "Actions",    href: "/council/actions",   icon: CheckSquare,      permission: null },

@@ -21,6 +21,8 @@ const titleMap: Record<string, string> = {
   "/council/captains":            "Captains & Rosters",
   "/council/fixtures":            "Fixtures & Results",
   "/council/stats":               "Game Stats Upload",
+  "/council/standings":           "League Standings",
+  "/council/awards":              "Awards",
   "/council/archive":             "Season Archives",
   "/council/archive/stats":       "Membership Stats",
 };
