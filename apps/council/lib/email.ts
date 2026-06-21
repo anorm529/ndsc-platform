@@ -1,5 +1,6 @@
 import "server-only";
 
+// Sends transactional emails via Resend on behalf of the council
 const FROM_EMAIL =
   process.env.COUNCIL_FROM_EMAIL ??
   process.env.RESEND_FROM_EMAIL ??
