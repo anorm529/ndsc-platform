@@ -6,7 +6,7 @@ import {
 } from "lucide-react";
 import { requireCouncilUser, hasSecretaryAccess } from "@/lib/council-session";
 import { getMeetingById } from "@/lib/council-queries";
-import { getMeetingActions, createActionItem, updateMeeting } from "@/lib/meeting-actions";
+import { getMeetingActions, createActionItem, createActionItemsForAll, updateMeeting } from "@/lib/meeting-actions";
 import { getCouncilMembers, memberDisplayName } from "@/lib/main-db";
 
 const PRIORITY_COLOURS = {
@@ -45,20 +45,27 @@ export default async function MeetingDetailPage({ params }: { params: Promise<{ 
     "use server";
     const u = await requireCouncilUser();
     const title = String(formData.get("title") ?? "").trim();
-    const assignedTo = String(formData.get("assignedTo") ?? "").trim() || undefined;
+    const assignedTo = String(formData.get("assignedTo") ?? "").trim();
     const dueDate = String(formData.get("dueDate") ?? "").trim() || undefined;
     const priority = String(formData.get("priority") ?? "medium");
     const description = String(formData.get("description") ?? "").trim();
     if (!title) return;
-    await createActionItem({
+
+    const base = {
       meetingId: id,
-      assignedTo,
       title,
       description: description || undefined,
       dueDate,
       priority,
       createdBy: u.id,
-    });
+    };
+
+    if (assignedTo === "__all__") {
+      const allMembers = await getCouncilMembers();
+      await createActionItemsForAll(allMembers.map((m) => m.id), base);
+    } else {
+      await createActionItem({ ...base, assignedTo: assignedTo || undefined });
+    }
     redirect(`/council/meetings/${id}`);
   }
 
@@ -188,6 +195,7 @@ export default async function MeetingDetailPage({ params }: { params: Promise<{ 
                 className="rounded-lg border border-[color:var(--border)] bg-white px-3 py-2 text-[0.82rem] text-slate-800 outline-none"
               >
                 <option value="">Unassigned</option>
+                <option value="__all__">All council members</option>
                 {members.map((m) => (
                   <option key={m.id} value={m.id}>{memberDisplayName(m)}</option>
                 ))}

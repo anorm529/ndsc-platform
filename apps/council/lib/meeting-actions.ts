@@ -93,6 +93,15 @@ export async function createActionItem(data: {
   return result.rows[0]!.id;
 }
 
+export async function createActionItemsForAll(
+  memberIds: string[],
+  data: Omit<Parameters<typeof createActionItem>[0], "assignedTo">
+): Promise<void> {
+  await Promise.all(
+    memberIds.map((memberId) => createActionItem({ ...data, assignedTo: memberId }))
+  );
+}
+
 export async function updateActionStatus(id: string, status: string): Promise<void> {
   await councilQuery(
     `UPDATE action_items SET status = $1, updated_at = NOW() WHERE id = $2`,
