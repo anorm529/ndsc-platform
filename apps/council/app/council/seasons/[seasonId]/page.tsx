@@ -101,18 +101,18 @@ export default async function SeasonDetailPage({
     getCurrentFeeStatuses(),
   ]);
 
-  const unenrolled = canManage && season && (season.status === "draft" || season.status === "active")
+  if (!season) notFound();
+
+  const unenrolled = canManage && (season.status === "draft" || season.status === "active")
     ? await getUnenrolledActivePlayers(seasonId)
     : [];
 
   const [captainAssignments, councilMembers] = canManage
     ? await Promise.all([
-        getAllCaptainAssignmentsForSeason(season!.year),
+        getAllCaptainAssignmentsForSeason(season.year),
         getCouncilMembers(),
       ])
     : [[], []];
-
-  if (!season) notFound();
 
   // Group enrollments by team
   const teamMap = new Map(teams.map((t) => [t.id, t]));
