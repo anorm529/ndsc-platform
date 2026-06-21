@@ -9,7 +9,11 @@ import {
   getSeasonById, getSeasonEnrollments, getAllTeams, updateSeasonStatus,
   type SeasonRow, type SeasonStatus, type EnrollmentRow, type TeamRow,
 } from "@/lib/season-queries";
-import { getPlayerProfiles, getCurrentFeeStatuses, type PlayerProfile, type PlayerFeeStatus } from "@/lib/council-queries";
+import {
+  getPlayerProfiles, getCurrentFeeStatuses, getFeeStatusesForYear,
+  takeSeasonArchiveSnapshot,
+  type PlayerProfile, type PlayerFeeStatus,
+} from "@/lib/council-queries";
 import { getUnenrolledActivePlayers } from "@/lib/season-queries";
 import { getCouncilMembers } from "@/lib/main-db";
 import { getAllCaptainAssignmentsForSeason } from "@/lib/captain-queries";
@@ -139,6 +143,17 @@ export default async function SeasonDetailPage({
     const u = await requireCouncilUser();
     if (!u.isOwner) redirect("/council/seasons/" + seasonId);
     const to = String(formData.get("to")) as SeasonStatus;
+
+    if (to === "archived") {
+      // Take a point-in-time membership snapshot before archiving
+      const [allEnrollments, profiles, fees] = await Promise.all([
+        getSeasonEnrollments(seasonId),
+        getPlayerProfiles(),
+        getFeeStatusesForYear(season!.year),
+      ]);
+      await takeSeasonArchiveSnapshot(season!.year, allEnrollments, profiles, fees, u.id);
+    }
+
     await updateSeasonStatus(seasonId, to);
     redirect("/council/seasons/" + seasonId);
   }

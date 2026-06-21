@@ -1,6 +1,7 @@
 import "server-only";
 
 import { councilQuery } from "@/db/council-db";
+import type { EnrollmentRow } from "@/lib/season-queries";
 
 // ─── Action Items ─────────────────────────────────────────────────────────────
 
@@ -397,4 +398,171 @@ export async function getCurrentFeeStatuses(): Promise<Map<string, PlayerFeeStat
     });
   }
   return map;
+}
+
+export async function getFeeStatusesForYear(year: number): Promise<Map<string, PlayerFeeStatus>> {
+  const seasonResult = await councilQuery<{ id: string }>(
+    `SELECT id FROM fee_seasons WHERE year = $1 ORDER BY is_active DESC LIMIT 1`,
+    [year],
+  );
+  const seasonId = seasonResult.rows[0]?.id;
+  if (!seasonId) return getCurrentFeeStatuses();
+
+  const result = await councilQuery<{
+    player_id: string;
+    fee_type: string;
+    amount_due: string;
+    amount_paid: string;
+  }>(
+    `SELECT pf.player_id, pf.fee_type, pf.amount_due::text,
+            COALESCE(SUM(fp.amount), 0)::text AS amount_paid
+     FROM player_fees pf
+     LEFT JOIN fee_payments fp ON fp.player_fee_id = pf.id
+     WHERE pf.season_id = $1
+     GROUP BY pf.player_id, pf.fee_type, pf.amount_due`,
+    [seasonId],
+  );
+
+  const map = new Map<string, PlayerFeeStatus>();
+  for (const r of result.rows) {
+    const due = parseFloat(r.amount_due);
+    const paid = parseFloat(r.amount_paid);
+    const status: FeeStatus = paid >= due ? "paid" : paid > 0 ? "partial" : "unpaid";
+    map.set(r.player_id, {
+      playerId: r.player_id,
+      feeType: r.fee_type,
+      amountDue: due,
+      amountPaid: paid,
+      status,
+    });
+  }
+  return map;
+}
+
+// ─── Membership snapshot ──────────────────────────────────────────────────────
+
+export interface SnapshotResult {
+  inserted: number;
+  skipped: number;
+}
+
+export interface MembershipSnapshot {
+  id: string;
+  seasonYear: number;
+  playerId: string;
+  playerName: string;
+  gender: string | null;
+  teamName: string | null;
+  feeStatus: string | null;
+  feeType: string | null;
+  amountDue: number | null;
+  amountPaid: number | null;
+  isRookie: boolean;
+  isUmpire: boolean;
+  snapshottedAt: Date;
+}
+
+export async function takeSeasonArchiveSnapshot(
+  seasonYear: number,
+  enrollments: EnrollmentRow[],
+  profileMap: Map<string, PlayerProfile>,
+  feeStatusMap: Map<string, PlayerFeeStatus>,
+  snapshottedBy: string,
+): Promise<SnapshotResult> {
+  let inserted = 0;
+  let skipped = 0;
+
+  for (const enr of enrollments) {
+    const name = enr.registrationName || enr.displayName || enr.email?.split("@")[0] || "Unknown";
+    const profile = profileMap.get(enr.playerId);
+    const fee = feeStatusMap.get(enr.playerId);
+
+    const result = await councilQuery<{ was_inserted: boolean }>(
+      `INSERT INTO membership_snapshots
+        (season_year, player_id, player_name, gender, team_name,
+         fee_status, fee_type, amount_due, amount_paid,
+         is_rookie, is_umpire, snapshotted_by)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
+       ON CONFLICT (player_id, season_year) DO UPDATE SET
+         player_name    = EXCLUDED.player_name,
+         gender         = EXCLUDED.gender,
+         team_name      = EXCLUDED.team_name,
+         fee_status     = EXCLUDED.fee_status,
+         fee_type       = EXCLUDED.fee_type,
+         amount_due     = EXCLUDED.amount_due,
+         amount_paid    = EXCLUDED.amount_paid,
+         is_rookie      = EXCLUDED.is_rookie,
+         is_umpire      = EXCLUDED.is_umpire,
+         snapshotted_at = NOW(),
+         snapshotted_by = EXCLUDED.snapshotted_by
+       RETURNING (xmax = 0) AS was_inserted`,
+      [
+        seasonYear,
+        enr.playerId,
+        name,
+        enr.gender ?? null,
+        enr.currentTeamName ?? null,
+        fee?.status ?? null,
+        fee?.feeType ?? null,
+        fee?.amountDue ?? null,
+        fee?.amountPaid ?? null,
+        profile?.isRookie ?? false,
+        profile?.isUmpire ?? false,
+        snapshottedBy,
+      ],
+    );
+
+    if (result.rows[0]?.was_inserted) inserted++; else skipped++;
+  }
+
+  return { inserted, skipped };
+}
+
+export async function getSeasonArchiveYears(): Promise<number[]> {
+  const result = await councilQuery<{ season_year: number }>(
+    `SELECT DISTINCT season_year FROM membership_snapshots ORDER BY season_year DESC`,
+  );
+  return result.rows.map((r) => r.season_year);
+}
+
+export async function getMembershipSnapshot(year: number): Promise<MembershipSnapshot[]> {
+  const result = await councilQuery<{
+    id: string;
+    season_year: number;
+    player_id: string;
+    player_name: string;
+    gender: string | null;
+    team_name: string | null;
+    fee_status: string | null;
+    fee_type: string | null;
+    amount_due: string | null;
+    amount_paid: string | null;
+    is_rookie: boolean;
+    is_umpire: boolean;
+    snapshotted_at: Date;
+  }>(
+    `SELECT id, season_year, player_id::text, player_name, gender, team_name,
+            fee_status, fee_type, amount_due::text, amount_paid::text,
+            is_rookie, is_umpire, snapshotted_at
+     FROM membership_snapshots
+     WHERE season_year = $1
+     ORDER BY team_name ASC NULLS LAST, player_name ASC`,
+    [year],
+  );
+
+  return result.rows.map((r) => ({
+    id: r.id,
+    seasonYear: r.season_year,
+    playerId: r.player_id,
+    playerName: r.player_name,
+    gender: r.gender,
+    teamName: r.team_name,
+    feeStatus: r.fee_status,
+    feeType: r.fee_type,
+    amountDue: r.amount_due ? parseFloat(r.amount_due) : null,
+    amountPaid: r.amount_paid ? parseFloat(r.amount_paid) : null,
+    isRookie: r.is_rookie,
+    isUmpire: r.is_umpire,
+    snapshottedAt: r.snapshotted_at,
+  }));
 }

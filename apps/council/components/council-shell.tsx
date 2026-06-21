@@ -20,6 +20,7 @@ const titleMap: Record<string, string> = {
   "/council/signups":             "Tournament Signups",
   "/council/captains":            "Captains & Rosters",
   "/council/stats":               "Game Stats Upload",
+  "/council/archive":             "Season Archives",
 };
 
 function getTitle(pathname: string): string {
@@ -30,6 +31,7 @@ function getTitle(pathname: string): string {
   if (pathname.startsWith("/council/meetings/")) return "Meeting";
   if (pathname.startsWith("/council/treasurer/accounts/")) return "Account Detail";
   if (pathname.startsWith("/council/treasurer/fees/")) return "Season Fees";
+  if (pathname.match(/^\/council\/archive\/\d{4}$/)) return "Season Archive";
   return "Council";
 }
 
