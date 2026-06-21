@@ -127,6 +127,17 @@ export async function requireSecretaryAccess(user: CouncilUser): Promise<void> {
   if (!hasSecretaryAccess(user)) redirect("/council/dashboard");
 }
 
+/** True if the user can manage season enrollment, assign captains, and transition season status. */
+export function hasRosterManagementAccess(user: CouncilUser): boolean {
+  if (user.isOwner) return true;
+  return [...user.councilPermissions].some((p) => ELEVATED_ROLES.has(p));
+}
+
+/** Gate for season management and captain assignment (owner/chairman/vice_chair). */
+export async function requireRosterManagementAccess(user: CouncilUser): Promise<void> {
+  if (!hasRosterManagementAccess(user)) redirect("/council/dashboard");
+}
+
 export async function clearCouncilSession(): Promise<void> {
   const cookieStore = await cookies();
   const rawToken = cookieStore.get(COOKIE_NAME)?.value;

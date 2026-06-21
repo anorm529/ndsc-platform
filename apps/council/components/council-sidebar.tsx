@@ -16,6 +16,7 @@ import {
   LogOut,
   X,
   PoundSterling,
+  Trophy,
 } from "lucide-react";
 
 type NavItem = {
@@ -28,10 +29,11 @@ type NavItem = {
 const mainNav: NavItem[] = [
   { label: "Dashboard",  href: "/council/dashboard", icon: LayoutDashboard, permission: null },
   { label: "Members",    href: "/council/members",   icon: Users,            permission: null },
+  { label: "Seasons",    href: "/council/seasons",   icon: Trophy,           permission: "chairman" },
+  { label: "Captains",   href: "/council/captains",  icon: Shield,           permission: "captain" },
   { label: "Meetings",   href: "/council/meetings",  icon: CalendarDays,     permission: null },
   { label: "Actions",    href: "/council/actions",   icon: CheckSquare,      permission: null },
   { label: "Signups",    href: "/council/signups",   icon: ClipboardList,    permission: null },
-  { label: "Captains",  href: "/council/captains",  icon: Shield,           permission: "captain" },
 ];
 
 const treasurerNav: NavItem[] = [

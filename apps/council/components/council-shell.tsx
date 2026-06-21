@@ -9,6 +9,8 @@ import { CouncilSidebar } from "@/components/council-sidebar";
 const titleMap: Record<string, string> = {
   "/council/dashboard":           "Dashboard",
   "/council/members":             "Members",
+  "/council/seasons":             "Season Management",
+  "/council/seasons/new":         "New Season",
   "/council/meetings":            "Meetings",
   "/council/meetings/new":        "New Meeting",
   "/council/actions":             "Action Tracker",
@@ -21,6 +23,9 @@ const titleMap: Record<string, string> = {
 
 function getTitle(pathname: string): string {
   if (titleMap[pathname]) return titleMap[pathname];
+  if (pathname.startsWith("/council/seasons/new")) return "New Season";
+  if (pathname.match(/^\/council\/seasons\/[^/]+\/enroll/)) return "Enroll Players";
+  if (pathname.match(/^\/council\/seasons\/[^/]+/)) return "Season Detail";
   if (pathname.startsWith("/council/meetings/")) return "Meeting";
   if (pathname.startsWith("/council/treasurer/accounts/")) return "Account Detail";
   if (pathname.startsWith("/council/treasurer/fees/")) return "Season Fees";
