@@ -1,12 +1,13 @@
 import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, CopyCheck } from "lucide-react";
 import { requireCouncilUser, requireRosterManagementAccess } from "@/lib/council-session";
 import {
   getSeasonById,
   getPreviousSeasonPlayers,
   getUnenrolledActivePlayers,
   enrollPlayers,
+  enrollPlayersWithTeams,
 } from "@/lib/season-queries";
 import { CarryForwardForm } from "./carry-forward-form";
 
@@ -55,6 +56,21 @@ export default async function EnrollPage({
     redirect(`/council/seasons/${seasonId}`);
   }
 
+  // Copy ALL previous season players to this season, preserving team assignments
+  async function handleCopyWithTeams() {
+    "use server";
+    const u = await requireCouncilUser();
+    await requireRosterManagementAccess(u);
+
+    const prev = await getPreviousSeasonPlayers(season!.year);
+    await enrollPlayersWithTeams(
+      prev.map((p) => ({ playerId: p.playerId, teamId: p.prevTeamId })),
+      seasonId,
+      u.id
+    );
+    redirect(`/council/seasons/${seasonId}`);
+  }
+
   return (
     <div className="max-w-3xl space-y-6">
       <Link
@@ -64,6 +80,34 @@ export default async function EnrollPage({
         <ArrowLeft className="h-3.5 w-3.5" />
         {season.year} Season
       </Link>
+
+      {/* Quick: copy previous season with team assignments intact */}
+      {prevPlayers.length > 0 && prevPlayers.some((p) => p.prevTeamId) && (
+        <div className="council-panel rounded-2xl border p-5">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <div className="flex items-center gap-2">
+                <CopyCheck className="h-4 w-4 text-[color:var(--accent)]" />
+                <h3 className="text-[0.92rem] font-semibold text-slate-800">
+                  Copy {season.year - 1} with same teams
+                </h3>
+              </div>
+              <p className="mt-1 text-[0.8rem] text-[color:var(--muted-foreground)]">
+                Enrolls all {prevPlayers.length} returning players and keeps them on their existing teams.
+                Already-enrolled players are not affected.
+              </p>
+            </div>
+            <form action={handleCopyWithTeams}>
+              <button
+                type="submit"
+                className="shrink-0 rounded-xl bg-[linear-gradient(180deg,#0d9488_0%,#0f766e_100%)] px-4 py-2 text-[0.82rem] font-medium text-white hover:brightness-105"
+              >
+                Copy all
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* Carry forward from previous season */}
       {prevPlayers.length > 0 ? (

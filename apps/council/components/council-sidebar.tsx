@@ -22,6 +22,10 @@ import {
   Medal,
   TrendingUp,
   ScrollText,
+  UserCheck,
+  AlertTriangle,
+  FileText,
+  Megaphone,
 } from "lucide-react";
 
 type NavItem = {
@@ -56,9 +60,11 @@ const navGroups: NavGroup[] = [
   {
     label: "Governance",
     items: [
-      { label: "Meetings", href: "/council/meetings", icon: CalendarDays,  permission: null },
-      { label: "Actions",  href: "/council/actions",  icon: CheckSquare,   permission: null },
-      { label: "Signups",  href: "/council/signups",  icon: ClipboardList, permission: null },
+      { label: "Meetings",      href: "/council/meetings",      icon: CalendarDays,  permission: null },
+      { label: "Actions",       href: "/council/actions",       icon: CheckSquare,   permission: null },
+      { label: "Announcements", href: "/council/announcements", icon: Megaphone,     permission: null },
+      { label: "Signups",       href: "/council/signups",       icon: ClipboardList, permission: null },
+      { label: "Accounts",      href: "/council/accounts",      icon: UserCheck,     permission: "chairman" },
     ],
   },
   {
@@ -71,8 +77,10 @@ const navGroups: NavGroup[] = [
   {
     label: "Records",
     items: [
-      { label: "Archive",   href: "/council/archive", icon: Archive,    permission: null },
-      { label: "Audit Log", href: "/council/audit",   icon: ScrollText, permission: "chairman" },
+      { label: "Archive",   href: "/council/archive",    icon: Archive,        permission: null },
+      { label: "Documents", href: "/council/documents",  icon: FileText,       permission: null },
+      { label: "Flags",     href: "/council/flags",      icon: AlertTriangle,  permission: null },
+      { label: "Audit Log", href: "/council/audit",      icon: ScrollText,     permission: "chairman" },
     ],
   },
 ];

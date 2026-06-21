@@ -2,12 +2,13 @@ import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import {
   ArrowLeft, CalendarDays, MapPin, FileText, CheckSquare,
-  Clock, CheckCircle2, AlertCircle, Plus,
+  Clock, CheckCircle2, AlertCircle, Plus, Users,
 } from "lucide-react";
 import { requireCouncilUser, hasSecretaryAccess } from "@/lib/council-session";
-import { getMeetingById } from "@/lib/council-queries";
+import { getMeetingById, getMeetingAttendance } from "@/lib/council-queries";
 import { getMeetingActions, createActionItem, createActionItemsForAll, updateMeeting } from "@/lib/meeting-actions";
 import { getCouncilMembers, memberDisplayName } from "@/lib/main-db";
+import { AttendanceButtons } from "./attendance-buttons";
 
 const PRIORITY_COLOURS = {
   high:   "bg-[rgba(239,68,68,0.14)] text-[color:var(--danger)]",
@@ -24,10 +25,11 @@ export default async function MeetingDetailPage({ params }: { params: Promise<{ 
   const user = await requireCouncilUser();
   const canManage = hasSecretaryAccess(user);
 
-  const [meeting, actions, members] = await Promise.all([
+  const [meeting, actions, members, attendanceMap] = await Promise.all([
     getMeetingById(id),
     getMeetingActions(id),
     getCouncilMembers(),
+    getMeetingAttendance(id),
   ]);
 
   if (!meeting) notFound();
@@ -161,6 +163,53 @@ export default async function MeetingDetailPage({ params }: { params: Promise<{ 
           <p className="whitespace-pre-wrap text-[0.85rem] text-[#c8d5e2]">{meeting.minutes}</p>
         </section>
       ) : null}
+
+      {/* Attendance */}
+      <section className="council-panel rounded-2xl border p-5">
+        <h3 className="mb-4 text-[0.88rem] font-semibold text-slate-800 flex items-center gap-2">
+          <Users className="h-4 w-4 text-[color:var(--accent)]" />
+          Attendance ({members.length} members)
+        </h3>
+
+        {members.length === 0 ? (
+          <p className="text-[0.85rem] text-[color:var(--muted-foreground)]">No council members found.</p>
+        ) : (
+          <div className="space-y-2">
+            {members.map((member) => {
+              const status = attendanceMap.get(member.id) ?? null;
+              return (
+                <div key={member.id} className="flex items-center gap-3">
+                  <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[rgba(20,184,166,0.08)] text-[0.65rem] font-semibold text-[color:var(--accent)]">
+                    {memberDisplayName(member).charAt(0).toUpperCase()}
+                  </div>
+                  <span className="flex-1 text-[0.85rem] font-medium text-slate-800">
+                    {memberDisplayName(member)}
+                  </span>
+                  {status === "present" && (
+                    <span className="rounded-full bg-[rgba(16,185,129,0.1)] px-2.5 py-0.5 text-[0.7rem] font-medium text-[color:var(--success)]">Present</span>
+                  )}
+                  {status === "absent" && (
+                    <span className="rounded-full bg-[rgba(239,68,68,0.1)] px-2.5 py-0.5 text-[0.7rem] font-medium text-[color:var(--danger)]">Absent</span>
+                  )}
+                  {status === "apologies" && (
+                    <span className="rounded-full bg-[rgba(233,185,62,0.1)] px-2.5 py-0.5 text-[0.7rem] font-medium text-[color:var(--warning)]">Apologies</span>
+                  )}
+                  {status === null && (
+                    <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-[0.7rem] text-slate-400">Not recorded</span>
+                  )}
+                  {canManage && (
+                    <AttendanceButtons
+                      meetingId={id}
+                      userId={member.id}
+                      current={status}
+                    />
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </section>
 
       {/* Action items from this meeting */}
       <section className="council-panel rounded-2xl border p-5">

@@ -3,6 +3,7 @@ import { requireCouncilUser, hasRosterManagementAccess } from "@/lib/council-ses
 import { getAllStandings } from "@/lib/standings-queries";
 import { AddStandingForm } from "./standing-form";
 import { StandingsTable } from "./standings-table";
+import { CollapsibleYearCard } from "@/components/collapsible-year-card";
 
 export default async function StandingsPage() {
   const user = await requireCouncilUser();
@@ -35,9 +36,8 @@ export default async function StandingsPage() {
           <p className="text-[0.9rem]">No standings data yet. Add rows above to get started.</p>
         </div>
       ) : (
-        years.map((year) => {
+        years.map((year, i) => {
           const rows = byYear.get(year)!;
-          // Group by division within year
           const byDiv = new Map<string, typeof rows>();
           for (const row of rows) {
             const div = row.division ?? "";
@@ -47,15 +47,15 @@ export default async function StandingsPage() {
           const divs = [...byDiv.keys()].sort();
 
           return (
-            <section key={year} className="council-panel rounded-2xl border p-5 space-y-4">
-              <div className="flex items-center gap-2">
-                <Trophy className="h-4 w-4 text-[color:var(--accent)]" />
-                <h3 className="text-[0.92rem] font-semibold text-slate-800">{year} Standings</h3>
-                <span className="ml-auto text-[0.72rem] text-[color:var(--muted-foreground)]">
-                  {rows.length} {rows.length === 1 ? "team" : "teams"}
-                </span>
-              </div>
-
+            <CollapsibleYearCard
+              key={year}
+              icon={<Trophy className="h-4 w-4 text-[color:var(--accent)]" />}
+              year={year}
+              label="Standings"
+              count={rows.length}
+              countLabel={rows.length === 1 ? "team" : "teams"}
+              defaultOpen={i === 0}
+            >
               {divs.map((div) => (
                 <div key={div}>
                   {div && (
@@ -66,7 +66,7 @@ export default async function StandingsPage() {
                   <StandingsTable rows={byDiv.get(div)!} canManage={canManage} />
                 </div>
               ))}
-            </section>
+            </CollapsibleYearCard>
           );
         })
       )}

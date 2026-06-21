@@ -1,15 +1,5 @@
 import { mainQuery } from "@/lib/main-db";
-
-export const AWARD_TYPES = [
-  "Male MVP",
-  "Female MVP",
-  "Spirit Award",
-  "Golden Glove",
-  "Captains Choice",
-  "Rookie",
-] as const;
-
-export type AwardType = (typeof AWARD_TYPES)[number];
+export { AWARD_TYPES, type AwardType } from "@/lib/award-constants";
 
 export interface AwardRow {
   id: string;
@@ -34,7 +24,18 @@ export async function getAwardYears(): Promise<number[]> {
   return res.rows.map((r) => r.year);
 }
 
+async function awardsPlayerTextExpr(): Promise<string> {
+  const res = await mainQuery<{ column_name: string }>(
+    `SELECT column_name FROM information_schema.columns
+     WHERE table_schema = 'public' AND table_name = 'awards'
+     AND column_name IN ('player_text', 'player')`
+  );
+  const col = res.rows[0]?.column_name;
+  return col ? `a.${col}` : "null";
+}
+
 export async function getAwardsForYear(year: number): Promise<AwardRow[]> {
+  const playerTextExpr = await awardsPlayerTextExpr();
   const res = await mainQuery<AwardRow>(
     `SELECT
        a.id::text,
@@ -43,7 +44,7 @@ export async function getAwardsForYear(year: number): Promise<AwardRow[]> {
        t.name AS team_name,
        a.player_id::text,
        p.display_name AS player_name,
-       a.player_text,
+       ${playerTextExpr} AS player_text,
        a.award,
        a.notes,
        coalesce(s.year, extract(year from a.created_at)::int) AS year
@@ -66,18 +67,18 @@ export async function createAward(data: {
   award: string;
   notes?: string | null;
 }): Promise<string> {
+  const playerTextExpr = await awardsPlayerTextExpr();
+  const playerCol = playerTextExpr === "null" ? null : playerTextExpr.replace("a.", "");
+  const colList = playerCol
+    ? `season_id, team_id, player_id, ${playerCol}, award, notes`
+    : "season_id, team_id, player_id, award, notes";
+  const vals = playerCol
+    ? [data.seasonId ?? null, data.teamId ?? null, data.playerId ?? null, data.playerText ?? null, data.award, data.notes ?? null]
+    : [data.seasonId ?? null, data.teamId ?? null, data.playerId ?? null, data.award, data.notes ?? null];
+  const placeholders = vals.map((_, i) => `$${i + 1}`).join(", ");
   const res = await mainQuery<{ id: string }>(
-    `INSERT INTO public.awards (season_id, team_id, player_id, player_text, award, notes)
-     VALUES ($1, $2, $3, $4, $5, $6)
-     RETURNING id::text`,
-    [
-      data.seasonId ?? null,
-      data.teamId ?? null,
-      data.playerId ?? null,
-      data.playerText ?? null,
-      data.award,
-      data.notes ?? null,
-    ]
+    `INSERT INTO public.awards (${colList}) VALUES (${placeholders}) RETURNING id::text`,
+    vals
   );
   return res.rows[0].id;
 }

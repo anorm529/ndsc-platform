@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2, Plus, Check, X, Medal } from "lucide-react";
-import { AWARD_TYPES } from "@/lib/awards-queries";
+import { AWARD_TYPES } from "@/lib/award-constants";
 
 const CURRENT_YEAR = new Date().getFullYear();
 

@@ -672,3 +672,106 @@ export async function getYearOnYearStats(): Promise<YearStats[]> {
     teamBreakdown: teamsByYear.get(r.year) ?? [],
   }));
 }
+
+// ─── Meeting Attendance ───────────────────────────────────────────────────────
+
+export type AttendanceStatus = "present" | "absent" | "apologies";
+
+export interface AttendanceRecord {
+  userId: string;
+  status: AttendanceStatus | null;
+}
+
+export async function getMeetingAttendance(meetingId: string): Promise<Map<string, AttendanceStatus | null>> {
+  const result = await councilQuery<{ user_id: string; status: string | null }>(
+    `SELECT user_id, status FROM meeting_attendees WHERE meeting_id = $1`,
+    [meetingId]
+  );
+  const map = new Map<string, AttendanceStatus | null>();
+  for (const row of result.rows) {
+    map.set(row.user_id, (row.status as AttendanceStatus) ?? null);
+  }
+  return map;
+}
+
+export async function upsertAttendance(
+  meetingId: string,
+  userId: string,
+  status: AttendanceStatus | null
+): Promise<void> {
+  if (status === null) {
+    await councilQuery(
+      `DELETE FROM meeting_attendees WHERE meeting_id = $1 AND user_id = $2`,
+      [meetingId, userId]
+    );
+  } else {
+    await councilQuery(
+      `INSERT INTO meeting_attendees (meeting_id, user_id, status, attended)
+       VALUES ($1, $2, $3, $3 = 'present')
+       ON CONFLICT (meeting_id, user_id) DO UPDATE
+         SET status = EXCLUDED.status,
+             attended = EXCLUDED.attended`,
+      [meetingId, userId, status]
+    );
+  }
+}
+
+// ─── Announcements ────────────────────────────────────────────────────────────
+
+export interface AnnouncementRow {
+  id: string;
+  subject: string;
+  body: string;
+  recipients: string;
+  teamName: string | null;
+  sentCount: number;
+  failedCount: number;
+  sentBy: string;
+  sentAt: Date;
+}
+
+export async function getAnnouncements(): Promise<AnnouncementRow[]> {
+  const result = await councilQuery<{
+    id: string; subject: string; body: string; recipients: string;
+    team_name: string | null; sent_count: number; failed_count: number;
+    sent_by: string; sent_at: Date;
+  }>(
+    `SELECT id, subject, body, recipients, team_name, sent_count, failed_count, sent_by, sent_at
+     FROM council_announcements
+     ORDER BY sent_at DESC
+     LIMIT 50`
+  );
+  return result.rows.map((r) => ({
+    id: r.id,
+    subject: r.subject,
+    body: r.body,
+    recipients: r.recipients,
+    teamName: r.team_name,
+    sentCount: r.sent_count,
+    failedCount: r.failed_count,
+    sentBy: r.sent_by,
+    sentAt: r.sent_at,
+  }));
+}
+
+export async function saveAnnouncement(data: {
+  subject: string;
+  body: string;
+  recipients: string;
+  teamId?: string | null;
+  teamName?: string | null;
+  sentCount: number;
+  failedCount: number;
+  sentBy: string;
+}): Promise<void> {
+  await councilQuery(
+    `INSERT INTO council_announcements
+       (subject, body, recipients, team_id, team_name, sent_count, failed_count, sent_by)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+    [
+      data.subject, data.body, data.recipients,
+      data.teamId ?? null, data.teamName ?? null,
+      data.sentCount, data.failedCount, data.sentBy,
+    ]
+  );
+}

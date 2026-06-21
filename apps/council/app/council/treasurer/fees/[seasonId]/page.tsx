@@ -11,6 +11,7 @@ import {
 import { getAllActivePlayers } from "@/lib/main-db";
 import { getPlayerProfiles } from "@/lib/council-queries";
 import { AddPlayerForm } from "./add-player-form";
+import { FeeReminderButton } from "./fee-reminder-button";
 
 function fmt(n: number) {
   return new Intl.NumberFormat("en-GB", { style: "currency", currency: "GBP" }).format(n);
@@ -202,38 +203,41 @@ export default async function SeasonFeesPage({ params }: { params: Promise<{ sea
                       )}
 
                       {!fullyPaid && (
-                        <form action={handleRecordPayment} className="mt-3 flex flex-wrap items-center gap-2">
-                          <input type="hidden" name="playerFeeId" value={pf.id} />
-                          <input
-                            name="amount"
-                            type="number"
-                            step="0.01"
-                            min="0.01"
-                            defaultValue={remaining > 0 ? remaining.toFixed(2) : ""}
-                            placeholder="£"
-                            required
-                            className="w-24 rounded-lg border border-[color:var(--border)] bg-slate-100 px-2.5 py-1.5 text-[0.78rem] text-slate-800 outline-none focus:border-[color:var(--border-strong)]"
-                          />
-                          <select
-                            name="paymentMethod"
-                            className="rounded-lg border border-[color:var(--border)] bg-slate-100 px-2.5 py-1.5 text-[0.78rem] text-slate-800 outline-none"
-                          >
-                            <option value="bank_transfer">Bank transfer</option>
-                            <option value="cash">Cash</option>
-                            <option value="other">Other</option>
-                          </select>
-                          <input
-                            name="reference"
-                            placeholder="Ref"
-                            className="w-24 rounded-lg border border-[color:var(--border)] bg-slate-100 px-2.5 py-1.5 text-[0.78rem] text-slate-800 outline-none placeholder:text-slate-400 focus:border-[color:var(--border-strong)]"
-                          />
-                          <button
-                            type="submit"
-                            className="rounded-lg bg-[rgba(29,215,207,0.14)] px-3 py-1.5 text-[0.78rem] font-medium text-[color:var(--accent)] hover:bg-[rgba(29,215,207,0.22)]"
-                          >
-                            Record payment
-                          </button>
-                        </form>
+                        <div className="mt-3 space-y-2">
+                          <form action={handleRecordPayment} className="flex flex-wrap items-center gap-2">
+                            <input type="hidden" name="playerFeeId" value={pf.id} />
+                            <input
+                              name="amount"
+                              type="number"
+                              step="0.01"
+                              min="0.01"
+                              defaultValue={remaining > 0 ? remaining.toFixed(2) : ""}
+                              placeholder="£"
+                              required
+                              className="w-24 rounded-lg border border-[color:var(--border)] bg-slate-100 px-2.5 py-1.5 text-[0.78rem] text-slate-800 outline-none focus:border-[color:var(--border-strong)]"
+                            />
+                            <select
+                              name="paymentMethod"
+                              className="rounded-lg border border-[color:var(--border)] bg-slate-100 px-2.5 py-1.5 text-[0.78rem] text-slate-800 outline-none"
+                            >
+                              <option value="bank_transfer">Bank transfer</option>
+                              <option value="cash">Cash</option>
+                              <option value="other">Other</option>
+                            </select>
+                            <input
+                              name="reference"
+                              placeholder="Ref"
+                              className="w-24 rounded-lg border border-[color:var(--border)] bg-slate-100 px-2.5 py-1.5 text-[0.78rem] text-slate-800 outline-none placeholder:text-slate-400 focus:border-[color:var(--border-strong)]"
+                            />
+                            <button
+                              type="submit"
+                              className="rounded-lg bg-[rgba(29,215,207,0.14)] px-3 py-1.5 text-[0.78rem] font-medium text-[color:var(--accent)] hover:bg-[rgba(29,215,207,0.22)]"
+                            >
+                              Record payment
+                            </button>
+                          </form>
+                          <FeeReminderButton playerFeeId={pf.id} playerName={pf.playerName} />
+                        </div>
                       )}
                     </div>
                   </div>

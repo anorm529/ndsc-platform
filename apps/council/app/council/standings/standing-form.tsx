@@ -26,13 +26,14 @@ export function AddStandingForm({ onAdded }: { onAdded?: () => void }) {
   const [division, setDivision] = useState("");
   const [wins, setWins] = useState("0");
   const [losses, setLosses] = useState("0");
+  const [points, setPoints] = useState("0");
   const [runsFor, setRunsFor] = useState("0");
   const [runsAgainst, setRunsAgainst] = useState("0");
   const [streak, setStreak] = useState("");
 
   function reset() {
     setTeam(""); setYear(String(CURRENT_YEAR)); setDivision("");
-    setWins("0"); setLosses("0"); setRunsFor("0"); setRunsAgainst("0"); setStreak("");
+    setWins("0"); setLosses("0"); setPoints("0"); setRunsFor("0"); setRunsAgainst("0"); setStreak("");
     setErr(null);
   }
 
@@ -44,7 +45,7 @@ export function AddStandingForm({ onAdded }: { onAdded?: () => void }) {
       const res = await fetch("/api/standings", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ team: team.trim(), year: Number(year), division: division || null, wins: Number(wins), losses: Number(losses), runs_for: Number(runsFor), runs_against: Number(runsAgainst), streak: streak || null }),
+        body: JSON.stringify({ team: team.trim(), year: Number(year), division: division || null, wins: Number(wins), losses: Number(losses), points: Number(points), runs_for: Number(runsFor), runs_against: Number(runsAgainst), streak: streak || null }),
       });
       if (!res.ok) { const d = await res.json(); setErr(d.error ?? "Failed"); return; }
       reset(); setOpen(false); onAdded?.(); router.refresh();
@@ -83,7 +84,7 @@ export function AddStandingForm({ onAdded }: { onAdded?: () => void }) {
         </div>
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-4">
+      <div className="grid gap-3 sm:grid-cols-5">
         <div>
           <label className={labelClass()}>Division</label>
           <select value={division} onChange={(e) => setDivision(e.target.value)} className={inputClass()}>
@@ -100,6 +101,10 @@ export function AddStandingForm({ onAdded }: { onAdded?: () => void }) {
         <div>
           <label className={labelClass()}>Losses</label>
           <input type="number" min="0" value={losses} onChange={(e) => setLosses(e.target.value)} className={inputClass()} />
+        </div>
+        <div>
+          <label className={labelClass()}>Points</label>
+          <input type="number" min="0" value={points} onChange={(e) => setPoints(e.target.value)} className={inputClass()} />
         </div>
         <div>
           <label className={labelClass()}>Streak</label>
@@ -119,7 +124,7 @@ export function AddStandingForm({ onAdded }: { onAdded?: () => void }) {
       </div>
 
       <div className="text-[0.68rem] text-[color:var(--muted-foreground)]">
-        Points: {Number(wins) * 2} · Difference: {Number(runsFor) - Number(runsAgainst)}
+        Difference: {Number(runsFor) - Number(runsAgainst) >= 0 ? "+" : ""}{Number(runsFor) - Number(runsAgainst)}
       </div>
 
       {err && <p className="text-[0.72rem] text-[color:var(--danger)]">{err}</p>}
@@ -147,6 +152,7 @@ export function EditStandingForm({ row, onDone }: { row: StandingRow; onDone: ()
   const [division, setDivision] = useState(row.division ?? "");
   const [wins, setWins] = useState(String(row.wins));
   const [losses, setLosses] = useState(String(row.losses));
+  const [points, setPoints] = useState(String(row.points));
   const [runsFor, setRunsFor] = useState(String(row.runs_for));
   const [runsAgainst, setRunsAgainst] = useState(String(row.runs_against));
   const [streak, setStreak] = useState(row.streak ?? "");
@@ -158,7 +164,7 @@ export function EditStandingForm({ row, onDone }: { row: StandingRow; onDone: ()
       const res = await fetch("/api/standings", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: row.id, team: team.trim(), year: Number(year), division: division || null, wins: Number(wins), losses: Number(losses), runs_for: Number(runsFor), runs_against: Number(runsAgainst), streak: streak || null }),
+        body: JSON.stringify({ id: row.id, team: team.trim(), year: Number(year), division: division || null, wins: Number(wins), losses: Number(losses), points: Number(points), runs_for: Number(runsFor), runs_against: Number(runsAgainst), streak: streak || null }),
       });
       if (!res.ok) { const d = await res.json(); setErr(d.error ?? "Failed"); return; }
       onDone(); router.refresh();
@@ -174,7 +180,7 @@ export function EditStandingForm({ row, onDone }: { row: StandingRow; onDone: ()
         </div>
         <input type="number" required value={year} onChange={(e) => setYear(e.target.value)} className={inputClass()} />
       </div>
-      <div className="grid gap-2 sm:grid-cols-4">
+      <div className="grid gap-2 sm:grid-cols-5">
         <select value={division} onChange={(e) => setDivision(e.target.value)} className={inputClass()}>
           <option value="">—</option>
           <option value="A">A</option>
@@ -183,6 +189,7 @@ export function EditStandingForm({ row, onDone }: { row: StandingRow; onDone: ()
         </select>
         <input type="number" min="0" value={wins} onChange={(e) => setWins(e.target.value)} className={inputClass()} placeholder="Wins" />
         <input type="number" min="0" value={losses} onChange={(e) => setLosses(e.target.value)} className={inputClass()} placeholder="Losses" />
+        <input type="number" min="0" value={points} onChange={(e) => setPoints(e.target.value)} className={inputClass()} placeholder="Points" />
         <input type="text" value={streak} onChange={(e) => setStreak(e.target.value)} className={inputClass()} placeholder="Streak" />
       </div>
       <div className="grid gap-2 sm:grid-cols-2">

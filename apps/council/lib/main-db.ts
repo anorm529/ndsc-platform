@@ -167,14 +167,16 @@ export async function getCouncilMembers(): Promise<MemberRow[]> {
     `SELECT u.id, u.email, u.registration_name, p.display_name, u.player_id
      FROM users u
      LEFT JOIN players p ON p.id = u.player_id
-     WHERE u.account_status = 'active'
-       AND (
-         u.role = 'owner'
-         OR EXISTS (
+     WHERE (
+       u.role = 'owner'
+       OR (
+         (u.role = 'admin' OR u.account_status = 'active')
+         AND EXISTS (
            SELECT 1 FROM app_permissions ap
            WHERE ap.user_id = u.id AND ap.app = 'council'
          )
        )
+     )
      ORDER BY coalesce(u.registration_name, split_part(u.email, '@', 1)) ASC`
   );
 

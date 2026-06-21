@@ -4,6 +4,7 @@ import { getAwardYears, getAwardsForYear } from "@/lib/awards-queries";
 import { getAllSeasons, getAllTeams } from "@/lib/season-queries";
 import { AddAwardForm } from "./award-form";
 import { AwardsList } from "./awards-list";
+import { CollapsibleYearCard } from "@/components/collapsible-year-card";
 
 export default async function AwardsPage() {
   const user = await requireCouncilUser();
@@ -43,18 +44,22 @@ export default async function AwardsPage() {
           <p className="text-[0.9rem]">No awards recorded yet. Add the first one above.</p>
         </div>
       ) : (
-        awardYears.map((year) => (
-          <section key={year} className="council-panel rounded-2xl border p-5 space-y-4">
-            <div className="flex items-center gap-2">
-              <Medal className="h-4 w-4 text-[color:var(--accent)]" />
-              <h3 className="text-[0.92rem] font-semibold text-slate-800">{year} Awards</h3>
-              <span className="ml-auto text-[0.72rem] text-[color:var(--muted-foreground)]">
-                {byYear.get(year)?.length ?? 0} {(byYear.get(year)?.length ?? 0) === 1 ? "award" : "awards"}
-              </span>
-            </div>
-            <AwardsList rows={byYear.get(year) ?? []} canManage={canManage} />
-          </section>
-        ))
+        awardYears.map((year, i) => {
+          const count = byYear.get(year)?.length ?? 0;
+          return (
+            <CollapsibleYearCard
+              key={year}
+              icon={<Medal className="h-4 w-4 text-[color:var(--accent)]" />}
+              year={year}
+              label="Awards"
+              count={count}
+              countLabel={count === 1 ? "award" : "awards"}
+              defaultOpen={i === 0}
+            >
+              <AwardsList rows={byYear.get(year) ?? []} canManage={canManage} />
+            </CollapsibleYearCard>
+          );
+        })
       )}
     </div>
   );
