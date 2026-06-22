@@ -5,11 +5,11 @@ import JsonLd from "@/app/components/JsonLd";
 import SiteFooter from "@/app/components/SiteFooter";
 import { sanityClient } from "@/lib/sanity/client";
 import { urlFor } from "@/lib/sanity/image";
-import { POSTS_BY_KIND } from "@/lib/sanity/queries";
+import { POSTS_BY_KIND, SITE_SETTINGS } from "@/lib/sanity/queries";
 import { absoluteUrl, buildMetadata, buildPageTitle } from "@/lib/seo";
 import { primaryNavLinks } from "@/lib/site-nav";
 
-export const revalidate = 300; // refresh every 5 mins (matches your standings pattern) //export const revalidate = 300;
+export const revalidate = 300;
 
 export const metadata: Metadata = buildMetadata({
   title: buildPageTitle("News"),
@@ -25,37 +25,67 @@ type PostCard = {
   excerpt?: string;
   publishedAt?: string;
   postKind?: string;
-  coverImage?: unknown;
+  cardImage?: unknown;
   teams?: string[] | null;
   opponent?: string | null;
   scoreFor?: number | null;
   scoreAgainst?: number | null;
 };
 
-type PostCardUI = {
+type SiteSettings = {
+  clubReportBanner?: unknown;
+  matchReportBanner?: unknown;
+  buccaneersReportBanner?: unknown;
+  barracudasReportBanner?: unknown;
+  sluggersReportBanner?: unknown;
+  stallionsReportBanner?: unknown;
+  nightmaresReportBanner?: unknown;
+};
+
+const TEAM_BANNER: Record<string, keyof SiteSettings> = {
+  buccaneers: "buccaneersReportBanner",
+  barracudas: "barracudasReportBanner",
+  sluggers: "sluggersReportBanner",
+  stallions: "stallionsReportBanner",
+  nightmares: "nightmaresReportBanner",
+};
+
+export type PostCardUI = {
   _id: string;
   title: string;
   slug: string;
   excerpt?: string;
   publishedAt?: string;
   postKind?: string;
-  coverImageUrl?: string | null;
+  cardImageUrl?: string | null;
   teams?: string[] | null;
   opponent?: string | null;
   scoreFor?: number | null;
   scoreAgainst?: number | null;
 };
 
-async function getPosts(kind: "clubNews" | "teamReport"): Promise<PostCardUI[]> {
-  if (!sanityClient) return [];
+function resolveCardImageUrl(
+  post: PostCard,
+  kind: "clubNews" | "teamReport",
+  settings: SiteSettings | null
+): string | null {
+  if (post.cardImage) return urlFor(post.cardImage).width(800).height(500).url();
+  if (kind === "teamReport") {
+    const primaryTeam = post.teams?.[0];
+    const bannerKey = primaryTeam ? TEAM_BANNER[primaryTeam] : undefined;
+    const banner = (bannerKey && settings?.[bannerKey]) ?? settings?.matchReportBanner;
+    return banner ? urlFor(banner).width(800).height(500).url() : null;
+  }
+  return settings?.clubReportBanner
+    ? urlFor(settings.clubReportBanner).width(800).height(500).url()
+    : null;
+}
 
-  const rows = await sanityClient.fetch<PostCard[]>(
-    POSTS_BY_KIND,
-    { kind },
-    // Ensure Next uses ISR revalidate for this fetch too
-    { next: { revalidate } }
-  );
-
+function toUI(
+  rows: PostCard[],
+  kind: "clubNews" | "teamReport",
+  settings: SiteSettings | null
+): PostCardUI[] {
   return rows.map((p) => ({
     _id: p._id,
     title: p.title,
@@ -63,7 +93,7 @@ async function getPosts(kind: "clubNews" | "teamReport"): Promise<PostCardUI[]> 
     excerpt: p.excerpt,
     publishedAt: p.publishedAt,
     postKind: p.postKind,
-    coverImageUrl: p.coverImage ? urlFor(p.coverImage).width(800).height(500).url() : null,
+    cardImageUrl: resolveCardImageUrl(p, kind, settings),
     teams: p.teams ?? null,
     opponent: p.opponent ?? null,
     scoreFor: p.scoreFor ?? null,
@@ -72,10 +102,22 @@ async function getPosts(kind: "clubNews" | "teamReport"): Promise<PostCardUI[]> 
 }
 
 export default async function NewsPage() {
-  const [clubNews, teamReports] = await Promise.all([
-    getPosts("clubNews"),
-    getPosts("teamReport"),
+  const none = <T,>(): Promise<T> => Promise.resolve(null as T);
+
+  const [clubNewsRaw, teamReportsRaw, siteSettings] = await Promise.all([
+    sanityClient
+      ? sanityClient.fetch<PostCard[]>(POSTS_BY_KIND, { kind: "clubNews" }, { next: { revalidate } })
+      : none<PostCard[]>(),
+    sanityClient
+      ? sanityClient.fetch<PostCard[]>(POSTS_BY_KIND, { kind: "teamReport" }, { next: { revalidate } })
+      : none<PostCard[]>(),
+    sanityClient
+      ? sanityClient.fetch<SiteSettings | null>(SITE_SETTINGS, {}, { next: { revalidate } })
+      : none<SiteSettings | null>(),
   ]);
+
+  const clubNews = toUI(clubNewsRaw ?? [], "clubNews", siteSettings);
+  const teamReports = toUI(teamReportsRaw ?? [], "teamReport", siteSettings);
 
   const allPosts = [...clubNews, ...teamReports]
     .sort((a, b) => (b.publishedAt || "").localeCompare(a.publishedAt || ""))

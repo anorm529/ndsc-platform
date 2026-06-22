@@ -12,7 +12,7 @@ export const POSTS_BY_KIND = `
   excerpt,
   publishedAt,
   postKind,
-  coverImage,
+  cardImage,
   teams,
   opponent,
   opponentTeam->{ name, "logo": logo },
@@ -73,7 +73,12 @@ export const RECENT_POSTS = `
 export const SITE_SETTINGS = `
 *[_type == "siteSettings" && _id == "siteSettings"][0]{
   clubReportBanner,
-  matchReportBanner
+  matchReportBanner,
+  buccaneersReportBanner,
+  barracudasReportBanner,
+  sluggersReportBanner,
+  stallionsReportBanner,
+  nightmaresReportBanner
 }
 `;
 

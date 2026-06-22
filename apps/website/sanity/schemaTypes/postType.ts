@@ -66,8 +66,19 @@ export const postType = defineType({
 
     // ── Media ─────────────────────────────────────────────────────────────
     defineField({
+      name: "cardImage",
+      title: "Card image",
+      description:
+        "Thumbnail shown on the news listing page. If left blank, the default banner from Site Settings is used automatically.",
+      type: "image",
+      group: "media",
+      options: { hotspot: true },
+    }),
+    defineField({
       name: "coverImage",
       title: "Cover image",
+      description:
+        "Large image displayed inside the article. Not shown on the news listing — upload a Card image above for that.",
       type: "image",
       group: "media",
       options: { hotspot: true },

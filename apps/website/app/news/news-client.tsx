@@ -12,7 +12,7 @@ type PostCard = {
   excerpt?: string;
   publishedAt?: string;
   postKind?: string;
-  coverImageUrl?: string | null;
+  cardImageUrl?: string | null;
   teams?: string[] | null;
   opponent?: string | null;
   scoreFor?: number | null;
@@ -76,9 +76,9 @@ function Lane({
           className="mt-4 grid overflow-hidden rounded-lg border border-white/10 bg-white/[0.04] transition hover:bg-white/[0.08] md:grid-cols-[1.1fr_0.9fr]"
         >
           <div className="relative aspect-[16/10] bg-white/5 md:aspect-auto">
-            {featured.coverImageUrl ? (
+            {featured.cardImageUrl ? (
               <Image
-                src={featured.coverImageUrl}
+                src={featured.cardImageUrl}
                 alt={`${featured.title} - North Down Softball Club news image`}
                 fill
                 className="object-cover"
@@ -130,9 +130,9 @@ function Lane({
               className="overflow-hidden rounded-lg border border-white/10 bg-white/[0.035] transition hover:bg-white/[0.08]"
             >
               <div className="relative aspect-[16/10] w-full bg-white/5">
-                {p.coverImageUrl ? (
+                {p.cardImageUrl ? (
                   <Image
-                    src={p.coverImageUrl}
+                    src={p.cardImageUrl}
                     alt={`${p.title} - North Down Softball Club news image`}
                     fill
                     className="object-cover"
