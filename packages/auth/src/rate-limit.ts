@@ -28,12 +28,12 @@ export async function checkRateLimit(
        VALUES ($1, 1, NOW())
        ON CONFLICT (key) DO UPDATE SET
          attempts     = CASE
-                          WHEN auth_rate_limits.window_start < NOW() - make_interval(secs => $2)
+                          WHEN auth_rate_limits.window_start < NOW() - make_interval(secs => $2::int)
                           THEN 1
                           ELSE auth_rate_limits.attempts + 1
                         END,
          window_start = CASE
-                          WHEN auth_rate_limits.window_start < NOW() - make_interval(secs => $2)
+                          WHEN auth_rate_limits.window_start < NOW() - make_interval(secs => $2::int)
                           THEN NOW()
                           ELSE auth_rate_limits.window_start
                         END
