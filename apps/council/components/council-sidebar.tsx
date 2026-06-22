@@ -203,13 +203,15 @@ export function CouncilSidebar({
 
       {/* Footer */}
       <div className="border-t border-white/5 px-2 py-3">
-        <Link
-          href="/logout"
-          className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-[0.875rem] text-slate-500 hover:bg-red-500/10 hover:text-red-400"
-        >
-          <LogOut className="h-4 w-4" />
-          Sign out
-        </Link>
+        <form action="/logout" method="post">
+          <button
+            type="submit"
+            className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-[0.875rem] text-slate-500 hover:bg-red-500/10 hover:text-red-400"
+          >
+            <LogOut className="h-4 w-4" />
+            Sign out
+          </button>
+        </form>
       </div>
     </aside>
   );
