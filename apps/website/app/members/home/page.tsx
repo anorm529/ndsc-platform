@@ -8,6 +8,7 @@ import {
   Medal,
   Shield,
   Sparkles,
+  TrendingUp,
   Trophy,
 } from "lucide-react";
 import MembersNav from "@/app/members/components/MembersNav";
@@ -19,7 +20,7 @@ import {
   type AchievementTier,
 } from "@/app/members/lib/memberProfile";
 import { getPlayerProfile, requireCurrentUser } from "@/lib/auth";
-import { getClubData, type Match } from "@/lib/ndsc-data";
+import { getClubData } from "@/lib/ndsc-data";
 
 export const dynamic = "force-dynamic";
 
@@ -34,24 +35,15 @@ function tierClass(tier: AchievementTier) {
   return "border-orange-200/35 bg-orange-300/15 text-orange-100";
 }
 
-function StatCard({ label, value, sub, compact }: { label: string; value: string; sub?: string; compact?: boolean }) {
+function StatCard({ label, value }: { label: string; value: string }) {
   return (
     <div className="min-w-0 rounded-2xl border border-[#2B4162] bg-[#1D2E48] p-5">
       <div className="min-h-8 text-xs font-semibold uppercase tracking-wide text-teal-400/70">{label}</div>
-      <div className={`mt-2 overflow-hidden whitespace-nowrap font-semibold leading-tight text-white ${compact ? "text-[clamp(0.875rem,1.6vw,1.5rem)]" : "text-[clamp(1rem,2.4vw,2.25rem)]"}`}>
+      <div className="mt-2 overflow-hidden whitespace-nowrap text-[clamp(1rem,2.4vw,2.25rem)] font-semibold leading-tight text-white">
         {value}
       </div>
-      {sub ? <div className="mt-1 text-xs text-slate-500">{sub}</div> : null}
     </div>
   );
-}
-
-function formatMatch(match?: Match) {
-  if (!match) return "—";
-  const date = match.date
-    ? new Date(match.date).toLocaleDateString("en-GB", { day: "numeric", month: "short" })
-    : "TBC";
-  return `${date} vs ${match.opponent}`;
 }
 
 function ProgressBar({ value, max }: { value: number; max: number }) {
@@ -61,6 +53,10 @@ function ProgressBar({ value, max }: { value: number; max: number }) {
       <div className="h-full rounded-full bg-teal-300" style={{ width: `${pct}%` }} />
     </div>
   );
+}
+
+function fmtFixtureDate(value: string) {
+  return new Date(value).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
 }
 
 function playerRating(ops: number | null | undefined) {
@@ -74,19 +70,23 @@ export default async function MembersHomePage() {
     getPlayerProfile(user.playerId),
   ]);
   const profile = buildMemberProfile(user, clubData, playerProfile);
-  const unlockedCount = profile.achievements.filter((achievement) => achievement.unlocked).length;
+
+  const unlockedCount = profile.achievements.filter((a) => a.unlocked).length;
   const featuredAchievements = [
-    ...profile.achievements.filter((achievement) => achievement.unlocked).sort(sortAchievementsByTier),
-    ...profile.achievements.filter((achievement) => !achievement.unlocked).sort(sortAchievementsByTier),
+    ...profile.achievements.filter((a) => a.unlocked).sort(sortAchievementsByTier),
+    ...profile.achievements.filter((a) => !a.unlocked).sort(sortAchievementsByTier),
   ].slice(0, 4);
   const missingProfileFields = [
     ["Position", playerProfile.position],
     ["Bats", playerProfile.bats],
     ["Throws", playerProfile.throws],
   ]
-    .filter(([, value]) => !value || String(value).trim() === "")
+    .filter(([, v]) => !v || String(v).trim() === "")
     .map(([label]) => label);
-  const chartMax = Math.max(1, ...profile.seasonSummaries.map((season) => season.ops ?? 0));
+
+  const opsMax = Math.max(0.001, ...profile.seasonSummaries.map((s) => s.ops ?? 0));
+  const avgMax = Math.max(0.001, ...profile.seasonSummaries.map((s) => s.avg ?? 0));
+  const nextFixture = profile.upcomingTeamMatches[0];
 
   return (
     <main className="min-h-screen bg-[#0F172A] text-white">
@@ -94,6 +94,8 @@ export default async function MembersHomePage() {
 
       <section className="mx-auto w-full max-w-7xl px-4 py-8 md:px-6 md:py-12">
         <div className="grid gap-6 lg:grid-cols-[360px_1fr]">
+
+          {/* Sidebar */}
           <aside className="self-start rounded-2xl border border-[#2B4162] bg-[#1D2E48] p-6">
             <div className="flex items-start justify-between gap-4">
               <div>
@@ -122,7 +124,9 @@ export default async function MembersHomePage() {
             <div className="mt-6 grid gap-3 text-sm">
               <div className="flex justify-between rounded-xl bg-slate-700/40 px-4 py-3">
                 <span className="text-slate-400">Member Since</span>
-                <span className="font-semibold">{playerProfile.memberSince ?? profile.seasonSummaries.at(-1)?.season ?? "—"}</span>
+                <span className="font-semibold">
+                  {playerProfile.memberSince ?? profile.seasonSummaries.at(-1)?.season ?? "—"}
+                </span>
               </div>
               <div className="flex justify-between rounded-xl bg-slate-700/40 px-4 py-3">
                 <span className="text-slate-400">Position</span>
@@ -148,11 +152,29 @@ export default async function MembersHomePage() {
               </div>
               <div className="flex justify-between rounded-xl bg-slate-700/40 px-4 py-3">
                 <span className="text-slate-400">Achievements</span>
-                <span className="font-semibold">{unlockedCount}/{profile.achievements.length}</span>
+                <span className="font-semibold">{unlockedCount} / {profile.achievements.length}</span>
               </div>
             </div>
 
-            {missingProfileFields.length ? (
+            {nextFixture && (
+              <div className="mt-5 rounded-xl border border-[#2B4162] bg-slate-700/30 p-4">
+                <div className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  <CalendarDays size={12} />
+                  Next fixture
+                </div>
+                <div className="mt-2 font-semibold">
+                  {nextFixture.date ? fmtFixtureDate(nextFixture.date) : "TBC"} vs {nextFixture.opponent}
+                </div>
+                <Link
+                  href="/members/my-team"
+                  className="mt-2 inline-flex text-xs font-semibold text-teal-400 hover:text-teal-300"
+                >
+                  Team schedule →
+                </Link>
+              </div>
+            )}
+
+            {missingProfileFields.length > 0 && (
               <div className="mt-5 rounded-2xl border border-amber-200/25 bg-amber-300/10 p-4">
                 <div className="text-sm font-semibold text-amber-100">Complete your player profile</div>
                 <div className="mt-1 text-sm text-slate-300">
@@ -165,19 +187,28 @@ export default async function MembersHomePage() {
                   Update profile
                 </Link>
               </div>
-            ) : null}
+            )}
 
             <div className="mt-6 grid grid-cols-2 gap-3">
-              <Link href="/members/my-team" className="rounded-xl bg-teal-300 px-4 py-3 text-center text-sm font-semibold text-[#0F172A]">
+              <Link
+                href="/members/my-team"
+                className="rounded-xl bg-teal-300 px-4 py-3 text-center text-sm font-semibold text-[#0F172A]"
+              >
                 My Team
               </Link>
-              <Link href="/members/awards" className="rounded-xl border border-slate-600 bg-[#1D2E48] px-4 py-3 text-center text-sm font-semibold text-white">
+              <Link
+                href="/members/awards"
+                className="rounded-xl border border-slate-600 bg-[#1D2E48] px-4 py-3 text-center text-sm font-semibold text-white"
+              >
                 Awards
               </Link>
             </div>
           </aside>
 
+          {/* Main */}
           <div className="space-y-6">
+
+            {/* Career totals */}
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6">
               <StatCard label="Career Games" value={fmtInt(profile.career.games)} />
               <StatCard label="Career Hits" value={fmtInt(profile.career.hits)} />
@@ -187,111 +218,155 @@ export default async function MembersHomePage() {
               <StatCard label="Career OPS" value={fmtRate(profile.career.ops)} />
             </div>
 
-            <div className="grid gap-6 xl:grid-cols-[1fr_380px]">
-              <section className="rounded-2xl border border-[#2B4162] bg-[#1D2E48] p-6">
-                <div className="flex flex-wrap items-start justify-between gap-4">
-                  <div>
-                    <div className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-teal-400">
-                      <BarChart3 size={16} />
-                      Current Season
-                    </div>
-                    <h2 className="mt-2 text-2xl font-semibold">{profile.currentSeason?.season ?? "No season stats yet"}</h2>
-                  </div>
-                  <div className="flex gap-2">
-                    {profile.rankings.map((ranking) => (
-                      <div key={ranking.label} className="rounded-xl border border-teal-200/25 bg-teal-300/10 px-4 py-2 text-center">
-                        <div className="text-lg font-semibold text-teal-300">{ranking.value}</div>
-                        <div className="text-xs text-slate-500">{ranking.label}</div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
+            {/* Season history table */}
+            <section className="rounded-2xl border border-[#2B4162] bg-[#1D2E48] p-6">
+              <div className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-teal-400">
+                <BarChart3 size={16} />
+                Season History
+              </div>
 
-                <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                  <StatCard compact label="Games" value={fmtInt(profile.currentSeason?.games)} />
-                  <StatCard compact label="AVG" value={fmtRate(profile.currentSeason?.avg)} sub={`Team: ${fmtRate(profile.teamAverages.avg)}`} />
-                  <StatCard compact label="OBP" value={fmtRate(profile.currentSeason?.obp)} sub={`Team: ${fmtRate(profile.teamAverages.obp)}`} />
-                  <StatCard compact label="OPS" value={fmtRate(profile.currentSeason?.ops)} sub={`Team: ${fmtRate(profile.teamAverages.ops)}`} />
+              {profile.seasonSummaries.length ? (
+                <div className="-mx-6 mt-5 overflow-x-auto px-6">
+                  <table className="w-full min-w-[560px] text-sm">
+                    <thead>
+                      <tr className="text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
+                        <th className="pb-3 pr-4">Season</th>
+                        <th className="pb-3 pr-6">Team</th>
+                        <th className="pb-3 pr-4 text-right">G</th>
+                        <th className="pb-3 pr-4 text-right">H</th>
+                        <th className="pb-3 pr-4 text-right">RBI</th>
+                        <th className="pb-3 pr-4 text-right">R</th>
+                        <th className="pb-3 pr-4 text-right">BB</th>
+                        <th className="pb-3 pr-4 text-right">HR</th>
+                        <th className="pb-3 pr-4 text-right">AVG</th>
+                        <th className="pb-3 text-right">OPS</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {profile.seasonSummaries.map((s) => (
+                        <tr
+                          key={s.season}
+                          className="border-t border-[#2B4162] transition hover:bg-white/[0.02]"
+                        >
+                          <td className="py-3 pr-4 font-semibold text-teal-400">{s.season}</td>
+                          <td className="py-3 pr-6 text-slate-300">
+                            {s.teamNames.join(" & ") || "—"}
+                          </td>
+                          <td className="py-3 pr-4 text-right tabular-nums text-slate-200">{fmtInt(s.games)}</td>
+                          <td className="py-3 pr-4 text-right tabular-nums text-slate-200">{fmtInt(s.hits)}</td>
+                          <td className="py-3 pr-4 text-right tabular-nums text-slate-200">{fmtInt(s.rbi)}</td>
+                          <td className="py-3 pr-4 text-right tabular-nums text-slate-200">{fmtInt(s.runs)}</td>
+                          <td className="py-3 pr-4 text-right tabular-nums text-slate-200">{fmtInt(s.walks)}</td>
+                          <td className="py-3 pr-4 text-right tabular-nums text-slate-200">{fmtInt(s.homeRuns)}</td>
+                          <td className="py-3 pr-4 text-right font-mono tabular-nums text-slate-200">{fmtRate(s.avg)}</td>
+                          <td className="py-3 text-right font-semibold tabular-nums">{fmtRate(s.ops)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                    <tfoot>
+                      <tr className="border-t-2 border-teal-400/30">
+                        <td className="py-3 pr-4 font-bold text-teal-300">Career</td>
+                        <td className="py-3 pr-6 text-xs text-slate-500">All seasons</td>
+                        <td className="py-3 pr-4 text-right font-bold tabular-nums">{fmtInt(profile.career.games)}</td>
+                        <td className="py-3 pr-4 text-right font-bold tabular-nums">{fmtInt(profile.career.hits)}</td>
+                        <td className="py-3 pr-4 text-right font-bold tabular-nums">{fmtInt(profile.career.rbi)}</td>
+                        <td className="py-3 pr-4 text-right font-bold tabular-nums">{fmtInt(profile.career.runs)}</td>
+                        <td className="py-3 pr-4 text-right font-bold tabular-nums">{fmtInt(profile.career.walks)}</td>
+                        <td className="py-3 pr-4 text-right font-bold tabular-nums">{fmtInt(profile.career.homeRuns)}</td>
+                        <td className="py-3 pr-4 text-right font-bold font-mono tabular-nums">{fmtRate(profile.career.avg)}</td>
+                        <td className="py-3 text-right font-bold tabular-nums text-teal-300">{fmtRate(profile.career.ops)}</td>
+                      </tr>
+                    </tfoot>
+                  </table>
                 </div>
-
-                <div className="mt-7">
-                  <div className="text-sm font-semibold text-slate-200">Season OPS comparison</div>
-                  <div className="mt-4 space-y-3">
-                    {profile.seasonSummaries.length ? (
-                      profile.seasonSummaries.map((season) => (
-                        <div key={season.season} className="grid grid-cols-[72px_1fr_64px] items-center gap-3">
-                          <div className="text-sm text-slate-400">{season.season}</div>
-                          <div className="h-8 overflow-hidden rounded-xl bg-slate-700/50">
-                            <div
-                              className="h-full rounded-xl bg-gradient-to-r from-teal-300 to-sky-300"
-                              style={{ width: `${Math.max(4, ((season.ops ?? 0) / chartMax) * 100)}%` }}
-                            />
-                          </div>
-                          <div className="text-right text-sm font-semibold">{fmtRate(season.ops)}</div>
-                        </div>
-                      ))
-                    ) : (
-                      <div className="rounded-xl border border-[#2B4162] bg-slate-700/30 p-4 text-sm text-slate-400">
-                        No season stats are linked to this player yet.
-                      </div>
-                    )}
-                  </div>
+              ) : (
+                <div className="mt-5 rounded-xl border border-[#2B4162] bg-slate-700/30 p-4 text-sm text-slate-400">
+                  No season stats are linked to this player yet.
                 </div>
-              </section>
+              )}
+            </section>
 
+            {/* Career progression — only rendered when there are 2+ seasons to compare */}
+            {profile.seasonSummaries.length > 1 && (
               <section className="rounded-2xl border border-[#2B4162] bg-[#1D2E48] p-6">
                 <div className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-teal-400">
-                  <CalendarDays size={16} />
-                  This Week
+                  <TrendingUp size={16} />
+                  Career Progression
                 </div>
-                <div className="mt-5 space-y-3">
-                  <div className="rounded-xl border border-[#2B4162] bg-slate-700/40 p-4">
-                    <div className="text-xs text-slate-500">Next team fixture</div>
-                    <div className="mt-1 font-semibold">{formatMatch(profile.upcomingTeamMatches[0])}</div>
-                  </div>
-                  <div className="rounded-xl border border-[#2B4162] bg-slate-700/40 p-4">
-                    <div className="text-xs text-slate-500">Latest team result</div>
-                    <div className="mt-1 font-semibold">{formatMatch(profile.recentTeamResults[0])}</div>
-                  </div>
-                  <Link href="/members/this-week" className="inline-flex w-full items-center justify-center rounded-xl bg-white px-4 py-3 text-sm font-semibold text-[#0F172A]">
-                    Club weekly view
-                  </Link>
+                <div className="mt-2 flex gap-4 text-xs text-slate-500">
+                  <span className="flex items-center gap-1.5">
+                    <span className="inline-block h-2 w-4 rounded-full bg-teal-400" />
+                    OPS
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <span className="inline-block h-2 w-4 rounded-full bg-sky-400/70" />
+                    AVG
+                  </span>
+                </div>
+                <div className="mt-5 space-y-4">
+                  {[...profile.seasonSummaries].reverse().map((s) => (
+                    <div key={s.season} className="grid grid-cols-[56px_1fr] items-center gap-4">
+                      <div className="text-xs text-slate-400">{s.season}</div>
+                      <div className="space-y-1.5">
+                        <div className="flex items-center gap-2">
+                          <div className="h-3 flex-1 overflow-hidden rounded-full bg-slate-700/50">
+                            <div
+                              className="h-full rounded-full bg-teal-400"
+                              style={{ width: `${Math.max(2, ((s.ops ?? 0) / opsMax) * 100)}%` }}
+                            />
+                          </div>
+                          <span className="w-12 text-right text-xs font-semibold tabular-nums text-teal-300">
+                            {fmtRate(s.ops)}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <div className="h-3 flex-1 overflow-hidden rounded-full bg-slate-700/50">
+                            <div
+                              className="h-full rounded-full bg-sky-400/70"
+                              style={{ width: `${Math.max(2, ((s.avg ?? 0) / avgMax) * 100)}%` }}
+                            />
+                          </div>
+                          <span className="w-12 text-right text-xs font-semibold tabular-nums text-sky-300">
+                            {fmtRate(s.avg)}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </section>
-            </div>
+            )}
 
-            <div className="grid gap-6 xl:grid-cols-3">
+            {/* Awards + Personal Records */}
+            <div className="grid gap-6 xl:grid-cols-2">
               <section className="rounded-2xl border border-[#2B4162] bg-[#1D2E48] p-6">
                 <div className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-teal-400">
                   <Trophy size={16} />
                   Award Cabinet
                 </div>
                 <div className="mt-5 space-y-3">
-                  {profile.awards.slice(0, 4).map((award, index) => (
-                    <div key={`${award.year}-${award.award}-${index}`} className="rounded-xl border border-amber-200/20 bg-amber-300/10 p-4">
+                  {profile.awards.slice(0, 5).map((award, i) => (
+                    <div
+                      key={`${award.year}-${award.award}-${i}`}
+                      className="rounded-xl border border-amber-200/20 bg-amber-300/10 p-4"
+                    >
                       <div className="font-semibold text-amber-100">{award.award}</div>
-                      <div className="text-sm text-slate-400">{award.year}{award.team ? ` • ${award.team}` : ""}</div>
-                    </div>
-                  ))}
-                  {!profile.awards.length ? <div className="text-sm text-slate-400">No awards linked yet.</div> : null}
-                </div>
-              </section>
-
-              <section className="rounded-2xl border border-[#2B4162] bg-[#1D2E48] p-6">
-                <div className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-teal-400">
-                  <Medal size={16} />
-                  Achievements
-                </div>
-                <div className="mt-5 space-y-3">
-                  {featuredAchievements.map((achievement) => (
-                    <div key={achievement.title} className={cn("rounded-xl border p-4", tierClass(achievement.tier), !achievement.unlocked && "opacity-55")}>
-                      <div className="flex items-center justify-between gap-3">
-                        <div className="font-semibold">{achievement.title}</div>
-                        {achievement.unlocked ? <BadgeCheck size={18} /> : <Sparkles size={18} />}
+                      <div className="text-sm text-slate-400">
+                        {award.year}{award.team ? ` · ${award.team}` : ""}
                       </div>
-                      <ProgressBar value={achievement.progress} max={achievement.target} />
                     </div>
                   ))}
+                  {!profile.awards.length && (
+                    <div className="text-sm text-slate-400">No awards linked yet.</div>
+                  )}
+                  {profile.awards.length > 5 && (
+                    <Link
+                      href="/members/awards"
+                      className="mt-1 inline-flex text-sm font-semibold text-teal-400 hover:text-teal-300"
+                    >
+                      View all {profile.awards.length} awards →
+                    </Link>
+                  )}
                 </div>
               </section>
 
@@ -302,7 +377,10 @@ export default async function MembersHomePage() {
                 </div>
                 <div className="mt-5 space-y-3">
                   {profile.personalRecords.map((record) => (
-                    <div key={record.label} className="flex items-center justify-between rounded-xl border border-[#2B4162] bg-slate-700/40 px-4 py-3">
+                    <div
+                      key={record.label}
+                      className="flex items-center justify-between rounded-xl border border-[#2B4162] bg-slate-700/40 px-4 py-3"
+                    >
                       <span className="text-sm text-slate-400">{record.label}</span>
                       <span className="font-semibold">{record.value}</span>
                     </div>
@@ -311,6 +389,40 @@ export default async function MembersHomePage() {
               </section>
             </div>
 
+            {/* Achievements */}
+            <section className="rounded-2xl border border-[#2B4162] bg-[#1D2E48] p-6">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-teal-400">
+                  <Medal size={16} />
+                  Achievements
+                </div>
+                <span className="text-sm text-slate-400">
+                  {unlockedCount} / {profile.achievements.length} unlocked
+                </span>
+              </div>
+              <div className="mt-5 grid gap-3 sm:grid-cols-2">
+                {featuredAchievements.map((a) => (
+                  <div
+                    key={a.title}
+                    className={cn("rounded-xl border p-4", tierClass(a.tier), !a.unlocked && "opacity-55")}
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="font-semibold">{a.title}</div>
+                      {a.unlocked ? <BadgeCheck size={18} /> : <Sparkles size={18} />}
+                    </div>
+                    <ProgressBar value={a.progress} max={a.target} />
+                  </div>
+                ))}
+              </div>
+              <Link
+                href="/members/achievements"
+                className="mt-4 inline-flex text-sm font-semibold text-teal-400 hover:text-teal-300"
+              >
+                View all achievements →
+              </Link>
+            </section>
+
+            {/* Career Timeline */}
             <section className="rounded-2xl border border-[#2B4162] bg-[#1D2E48] p-6">
               <div className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-teal-400">
                 <Shield size={16} />
@@ -319,13 +431,18 @@ export default async function MembersHomePage() {
               <div className="mt-5 grid gap-3 md:grid-cols-2 lg:grid-cols-4">
                 {profile.timeline.length ? (
                   profile.timeline.map((entry) => (
-                    <div key={`${entry.year}-${entry.label}`} className="rounded-xl border border-[#2B4162] bg-slate-700/40 p-4">
+                    <div
+                      key={`${entry.year}-${entry.label}`}
+                      className="rounded-xl border border-[#2B4162] bg-slate-700/40 p-4"
+                    >
                       <div className="text-sm font-semibold text-teal-400">{entry.year}</div>
                       <div className="mt-1 text-sm text-slate-200">{entry.label}</div>
                     </div>
                   ))
                 ) : (
-                  <div className="text-sm text-slate-400">Milestones will appear as stats and awards are linked.</div>
+                  <div className="col-span-full text-sm text-slate-400">
+                    Milestones will appear as stats and awards are linked.
+                  </div>
                 )}
               </div>
             </section>

@@ -214,12 +214,25 @@ export default function PlayerStatsTable({
   awardsLookup,
   gameDataLookup,
   emptyMessage,
+  currentPlayerName,
+  currentPlayerId,
 }: {
   players: PlayerStat[];
   awardsLookup: AwardsLookup;
   gameDataLookup: GameDataLookup;
   emptyMessage: React.ReactNode;
+  currentPlayerName?: string;
+  currentPlayerId?: string;
 }) {
+  function isMe(player: PlayerStat): boolean {
+    if (!currentPlayerName && !currentPlayerId) return false;
+    if (currentPlayerId && player.recordId) {
+      if (normalizeRecordId(player.recordId) === normalizeRecordId(currentPlayerId)) return true;
+    }
+    return currentPlayerName
+      ? normalizePlayerName(player.playerName) === normalizePlayerName(currentPlayerName)
+      : false;
+  }
   const [query, setQuery] = useState("");
   const [sortKey, setSortKey] = useState<SortKey>("ops");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
@@ -304,10 +317,22 @@ export default function PlayerStatsTable({
             {visiblePlayers.map((player) => (
               <tr
                 key={`${player.playerName}-${player.season ?? "x"}`}
-                className="odd:bg-slate-700/20 hover:bg-slate-700/50 transition"
+                className={cn(
+                  "transition",
+                  isMe(player)
+                    ? "bg-teal-500/[0.08] hover:bg-teal-500/[0.13]"
+                    : "odd:bg-slate-700/20 hover:bg-slate-700/50"
+                )}
               >
-                <td className={cn(TD, "text-left font-medium sticky left-0 bg-[#1D2E48]/90 backdrop-blur z-10 w-[240px]")}>
-                  <PlayerCell player={player} awardsLookup={awardsLookup} gameDataLookup={gameDataLookup} />
+                <td className={cn(TD, "text-left font-medium sticky left-0 backdrop-blur z-10 w-[240px]", isMe(player) ? "bg-teal-500/20" : "bg-[#1D2E48]/90")}>
+                  <div className="flex items-center gap-2">
+                    <PlayerCell player={player} awardsLookup={awardsLookup} gameDataLookup={gameDataLookup} />
+                    {isMe(player) && (
+                      <span className="rounded-full bg-teal-400/20 px-2 py-0.5 text-[10px] font-semibold text-teal-300">
+                        You
+                      </span>
+                    )}
+                  </div>
                 </td>
 
                 {columns.map((column, index) => (
@@ -340,9 +365,22 @@ export default function PlayerStatsTable({
 
       <div className="mt-5 grid gap-4 md:hidden">
         {visiblePlayers.map((player) => (
-          <div key={`${player.playerName}-${player.season ?? "x"}-card`} className="rounded-2xl border border-[#2B4162] bg-[#1D2E48] p-5">
-            <div className="text-base font-semibold text-white">
+          <div
+            key={`${player.playerName}-${player.season ?? "x"}-card`}
+            className={cn(
+              "rounded-2xl border p-5",
+              isMe(player)
+                ? "border-teal-400/30 bg-teal-500/[0.08]"
+                : "border-[#2B4162] bg-[#1D2E48]"
+            )}
+          >
+            <div className="flex items-center gap-2 text-base font-semibold text-white">
               <PlayerCell player={player} awardsLookup={awardsLookup} gameDataLookup={gameDataLookup} />
+              {isMe(player) && (
+                <span className="rounded-full bg-teal-400/20 px-2 py-0.5 text-[10px] font-semibold text-teal-300">
+                  You
+                </span>
+              )}
             </div>
             <div className="mt-4 grid grid-cols-4 gap-2">
               {columns.filter((column) => column.primary).map((column) => (

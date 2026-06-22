@@ -12,7 +12,7 @@ function decodeBasicAuth(encoded: string) {
 }
 
 // Set to false to restore normal access to the members section.
-const MAINTENANCE_MODE = true;
+const MAINTENANCE_MODE = false;
 
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
