@@ -44,9 +44,11 @@ function titleCase(s: string) {
 export default function TeamHubContent({
   teamData,
   user,
+  basePath,
 }: {
   teamData: TeamPageData;
   user: AuthenticatedUser;
+  basePath?: string;
 }) {
   const {
     slug,
@@ -65,6 +67,7 @@ export default function TeamHubContent({
 
   const matchLat = numOrNull(nextMatch?.lat);
   const matchLon = numOrNull(nextMatch?.lon);
+  const base = basePath ?? `/members/teams/${slug}`;
 
   return (
     <main className="min-h-screen bg-[#0F172A]">
@@ -130,7 +133,7 @@ export default function TeamHubContent({
 
               <div className="flex items-center gap-2">
                 <Link
-                  href={`/members/teams/${slug}`}
+                  href={base}
                   className={cn(
                     "rounded-xl border px-4 py-2 text-sm font-semibold transition",
                     !seasonParam
@@ -144,7 +147,7 @@ export default function TeamHubContent({
                 {availableSeasons.map((season) => (
                   <Link
                     key={season}
-                    href={`/members/teams/${slug}?season=${season}`}
+                    href={`${base}?season=${season}`}
                     className={cn(
                       "rounded-xl border px-4 py-2 text-sm font-semibold transition",
                       seasonParam === season
@@ -224,6 +227,8 @@ export default function TeamHubContent({
             players={players}
             awardsLookup={awardsLookup}
             gameDataLookup={gameDataLookup}
+            currentPlayerName={user.playerName}
+            currentPlayerId={user.playerId ?? undefined}
             emptyMessage={
               <>
                 No players found for {titleCase(slug)}

@@ -38,12 +38,20 @@ export function sortAchievementsByTier(a: Achievement, b: Achievement) {
 
 export type SeasonSummary = {
   season: string;
+  teamSlugs: string[];
+  teamNames: string[];
   games: number;
   hits: number;
+  singles: number;
+  doubles: number;
+  triples: number;
+  homeRuns: number;
+  atBats: number;
+  ob: number;
   rbi: number;
   runs: number;
   walks: number;
-  homeRuns: number;
+  batterOut: number;
   innings: number;
   uao: number;
   ao: number;
@@ -123,15 +131,28 @@ function combineStats(stats: PlayerStat[], season: string): SeasonSummary {
   const obp = safeRate(hits + walks, atBats + walks);
   const slg = safeRate(totalBases, atBats);
 
+  const rbi = stats.reduce((total, row) => total + num(row.rbi), 0);
+  const runs = stats.reduce((total, row) => total + num(row.runs), 0);
+  const innings = stats.reduce((total, row) => total + num(row.innings), 0);
+  const batterOut = stats.reduce((total, row) => total + num(row.batterout), 0);
+
   return {
     season,
+    teamSlugs: [],
+    teamNames: [],
     games,
     hits,
-    rbi: stats.reduce((total, row) => total + num(row.rbi), 0),
-    runs: stats.reduce((total, row) => total + num(row.runs), 0),
-    walks,
+    singles,
+    doubles,
+    triples,
     homeRuns: hr,
-    innings: stats.reduce((total, row) => total + num(row.innings), 0),
+    atBats,
+    ob: hits + walks,
+    rbi,
+    runs,
+    walks,
+    batterOut,
+    innings,
     uao,
     ao,
     outs: outs || uao + ao,
@@ -150,7 +171,10 @@ function groupBySeason(stats: PlayerStat[]) {
   }
 
   return Array.from(grouped.entries())
-    .map(([season, rows]) => combineStats(rows, season))
+    .map(([season, rows]) => {
+      const teamSlugs = [...new Set(rows.map((r) => r.teamSlug).filter(Boolean))];
+      return { ...combineStats(rows, season), teamSlugs };
+    })
     .sort((a, b) => Number(b.season) - Number(a.season));
 }
 
@@ -274,7 +298,13 @@ export function buildMemberProfile(
     const rowName = normalizePlayerName(row.playerName ?? "");
     return rowId === playerIdKey || rowName === playerNameKey;
   });
-  const seasonSummaries = groupBySeason(playerStats);
+  const seasonSummaries = groupBySeason(playerStats).map((s) => ({
+    ...s,
+    teamNames: s.teamSlugs.map((slug) => {
+      const team = clubData.teamSummaries[slug as ClubTeamSlug]?.team;
+      return team?.name ?? slug;
+    }),
+  }));
   const currentSeason = seasonSummaries[0];
   const previousSeason = seasonSummaries[1];
   const career = combineStats(playerStats, "Career");
