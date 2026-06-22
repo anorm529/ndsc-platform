@@ -141,7 +141,7 @@ export default function Navbar({ headerClassName }: { headerClassName?: string }
 
           {/* Members CTA */}
           <Link
-            href="/members"
+            href="/members/maintenance"
             className="inline-flex items-center gap-2 rounded-lg bg-teal-400 px-4 py-2 text-sm font-semibold text-[#0B1324] transition hover:bg-teal-300"
           >
             <LockKeyhole className="h-4 w-4" />
@@ -217,7 +217,7 @@ export default function Navbar({ headerClassName }: { headerClassName?: string }
             {/* Members CTA */}
             <div className="mt-3 border-t border-white/10 pt-3">
               <Link
-                href="/members"
+                href="/members/maintenance"
                 onClick={closeAll}
                 className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-teal-400 px-3 py-2.5 text-sm font-semibold text-[#0B1324] transition hover:bg-teal-300"
               >

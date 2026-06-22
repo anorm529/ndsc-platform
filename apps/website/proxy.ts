@@ -11,12 +11,22 @@ function decodeBasicAuth(encoded: string) {
   }
 }
 
+// Set to false to restore normal access to the members section.
+const MAINTENANCE_MODE = true;
+
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   if (pathname.startsWith("/members")) {
+    if (MAINTENANCE_MODE && pathname !== "/members/maintenance") {
+      const url = request.nextUrl.clone();
+      url.pathname = "/members/maintenance";
+      return NextResponse.redirect(url);
+    }
+
     if (
       pathname === "/members" ||
+      pathname === "/members/maintenance" ||
       pathname === "/members/register" ||
       pathname === "/members/pending" ||
       pathname === "/members/forgot-password" ||

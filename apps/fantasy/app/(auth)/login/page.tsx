@@ -9,7 +9,7 @@ export const metadata = {
 
 export default async function LoginPage() {
   const session = await getSession();
-  if (session) redirect("/dashboard");
+  if (session) redirect("/home");
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-ndsc-navy via-slate-800 to-slate-900 px-4">
