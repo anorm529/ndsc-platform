@@ -28,17 +28,17 @@ export async function checkRateLimit(
        VALUES ($1, 1, NOW())
        ON CONFLICT (key) DO UPDATE SET
          attempts     = CASE
-                          WHEN auth_rate_limits.window_start < NOW() - ($3 || ' seconds')::interval
+                          WHEN auth_rate_limits.window_start < NOW() - make_interval(secs => $2)
                           THEN 1
                           ELSE auth_rate_limits.attempts + 1
                         END,
          window_start = CASE
-                          WHEN auth_rate_limits.window_start < NOW() - ($3 || ' seconds')::interval
+                          WHEN auth_rate_limits.window_start < NOW() - make_interval(secs => $2)
                           THEN NOW()
                           ELSE auth_rate_limits.window_start
                         END
        RETURNING attempts, window_start`,
-      [key, limit, windowS]
+      [key, windowS]
     )
 
     const row = result.rows[0]
