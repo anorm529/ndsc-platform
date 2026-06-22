@@ -17,7 +17,7 @@ export default async function ActionsPage() {
   const canManage = hasSecretaryAccess(user);
 
   const [openActions, members] = await Promise.all([
-    getAllActions({ status: undefined }),
+    getAllActions(canManage ? {} : { assignedTo: user.id }),
     getAllActiveMembers(),
   ]);
 
@@ -124,6 +124,7 @@ export default async function ActionsPage() {
         <p className="text-[0.85rem] text-[color:var(--muted-foreground)]">
           <span className="font-semibold text-slate-800">{open.length}</span> open ·{" "}
           <span>{closed.length}</span> closed
+          {!canManage && <span className="ml-1">(your actions)</span>}
         </p>
         {canManage ? (
           <Link

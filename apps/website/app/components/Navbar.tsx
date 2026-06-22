@@ -36,7 +36,7 @@ const externalLinks = [
   },
 ];
 
-export default function Navbar() {
+export default function Navbar({ headerClassName }: { headerClassName?: string } = {}) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [clubOpen, setClubOpen] = useState(false);
   const clubRef = useRef<HTMLDivElement>(null);
@@ -64,7 +64,7 @@ export default function Navbar() {
   }
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b border-white/10 bg-[#0B1324]/90 backdrop-blur">
+    <header className={`sticky top-0 z-50 w-full border-b border-white/10 backdrop-blur ${headerClassName ?? "bg-[#0B1324]/90"}`}>
       <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-2">
 
         {/* Logo */}
@@ -96,7 +96,7 @@ export default function Navbar() {
             </button>
 
             {clubOpen && (
-              <div className="absolute left-0 top-full z-50 mt-3 w-44 rounded-xl border border-white/10 bg-[#0B1324] py-1.5 shadow-xl">
+              <div className={`absolute left-0 top-full z-50 mt-3 w-44 rounded-xl border border-white/10 py-1.5 shadow-xl ${headerClassName ?? "bg-[#0B1324]"}`}>
                 {clubLinks.map((link) => (
                   <a
                     key={link.href}
@@ -163,7 +163,7 @@ export default function Navbar() {
 
       {/* Mobile dropdown */}
       {menuOpen && (
-        <div className="border-t border-white/10 bg-[#0B1324] md:hidden">
+        <div className={`border-t border-white/10 md:hidden ${headerClassName ?? "bg-[#0B1324]"}`}>
           <div className="mx-auto flex max-w-6xl flex-col gap-1 px-3 py-4">
 
             {/* Club section */}

@@ -1,59 +1,58 @@
 import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, CheckCircle2, AlertCircle, Plus, Clock } from "lucide-react";
+import { ArrowLeft, CheckCircle2, AlertCircle, Clock, PoundSterling } from "lucide-react";
 import { requireCouncilUser, requireTreasurerAccess } from "@/lib/council-session";
 import {
   getFeeSeasonById,
   getPlayerFeesForSeason,
-  upsertPlayerFee,
   recordFeePayment,
+  type FeeType,
 } from "@/lib/treasurer-queries";
-import { getAllActiveMembers, memberDisplayName } from "@/lib/main-db";
-import { getAllTeams } from "@/lib/team-queries";
+import { getAllActivePlayers } from "@/lib/main-db";
+import { getPlayerProfiles } from "@/lib/council-queries";
+import { AddPlayerForm } from "./add-player-form";
+import { FeeReminderButton } from "./fee-reminder-button";
 
-function fmtCurrency(n: number) {
+function fmt(n: number) {
   return new Intl.NumberFormat("en-GB", { style: "currency", currency: "GBP" }).format(n);
 }
+
+const FEE_TYPE_STYLES: Record<FeeType, string> = {
+  player:  "bg-[rgba(20,184,166,0.1)] text-[color:var(--accent)]",
+  rookie:  "bg-amber-50 text-amber-700",
+  umpire:  "bg-blue-50 text-blue-700",
+  custom:  "bg-[rgba(115,145,176,0.1)] text-[color:var(--muted-foreground)]",
+};
+
+const FEE_TYPE_LABELS: Record<FeeType, string> = {
+  player: "Player",
+  rookie: "Rookie",
+  umpire: "Umpire",
+  custom: "Custom",
+};
 
 export default async function SeasonFeesPage({ params }: { params: Promise<{ seasonId: string }> }) {
   const { seasonId } = await params;
   const user = await requireCouncilUser();
   await requireTreasurerAccess(user);
 
-  const [season, playerFees, members, teams] = await Promise.all([
+  const [season, playerFees, allPlayers, profileMap] = await Promise.all([
     getFeeSeasonById(seasonId),
     getPlayerFeesForSeason(seasonId),
-    getAllActiveMembers(),
-    getAllTeams(),
+    getAllActivePlayers(),
+    getPlayerProfiles(),
   ]);
 
   if (!season) notFound();
 
   const totalDue = playerFees.reduce((s, f) => s + f.amountDue, 0);
   const totalPaid = playerFees.reduce((s, f) => s + f.amountPaid, 0);
-  const paidCount = playerFees.filter((f) => f.amountPaid >= f.amountDue).length;
+  const paidCount = playerFees.filter((f) => f.amountPaid >= f.amountDue && f.amountDue >= 0).length;
 
-  // Members not yet added to this season
-  const existingUserIds = new Set(playerFees.map((f) => f.userId));
-  const unenrolled = members.filter((m) => !existingUserIds.has(m.id));
-
-  async function handleAddPlayer(formData: FormData) {
-    "use server";
-    await requireCouncilUser();
-    const userId = String(formData.get("userId") ?? "");
-    const amountDue = parseFloat(String(formData.get("amountDue") ?? "0"));
-    const teamId = String(formData.get("teamId") ?? "").trim() || undefined;
-    const member = members.find((m) => m.id === userId);
-    if (!userId || !member) return;
-    await upsertPlayerFee({
-      userId,
-      playerName: memberDisplayName(member),
-      teamId,
-      seasonId,
-      amountDue,
-    });
-    redirect(`/council/treasurer/fees/${seasonId}`);
-  }
+  const existingPlayerIds = new Set(playerFees.map((f) => f.playerId));
+  const unenrolled = allPlayers
+    .filter((p) => !existingPlayerIds.has(p.playerId))
+    .map((p) => ({ ...p, profile: profileMap.get(p.playerId) ?? null }));
 
   async function handleRecordPayment(formData: FormData) {
     "use server";
@@ -81,100 +80,74 @@ export default async function SeasonFeesPage({ params }: { params: Promise<{ sea
         Fee seasons
       </Link>
 
-      {/* Season summary */}
+      {/* Season header */}
       <div className="council-panel rounded-2xl border p-5">
         <div className="flex items-start justify-between gap-4">
           <div>
             <h2 className="text-[1.1rem] font-semibold text-slate-800">{season.label}</h2>
-            {season.dueDate ? (
-              <p className="mt-1 text-[0.78rem] text-[color:var(--muted-foreground)]">
+            {season.dueDate && (
+              <p className="mt-0.5 text-[0.78rem] text-[color:var(--muted-foreground)]">
                 Due: {new Date(season.dueDate).toLocaleDateString("en-GB", { day: "2-digit", month: "long", year: "numeric" })}
               </p>
-            ) : null}
+            )}
           </div>
-          {season.isActive ? (
+          {season.isActive && (
             <span className="flex items-center gap-1 rounded-full bg-[rgba(16,185,129,0.12)] px-2.5 py-1 text-[0.7rem] text-[color:var(--success)]">
               <CheckCircle2 className="h-3 w-3" />
               Active
             </span>
-          ) : null}
+          )}
         </div>
-        <div className="mt-4 grid grid-cols-3 gap-4">
+
+        {/* Fee rates */}
+        <div className="mt-4 flex flex-wrap gap-2">
+          <span className="flex items-center gap-1.5 rounded-lg bg-[rgba(20,184,166,0.08)] px-3 py-1.5 text-[0.75rem]">
+            <PoundSterling className="h-3 w-3 text-[color:var(--accent)]" />
+            <span className="text-[color:var(--muted-foreground)]">Player</span>
+            <span className="font-semibold text-slate-800">{fmt(season.playerFee)}</span>
+          </span>
+          <span className="flex items-center gap-1.5 rounded-lg bg-amber-50 px-3 py-1.5 text-[0.75rem]">
+            <PoundSterling className="h-3 w-3 text-amber-500" />
+            <span className="text-amber-600">Rookie</span>
+            <span className="font-semibold text-amber-800">{fmt(season.rookieFee)}</span>
+          </span>
+          <span className="flex items-center gap-1.5 rounded-lg bg-blue-50 px-3 py-1.5 text-[0.75rem]">
+            <PoundSterling className="h-3 w-3 text-blue-500" />
+            <span className="text-blue-600">Umpire</span>
+            <span className="font-semibold text-blue-800">{fmt(season.umpireFee)}</span>
+          </span>
+        </div>
+
+        {/* Collection summary */}
+        <div className="mt-5 grid grid-cols-3 gap-4">
           <div>
             <p className="text-[0.72rem] text-[color:var(--muted-foreground)]">Collected</p>
-            <p className="text-[1.3rem] font-bold text-[color:var(--success)]">{fmtCurrency(totalPaid)}</p>
+            <p className="text-[1.3rem] font-bold text-[color:var(--success)]">{fmt(totalPaid)}</p>
           </div>
           <div>
             <p className="text-[0.72rem] text-[color:var(--muted-foreground)]">Outstanding</p>
             <p className={["text-[1.3rem] font-bold", totalDue - totalPaid > 0 ? "text-[color:var(--warning)]" : "text-[color:var(--success)]"].join(" ")}>
-              {fmtCurrency(Math.max(0, totalDue - totalPaid))}
+              {fmt(Math.max(0, totalDue - totalPaid))}
             </p>
           </div>
           <div>
-            <p className="text-[0.72rem] text-[color:var(--muted-foreground)]">Paid</p>
-            <p className="text-[1.3rem] font-bold text-slate-800">
-              {paidCount}/{playerFees.length}
-            </p>
+            <p className="text-[0.72rem] text-[color:var(--muted-foreground)]">Paid in full</p>
+            <p className="text-[1.3rem] font-bold text-slate-800">{paidCount}/{playerFees.length}</p>
           </div>
         </div>
 
-        {/* Progress bar */}
-        {playerFees.length > 0 ? (
+        {playerFees.length > 0 && totalDue > 0 && (
           <div className="mt-4 h-1.5 w-full overflow-hidden rounded-full bg-[rgba(115,145,176,0.15)]">
             <div
               className="h-full rounded-full bg-[color:var(--success)]"
               style={{ width: `${Math.min(100, (totalPaid / totalDue) * 100)}%` }}
             />
           </div>
-        ) : null}
+        )}
       </div>
 
-      {/* Add player */}
-      {unenrolled.length > 0 ? (
-        <section className="council-panel rounded-2xl border p-5">
-          <h3 className="mb-3 text-[0.88rem] font-semibold text-slate-800 flex items-center gap-2">
-            <Plus className="h-4 w-4 text-[color:var(--accent)]" />
-            Add player to season
-          </h3>
-          <form action={handleAddPlayer} className="grid gap-3 sm:grid-cols-3">
-            <select
-              name="userId"
-              required
-              className="rounded-xl border border-[color:var(--border)] bg-white px-3 py-2.5 text-[0.85rem] text-slate-800 outline-none focus:border-[color:var(--border-strong)]"
-            >
-              <option value="">Select member…</option>
-              {unenrolled.map((m) => (
-                <option key={m.id} value={m.id}>{memberDisplayName(m)}</option>
-              ))}
-            </select>
-            <input
-              name="amountDue"
-              type="number"
-              step="0.01"
-              min="0"
-              defaultValue={season.standardFee}
-              required
-              placeholder="Amount due (£)"
-              className="rounded-xl border border-[color:var(--border)] bg-white px-3 py-2.5 text-[0.85rem] text-slate-800 outline-none placeholder:text-slate-400 focus:border-[color:var(--border-strong)]"
-            />
-            <select
-              name="teamId"
-              className="rounded-xl border border-[color:var(--border)] bg-white px-3 py-2.5 text-[0.85rem] text-slate-800 outline-none focus:border-[color:var(--border-strong)]"
-            >
-              <option value="">No team</option>
-              {teams.map((t) => (
-                <option key={t.id} value={t.id}>{t.name} ({t.seasonYear})</option>
-              ))}
-            </select>
-            <button
-              type="submit"
-              className="sm:col-span-3 rounded-xl bg-[linear-gradient(180deg,#0d9488_0%,#0f766e_100%)] py-2.5 text-[0.85rem] font-medium text-white hover:brightness-105"
-            >
-              Add player
-            </button>
-          </form>
-        </section>
-      ) : null}
+      {/* Add player — client component */}
+      <AddPlayerForm season={season} unenrolled={unenrolled} />
 
       {/* Player fee rows */}
       {playerFees.length === 0 ? (
@@ -183,7 +156,9 @@ export default async function SeasonFeesPage({ params }: { params: Promise<{ sea
         </div>
       ) : (
         <section className="council-panel rounded-2xl border p-5">
-          <h3 className="mb-4 text-[0.88rem] font-semibold text-slate-800">Player fees</h3>
+          <h3 className="mb-4 text-[0.88rem] font-semibold text-slate-800">
+            Player fees · {playerFees.length} enrolled
+          </h3>
           <div className="space-y-3">
             {playerFees.map((pf) => {
               const remaining = pf.amountDue - pf.amountPaid;
@@ -208,61 +183,62 @@ export default async function SeasonFeesPage({ params }: { params: Promise<{ sea
                       <Clock className="mt-0.5 h-4 w-4 shrink-0 text-[color:var(--warning)]" />
                     )}
                     <div className="min-w-0 flex-1">
-                      <div className="flex items-center justify-between gap-2">
+                      <div className="flex flex-wrap items-center gap-2">
                         <p className="text-[0.88rem] font-medium text-slate-800">{pf.playerName}</p>
-                        <p className={[
-                          "shrink-0 text-[0.92rem] font-bold",
+                        <span className={`rounded-full px-2 py-0.5 text-[0.62rem] font-medium ${FEE_TYPE_STYLES[pf.feeType]}`}>
+                          {FEE_TYPE_LABELS[pf.feeType]}
+                        </span>
+                        <span className={[
+                          "ml-auto text-[0.92rem] font-bold",
                           fullyPaid ? "text-[color:var(--success)]" : "text-[color:var(--warning)]",
                         ].join(" ")}>
-                          {fmtCurrency(pf.amountPaid)} / {fmtCurrency(pf.amountDue)}
-                        </p>
+                          {fmt(pf.amountPaid)} / {fmt(pf.amountDue)}
+                        </span>
                       </div>
-                      {pf.teamName ? (
-                        <p className="text-[0.72rem] text-[color:var(--muted-foreground)]">{pf.teamName}</p>
-                      ) : null}
 
-                      {/* Record payment form */}
-                      {!fullyPaid ? (
-                        <form action={handleRecordPayment} className="mt-3 flex flex-wrap items-center gap-2">
-                          <input type="hidden" name="playerFeeId" value={pf.id} />
-                          <input
-                            name="amount"
-                            type="number"
-                            step="0.01"
-                            min="0.01"
-                            defaultValue={remaining > 0 ? remaining.toFixed(2) : ""}
-                            placeholder="Amount"
-                            required
-                            className="w-24 rounded-lg border border-[color:var(--border)] bg-slate-100 px-2.5 py-1.5 text-[0.78rem] text-slate-800 outline-none focus:border-[color:var(--border-strong)]"
-                          />
-                          <select
-                            name="paymentMethod"
-                            className="rounded-lg border border-[color:var(--border)] bg-slate-100 px-2.5 py-1.5 text-[0.78rem] text-slate-800 outline-none"
-                          >
-                            <option value="bank_transfer">Bank transfer</option>
-                            <option value="cash">Cash</option>
-                            <option value="other">Other</option>
-                          </select>
-                          <input
-                            name="reference"
-                            placeholder="Ref"
-                            className="w-24 rounded-lg border border-[color:var(--border)] bg-slate-100 px-2.5 py-1.5 text-[0.78rem] text-slate-800 outline-none placeholder:text-slate-400 focus:border-[color:var(--border-strong)]"
-                          />
-                          <button
-                            type="submit"
-                            className="rounded-lg bg-[rgba(29,215,207,0.14)] px-3 py-1.5 text-[0.78rem] font-medium text-[color:var(--accent)] hover:bg-[rgba(29,215,207,0.22)]"
-                          >
-                            Record payment
-                          </button>
-                        </form>
-                      ) : null}
-
-                      {/* Payment history */}
-                      {pf.amountPaid > 0 ? (
-                        <p className="mt-1 text-[0.7rem] text-[color:var(--muted-foreground)]">
-                          {fmtCurrency(pf.amountPaid)} paid · {fmtCurrency(Math.max(0, remaining))} remaining
+                      {pf.amountPaid > 0 && (
+                        <p className="mt-0.5 text-[0.7rem] text-[color:var(--muted-foreground)]">
+                          {fmt(pf.amountPaid)} paid · {fmt(Math.max(0, remaining))} remaining
                         </p>
-                      ) : null}
+                      )}
+
+                      {!fullyPaid && (
+                        <div className="mt-3 space-y-2">
+                          <form action={handleRecordPayment} className="flex flex-wrap items-center gap-2">
+                            <input type="hidden" name="playerFeeId" value={pf.id} />
+                            <input
+                              name="amount"
+                              type="number"
+                              step="0.01"
+                              min="0.01"
+                              defaultValue={remaining > 0 ? remaining.toFixed(2) : ""}
+                              placeholder="£"
+                              required
+                              className="w-24 rounded-lg border border-[color:var(--border)] bg-slate-100 px-2.5 py-1.5 text-[0.78rem] text-slate-800 outline-none focus:border-[color:var(--border-strong)]"
+                            />
+                            <select
+                              name="paymentMethod"
+                              className="rounded-lg border border-[color:var(--border)] bg-slate-100 px-2.5 py-1.5 text-[0.78rem] text-slate-800 outline-none"
+                            >
+                              <option value="bank_transfer">Bank transfer</option>
+                              <option value="cash">Cash</option>
+                              <option value="other">Other</option>
+                            </select>
+                            <input
+                              name="reference"
+                              placeholder="Ref"
+                              className="w-24 rounded-lg border border-[color:var(--border)] bg-slate-100 px-2.5 py-1.5 text-[0.78rem] text-slate-800 outline-none placeholder:text-slate-400 focus:border-[color:var(--border-strong)]"
+                            />
+                            <button
+                              type="submit"
+                              className="rounded-lg bg-[rgba(29,215,207,0.14)] px-3 py-1.5 text-[0.78rem] font-medium text-[color:var(--accent)] hover:bg-[rgba(29,215,207,0.22)]"
+                            >
+                              Record payment
+                            </button>
+                          </form>
+                          <FeeReminderButton playerFeeId={pf.id} playerName={pf.playerName} />
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>

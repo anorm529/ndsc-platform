@@ -1,15 +1,15 @@
 import { redirect } from "next/navigation";
 import { requireCouncilUser, requireSecretaryAccess } from "@/lib/council-session";
-import { getAllActiveMembers, memberDisplayName } from "@/lib/main-db";
+import { getCouncilMembers, memberDisplayName } from "@/lib/main-db";
 import { getAllMeetings } from "@/lib/council-queries";
-import { createActionItem } from "@/lib/meeting-actions";
+import { createActionItem, createActionItemsForAll } from "@/lib/meeting-actions";
 
 export default async function NewActionPage() {
   const user = await requireCouncilUser();
   await requireSecretaryAccess(user);
 
   const [members, meetings] = await Promise.all([
-    getAllActiveMembers(),
+    getCouncilMembers(),
     getAllMeetings(),
   ]);
 
@@ -18,17 +18,27 @@ export default async function NewActionPage() {
     const u = await requireCouncilUser();
     const title = String(formData.get("title") ?? "").trim();
     const meetingId = String(formData.get("meetingId") ?? "").trim() || undefined;
-    const assignedTo = String(formData.get("assignedTo") ?? "").trim() || undefined;
+    const assignedTo = String(formData.get("assignedTo") ?? "").trim();
     const dueDate = String(formData.get("dueDate") ?? "").trim() || undefined;
     const priority = String(formData.get("priority") ?? "medium");
     const description = String(formData.get("description") ?? "").trim();
     if (!title) return;
-    await createActionItem({
-      meetingId, assignedTo, title,
+
+    const base = {
+      meetingId,
+      title,
       description: description || undefined,
-      dueDate, priority,
+      dueDate,
+      priority,
       createdBy: u.id,
-    });
+    };
+
+    if (assignedTo === "__all__") {
+      const allMembers = await getCouncilMembers();
+      await createActionItemsForAll(allMembers.map((m) => m.id), base);
+    } else {
+      await createActionItem({ ...base, assignedTo: assignedTo || undefined });
+    }
     redirect("/council/actions");
   }
 
@@ -65,6 +75,7 @@ export default async function NewActionPage() {
               className="w-full rounded-xl border border-[color:var(--border)] bg-white px-3 py-3 text-[0.85rem] text-slate-800 outline-none focus:border-[color:var(--border-strong)]"
             >
               <option value="">Unassigned</option>
+              <option value="__all__">All council members</option>
               {members.map((m) => (
                 <option key={m.id} value={m.id}>{memberDisplayName(m)}</option>
               ))}

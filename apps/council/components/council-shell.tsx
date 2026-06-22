@@ -9,19 +9,34 @@ import { CouncilSidebar } from "@/components/council-sidebar";
 const titleMap: Record<string, string> = {
   "/council/dashboard":           "Dashboard",
   "/council/members":             "Members",
+  "/council/seasons":             "Season Management",
+  "/council/seasons/new":         "New Season",
   "/council/meetings":            "Meetings",
   "/council/meetings/new":        "New Meeting",
   "/council/actions":             "Action Tracker",
   "/council/actions/new":         "New Action",
   "/council/treasurer/accounts":  "Club Accounts",
   "/council/treasurer/fees":      "Player Fees",
+  "/council/signups":             "Tournament Signups",
+  "/council/captains":            "Captains & Rosters",
+  "/council/fixtures":            "Fixtures & Results",
+  "/council/stats":               "Game Stats Upload",
+  "/council/standings":           "League Standings",
+  "/council/awards":              "Awards",
+  "/council/audit":               "Audit Log",
+  "/council/archive":             "Season Archives",
+  "/council/archive/stats":       "Membership Stats",
 };
 
 function getTitle(pathname: string): string {
   if (titleMap[pathname]) return titleMap[pathname];
+  if (pathname.startsWith("/council/seasons/new")) return "New Season";
+  if (pathname.match(/^\/council\/seasons\/[^/]+\/enroll/)) return "Enroll Players";
+  if (pathname.match(/^\/council\/seasons\/[^/]+/)) return "Season Detail";
   if (pathname.startsWith("/council/meetings/")) return "Meeting";
   if (pathname.startsWith("/council/treasurer/accounts/")) return "Account Detail";
   if (pathname.startsWith("/council/treasurer/fees/")) return "Season Fees";
+  if (pathname.match(/^\/council\/archive\/\d{4}$/)) return "Season Archive";
   return "Council";
 }
 

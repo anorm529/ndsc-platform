@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import Image from "next/image";
 import {
+  ArrowRight,
   CalendarDays,
   CheckCircle2,
   MapPin,
@@ -257,6 +258,28 @@ export default async function Page() {
           </div>
         </div>
       </section>
+
+      {/* Women's Tournament 2027 interest banner */}
+      <div className="relative overflow-hidden bg-[#2B2254] px-4 py-5 text-white sm:px-6">
+        <div className="absolute inset-x-0 top-0 h-1 bg-[linear-gradient(90deg,#ff4aa8_0%,#1ed0d8_35%,#ffd84d_68%,#95d28c_100%)]" />
+        <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 sm:flex-row">
+          <div>
+            <div className="text-[10px] font-semibold uppercase tracking-[0.22em] text-[#ff79ca]">
+              Women&apos;s Tournament · 2027
+            </div>
+            <div className="mt-0.5 text-base font-black uppercase italic tracking-tight sm:text-lg">
+              Interested in playing in the next NDSC Women&apos;s Tournament?
+            </div>
+          </div>
+          <Link
+            href="/tournaments#register-2027"
+            className="shrink-0 inline-flex items-center gap-2 rounded-xl bg-[#E84AA5] px-5 py-3 text-sm font-black uppercase tracking-wide text-white shadow-[0_5px_0_rgba(43,34,84,0.35)] transition hover:translate-y-[1px] hover:shadow-[0_3px_0_rgba(43,34,84,0.35)]"
+          >
+            Register Interest
+            <ArrowRight className="h-4 w-4" />
+          </Link>
+        </div>
+      </div>
 
       <Section
         id="about"

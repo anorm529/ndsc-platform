@@ -54,7 +54,7 @@ export default async function NewMeetingPage() {
             >
               <option value="council">Council</option>
               <option value="agm">AGM</option>
-              <option value="committee">Committee</option>
+              <option value="egm">EGM</option>
             </select>
           </label>
           <label className="block space-y-1.5">
