@@ -93,6 +93,8 @@ export type PlayerStat = {
 type DataRow = Record<string, unknown>;
 
 export type PlayerGameRecord = {
+  season: number | null;
+  teamSlug: string | null;
   gameNo: number | null;
   opponent: string | null;
   homeAway: string | null;
@@ -500,6 +502,8 @@ function pickGameRecordId(row: DataRow): string | null {
 
 function toGameRecord(row: DataRow): PlayerGameRecord {
   return {
+    season: pickNumber(row, ["Season", "season"]),
+    teamSlug: pickString(row, ["Team Slug", "teamSlug", "team_slug"]),
     gameNo: pickNumber(row, ["Game no.", "Game No.", "gameNo", "game_no"]),
     opponent: pickString(row, ["Opponent", "opponent"]),
     homeAway: pickString(row, ["Home/Away", "homeAway", "home_away"]),
@@ -602,7 +606,9 @@ function buildGameLookup(rows: DataRow[]): GameDataLookup {
     const recordId = pickGameRecordId(row) ?? "";
     const playerName = pickString(row, ["Player", "player", "Player Name", "playerName"]) ?? "";
     const gameNo = String(pickNumber(row, ["Game no.", "Game No.", "gameNo", "game_no"]) ?? "");
-    const key = `${recordId}::${playerName}::${gameNo}`;
+    const season = String(pickNumber(row, ["Season", "season"]) ?? "");
+    const teamSlug = pickString(row, ["Team Slug", "teamSlug", "team_slug"]) ?? "";
+    const key = `${recordId}::${playerName}::${gameNo}::${season}::${teamSlug}`;
     if (!uniqueRows.has(key)) uniqueRows.set(key, row);
   }
 
@@ -992,6 +998,66 @@ async function fetchPlayerStats() {
     from public.player_season_stats_archive pssa
     left join public.teams t on t.id = pssa.team_id
     left join public.players p on p.id = pssa.player_id
+
+    union all
+
+    -- Live season stats aggregated from individual game records for any season/team
+    -- not yet summarised in player_season_stats (e.g. the current in-progress season).
+    select
+      s.year as "season",
+      t.slug as "teamSlug",
+      t.name as "team",
+      p.display_name as "playerName",
+      p.id::text as "recordId",
+      p.gender as "gender",
+      count(*)::int as "gamesPlayed",
+      sum(pgs.innings)::int as "innings",
+      sum(pgs.rbis)::int as "rbi",
+      sum(pgs.runs)::int as "runs",
+      sum(pgs.walks)::int as "bb",
+      sum(pgs.singles)::int as "singles_1b",
+      sum(pgs.doubles)::int as "doubles_2b",
+      sum(pgs.triples)::int as "triples_3b",
+      sum(pgs.home_runs)::int as "hr",
+      sum(pgs.batter_outs)::int as "batterout",
+      sum(pgs.at_bats)::int as "ab",
+      sum(pgs.unassisted_outs)::int as "uao",
+      sum(pgs.assisted_outs)::int as "ao",
+      (sum(pgs.unassisted_outs) + sum(pgs.assisted_outs))::int as "outs",
+      sum(pgs.singles + pgs.doubles + pgs.triples + pgs.home_runs)::int as "hits",
+      case when sum(pgs.at_bats) > 0
+        then round(sum(pgs.singles + pgs.doubles + pgs.triples + pgs.home_runs)::numeric / sum(pgs.at_bats), 3)
+        else null end as "avg",
+      case when (sum(pgs.at_bats) + sum(pgs.walks)) > 0
+        then round((sum(pgs.singles + pgs.doubles + pgs.triples + pgs.home_runs) + sum(pgs.walks))::numeric / (sum(pgs.at_bats) + sum(pgs.walks)), 3)
+        else null end as "obp",
+      case when sum(pgs.at_bats) > 0
+        then round((sum(pgs.singles) + 2*sum(pgs.doubles) + 3*sum(pgs.triples) + 4*sum(pgs.home_runs))::numeric / sum(pgs.at_bats), 3)
+        else null end as "slg",
+      case when sum(pgs.at_bats) > 0 and (sum(pgs.at_bats) + sum(pgs.walks)) > 0
+        then round(
+          (sum(pgs.singles + pgs.doubles + pgs.triples + pgs.home_runs) + sum(pgs.walks))::numeric / (sum(pgs.at_bats) + sum(pgs.walks))
+          + (sum(pgs.singles) + 2*sum(pgs.doubles) + 3*sum(pgs.triples) + 4*sum(pgs.home_runs))::numeric / sum(pgs.at_bats),
+        3)
+        else null end as "ops"
+    from public.player_game_stats pgs
+    join public.games g on g.id = pgs.game_id
+    join public.seasons s on s.id = g.season_id
+    join public.teams t on t.id = g.team_id
+    join public.players p on p.id = pgs.player_id
+    where not exists (
+      select 1 from public.player_season_stats pss2
+      where pss2.player_id = pgs.player_id
+        and pss2.season_id = g.season_id
+        and pss2.team_id = g.team_id
+    )
+    and not exists (
+      select 1 from public.player_season_stats_archive pssa2
+      where pssa2.player_id = pgs.player_id
+        and pssa2.year = s.year
+    )
+    group by s.year, t.slug, t.name, p.display_name, p.id, p.gender
+
     order by "season" desc, "teamSlug", "playerName"
   `);
 
@@ -1102,8 +1168,10 @@ async function fetchPlayerGameRows() {
     select
       p.id::text as "Record id",
       p.display_name as "Player",
+      s.year as "Season",
+      t.slug as "Team Slug",
       row_number() over (
-        partition by p.id
+        partition by p.id, g.season_id, g.team_id
         order by coalesce(g.scheduled_at, g.game_date::timestamp), g.opponent
       ) as "Game no.",
       g.opponent as "Opponent",
@@ -1130,8 +1198,10 @@ async function fetchPlayerGameRows() {
       ) as "Total Outs"
     from public.player_game_stats pgs
     join public.games g on g.id = pgs.game_id
+    join public.seasons s on s.id = g.season_id
+    join public.teams t on t.id = g.team_id
     join public.players p on p.id = pgs.player_id
-    order by p.display_name, "Game no."
+    order by p.display_name, "Season", "Team Slug", "Game no."
   `);
 
   return result.rows;

@@ -26,13 +26,15 @@ function resultClass(result?: string | null) {
   return "border-[#2B4162] bg-[#1D2E48] text-slate-400";
 }
 
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
 function formatDate(date: string) {
   const parsed = parseDate(date);
   if (!Number.isFinite(parsed)) return "-";
-  return new Date(parsed).toLocaleString("en-GB", {
-    dateStyle: "medium",
-    timeStyle: "short",
-  });
+  const d = new Date(parsed);
+  const hh = String(d.getHours()).padStart(2, "0");
+  const mm = String(d.getMinutes()).padStart(2, "0");
+  return `${d.getDate()} ${MONTHS[d.getMonth()]} ${d.getFullYear()} at ${hh}:${mm}`;
 }
 
 function formatScore(match: Match) {

@@ -45,10 +45,12 @@ export default function TeamHubContent({
   teamData,
   user,
   basePath,
+  additionalSection,
 }: {
   teamData: TeamPageData;
   user: AuthenticatedUser;
   basePath?: string;
+  additionalSection?: React.ReactNode;
 }) {
   const {
     slug,
@@ -65,8 +67,15 @@ export default function TeamHubContent({
     chartRows,
   } = teamData;
 
-  const matchLat = numOrNull(nextMatch?.lat);
-  const matchLon = numOrNull(nextMatch?.lon);
+  // Deduplicate seasons (my-team deduplicates itself, but team pages may not)
+  const deduplicatedSeasons = [...new Set(availableSeasons)];
+  // Hide upcoming-fixture UI when a specific past season is selected.
+  // Fixtures are team-wide (not season-scoped), so an archived season would otherwise
+  // show future games that have nothing to do with that historical view.
+  const isCurrentSeason = !seasonParam || seasonParam === deduplicatedSeasons[0];
+  const activeNextMatch = isCurrentSeason ? nextMatch : undefined;
+  const matchLat = numOrNull(activeNextMatch?.lat);
+  const matchLon = numOrNull(activeNextMatch?.lon);
   const base = basePath ?? `/members/teams/${slug}`;
 
   return (
@@ -98,37 +107,51 @@ export default function TeamHubContent({
               </div>
 
               <div className="rounded-2xl border border-[#2B4162] bg-[#1D2E48] p-6">
-                <div className="text-sm text-slate-300">Next fixture</div>
-
-                {nextMatch ? (
+                {isCurrentSeason ? (
                   <>
-                    <div className="mt-1 text-lg font-semibold">
-                      vs {nextMatch.opponent}
-                    </div>
-                    <div className="text-sm text-slate-300">
-                      {new Date(nextMatch.date).toLocaleString("en-GB", {
-                        dateStyle: "medium",
-                        timeStyle: "short",
-                      })}
-                      {nextMatch.homeAway ? ` • ${nextMatch.homeAway}` : ""}
-                      {nextMatch.location ? ` • ${nextMatch.location}` : ""}
-                    </div>
+                    <div className="text-sm text-slate-300">Next fixture</div>
+                    {activeNextMatch ? (
+                      <>
+                        <div className="mt-1 text-lg font-semibold">
+                          vs {activeNextMatch.opponent}
+                        </div>
+                        <div className="text-sm text-slate-300">
+                          {new Date(activeNextMatch.date).toLocaleString("en-GB", {
+                            dateStyle: "medium",
+                            timeStyle: "short",
+                          })}
+                          {activeNextMatch.homeAway ? ` • ${activeNextMatch.homeAway}` : ""}
+                          {activeNextMatch.location ? ` • ${activeNextMatch.location}` : ""}
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <div className="mt-1 text-lg font-semibold">No upcoming fixture</div>
+                        <div className="text-sm text-slate-400">
+                          Add a future game with blank result for {slug}.
+                        </div>
+                      </>
+                    )}
+                    {lastResult ? (
+                      <div className="pt-3 text-xs text-slate-400">
+                        Last result: {formatResult(lastResult)} vs {lastResult.opponent} (
+                        {new Date(lastResult.date).toLocaleDateString("en-GB")})
+                      </div>
+                    ) : null}
                   </>
                 ) : (
                   <>
-                    <div className="mt-1 text-lg font-semibold">No upcoming fixture</div>
-                    <div className="text-sm text-slate-400">
-                      Add a future game with blank result for {slug}.
-                    </div>
+                    <div className="text-sm text-slate-300">Season</div>
+                    <div className="mt-1 text-lg font-semibold text-slate-200">{seasonParam}</div>
+                    <div className="mt-1 text-sm text-slate-400">Historical view — no upcoming fixtures.</div>
+                    {lastResult ? (
+                      <div className="pt-3 text-xs text-slate-400">
+                        Last result: {formatResult(lastResult)} vs {lastResult.opponent} (
+                        {new Date(lastResult.date).toLocaleDateString("en-GB")})
+                      </div>
+                    ) : null}
                   </>
                 )}
-
-                {lastResult ? (
-                  <div className="pt-3 text-xs text-slate-400">
-                    Last result: {formatResult(lastResult)} vs {lastResult.opponent} (
-                    {new Date(lastResult.date).toLocaleDateString("en-GB")})
-                  </div>
-                ) : null}
               </div>
 
               <div className="flex items-center gap-2">
@@ -144,7 +167,7 @@ export default function TeamHubContent({
                   All
                 </Link>
 
-                {availableSeasons.map((season) => (
+                {deduplicatedSeasons.map((season) => (
                   <Link
                     key={season}
                     href={`${base}?season=${season}`}
@@ -177,12 +200,14 @@ export default function TeamHubContent({
                 Countdown
               </div>
               <div className="mt-3 flex-1 flex flex-col justify-center">
-                {nextMatch?.date ? (
+                {activeNextMatch?.date ? (
                   <div className="w-full">
-                    <CountdownBar targetISO={nextMatch.date} progressWindowHours={168} />
+                    <CountdownBar targetISO={activeNextMatch.date} progressWindowHours={168} />
                   </div>
                 ) : (
-                  <div className="text-sm text-slate-400">No upcoming fixture.</div>
+                  <div className="text-sm text-slate-400">
+                    {isCurrentSeason ? "No upcoming fixture." : "Historical season — no countdown."}
+                  </div>
                 )}
               </div>
             </div>
@@ -252,6 +277,8 @@ export default function TeamHubContent({
           />
 
           <MatchHistory matches={matches} />
+
+          {additionalSection}
         </div>
       </section>
     </main>

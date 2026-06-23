@@ -201,10 +201,20 @@ function PlayerCell({
     awardsLookup.byName[playerNameKey] ??
     [];
   const gamesByRecordId = recordId ? gameDataLookup.byRecordId[recordId] : undefined;
-  const games =
+  const allGames =
     (gamesByRecordId && gamesByRecordId.length > 0 ? gamesByRecordId : undefined) ??
     gameDataLookup.byName[playerNameKey] ??
     [];
+
+  const playerSeason = player.season != null ? Number(player.season) : null;
+  const playerTeamSlug = player.teamSlug ?? null;
+  const games = playerSeason != null
+    ? allGames.filter((g) => {
+        if (g.season !== playerSeason) return false;
+        if (playerTeamSlug && g.teamSlug && g.teamSlug !== playerTeamSlug) return false;
+        return true;
+      })
+    : allGames;
 
   return <PlayerAwardsTrigger playerName={player.playerName} awards={awards} games={games} />;
 }
@@ -316,7 +326,7 @@ export default function PlayerStatsTable({
           <tbody>
             {visiblePlayers.map((player) => (
               <tr
-                key={`${player.playerName}-${player.season ?? "x"}`}
+                key={`${player.playerName}-${player.season ?? "x"}-${player.teamSlug ?? "x"}`}
                 className={cn(
                   "transition",
                   isMe(player)
@@ -366,7 +376,7 @@ export default function PlayerStatsTable({
       <div className="mt-5 grid gap-4 md:hidden">
         {visiblePlayers.map((player) => (
           <div
-            key={`${player.playerName}-${player.season ?? "x"}-card`}
+            key={`${player.playerName}-${player.season ?? "x"}-${player.teamSlug ?? "x"}-card`}
             className={cn(
               "rounded-2xl border p-5",
               isMe(player)
