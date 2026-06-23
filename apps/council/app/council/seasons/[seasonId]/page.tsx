@@ -15,7 +15,10 @@ import {
   takeSeasonArchiveSnapshot,
   type PlayerProfile, type PlayerFeeStatus,
 } from "@/lib/council-queries";
-import { syncFeeSeasonActive, deleteFeeSeasonByMainSeasonId } from "@/lib/treasurer-queries";
+import {
+  syncFeeSeasonActive, deleteFeeSeasonByMainSeasonId,
+  getFeeSeasonByMainSeasonId, hasPlayerFeesForFeeSeason, getOutstandingFeeCount,
+} from "@/lib/treasurer-queries";
 import { UnenrollButton } from "./unenroll-button";
 import { AddPlayerForm } from "./add-player-form";
 
@@ -93,6 +96,13 @@ export default async function SeasonDetailPage({
     getPlayerProfiles(),
     getCurrentFeeStatuses(),
   ]);
+
+  // For archive warning: check if there are outstanding fees linked to this season
+  let outstandingFeeCount = 0;
+  if (season && season.status === "closed") {
+    const feeSeason = await getFeeSeasonByMainSeasonId(seasonId);
+    if (feeSeason) outstandingFeeCount = await getOutstandingFeeCount(feeSeason.id);
+  }
 
   if (!season) notFound();
 
@@ -176,6 +186,11 @@ export default async function SeasonDetailPage({
     const u = await requireCouncilUser();
     if (!u.isOwner) redirect("/council/seasons/" + seasonId);
     if (season!.status !== "draft") redirect("/council/seasons/" + seasonId);
+    // Block if the fee season already has player records (payment links may have been sent)
+    const feeSeason = await getFeeSeasonByMainSeasonId(seasonId);
+    if (feeSeason && await hasPlayerFeesForFeeSeason(feeSeason.id)) {
+      redirect("/council/seasons/" + seasonId + "?error=has-fees");
+    }
     await deleteFeeSeasonByMainSeasonId(seasonId);
     await deleteSeason(seasonId);
     redirect("/council/seasons");
@@ -191,6 +206,11 @@ export default async function SeasonDetailPage({
       {error === "already-active" && (
         <div className="rounded-xl border border-amber-300/30 bg-amber-50/60 px-4 py-3 text-[0.82rem] text-amber-800">
           The {conflictYear} season is already active. Close or archive it before opening this one.
+        </div>
+      )}
+      {error === "has-fees" && (
+        <div className="rounded-xl border border-red-300/30 bg-red-50/60 px-4 py-3 text-[0.82rem] text-red-800">
+          This season cannot be deleted because players have been added to the fee season. Remove all player fee records first.
         </div>
       )}
 
@@ -291,23 +311,30 @@ export default async function SeasonDetailPage({
 
             {/* Closed: reopen or archive */}
             {season.status === "closed" && (
-              <div className="flex items-center justify-between gap-3">
-                <p className="text-[0.78rem] text-[color:var(--muted-foreground)]">
-                  Season is closed. Archive to create a permanent membership snapshot, or reopen if needed.
-                </p>
-                <div className="flex gap-2">
-                  <form action={handleTransition}>
-                    <input type="hidden" name="to" value="active" />
-                    <button type="submit" className="rounded-xl bg-[linear-gradient(180deg,#0d9488_0%,#0f766e_100%)] px-4 py-2 text-[0.82rem] font-medium text-white hover:brightness-105">
-                      Reopen season
-                    </button>
-                  </form>
-                  <form action={handleTransition}>
-                    <input type="hidden" name="to" value="archived" />
-                    <button type="submit" className="rounded-xl bg-[rgba(239,68,68,0.08)] px-4 py-2 text-[0.82rem] font-medium text-[color:var(--danger)] hover:bg-[rgba(239,68,68,0.15)]">
-                      Archive season
-                    </button>
-                  </form>
+              <div className="space-y-3">
+                {outstandingFeeCount > 0 && (
+                  <div className="rounded-lg bg-amber-50 px-3 py-2 text-[0.75rem] text-amber-700">
+                    {outstandingFeeCount} player{outstandingFeeCount !== 1 ? "s have" : " has"} outstanding fees. You can still archive, but those balances will remain on record.
+                  </div>
+                )}
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-[0.78rem] text-[color:var(--muted-foreground)]">
+                    Season is closed. Archive to create a permanent membership snapshot, or reopen if needed.
+                  </p>
+                  <div className="flex gap-2">
+                    <form action={handleTransition}>
+                      <input type="hidden" name="to" value="active" />
+                      <button type="submit" className="rounded-xl bg-[linear-gradient(180deg,#0d9488_0%,#0f766e_100%)] px-4 py-2 text-[0.82rem] font-medium text-white hover:brightness-105">
+                        Reopen season
+                      </button>
+                    </form>
+                    <form action={handleTransition}>
+                      <input type="hidden" name="to" value="archived" />
+                      <button type="submit" className="rounded-xl bg-[rgba(239,68,68,0.08)] px-4 py-2 text-[0.82rem] font-medium text-[color:var(--danger)] hover:bg-[rgba(239,68,68,0.15)]">
+                        Archive season
+                      </button>
+                    </form>
+                  </div>
                 </div>
               </div>
             )}

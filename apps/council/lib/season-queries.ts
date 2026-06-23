@@ -417,6 +417,14 @@ export async function assignToTeam(
   }
 }
 
+export async function getEnrolledPlayerIds(seasonId: string): Promise<string[]> {
+  const res = await mainQuery<{ player_id: string }>(
+    `SELECT player_id FROM season_enrollments WHERE season_id = $1`,
+    [seasonId]
+  );
+  return res.rows.map((r) => r.player_id);
+}
+
 // ─── Player creation ──────────────────────────────────────────────────────────
 
 export async function createPlayer(displayName: string, gender?: string): Promise<string> {

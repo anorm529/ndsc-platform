@@ -138,6 +138,7 @@ export interface FeeSeason {
   umpireFee: number;
   dueDate: string | null;
   isActive: boolean;
+  mainSeasonId: string | null;
   createdAt: Date;
 }
 
@@ -145,10 +146,10 @@ export async function getAllFeeSeasons(): Promise<FeeSeason[]> {
   const result = await councilQuery<{
     id: string; year: number; label: string;
     standard_fee: string; rookie_fee: string; umpire_fee: string;
-    due_date: string | null; is_active: boolean; created_at: Date;
+    due_date: string | null; is_active: boolean; main_season_id: string | null; created_at: Date;
   }>(
     `SELECT id, year, label, standard_fee::text, rookie_fee::text, umpire_fee::text,
-            due_date::text, is_active, created_at
+            due_date::text, is_active, main_season_id, created_at
      FROM fee_seasons ORDER BY year DESC`
   );
 
@@ -157,7 +158,8 @@ export async function getAllFeeSeasons(): Promise<FeeSeason[]> {
     playerFee: parseFloat(r.standard_fee),
     rookieFee: parseFloat(r.rookie_fee),
     umpireFee: parseFloat(r.umpire_fee),
-    dueDate: r.due_date, isActive: r.is_active, createdAt: r.created_at,
+    dueDate: r.due_date, isActive: r.is_active,
+    mainSeasonId: r.main_season_id, createdAt: r.created_at,
   }));
 }
 
@@ -165,10 +167,10 @@ export async function getFeeSeasonById(id: string): Promise<FeeSeason | null> {
   const result = await councilQuery<{
     id: string; year: number; label: string;
     standard_fee: string; rookie_fee: string; umpire_fee: string;
-    due_date: string | null; is_active: boolean; created_at: Date;
+    due_date: string | null; is_active: boolean; main_season_id: string | null; created_at: Date;
   }>(
     `SELECT id, year, label, standard_fee::text, rookie_fee::text, umpire_fee::text,
-            due_date::text, is_active, created_at
+            due_date::text, is_active, main_season_id, created_at
      FROM fee_seasons WHERE id = $1`,
     [id]
   );
@@ -179,8 +181,50 @@ export async function getFeeSeasonById(id: string): Promise<FeeSeason | null> {
     playerFee: parseFloat(r.standard_fee),
     rookieFee: parseFloat(r.rookie_fee),
     umpireFee: parseFloat(r.umpire_fee),
-    dueDate: r.due_date, isActive: r.is_active, createdAt: r.created_at,
+    dueDate: r.due_date, isActive: r.is_active,
+    mainSeasonId: r.main_season_id, createdAt: r.created_at,
   };
+}
+
+export async function getFeeSeasonByMainSeasonId(mainSeasonId: string): Promise<{ id: string } | null> {
+  const res = await councilQuery<{ id: string }>(
+    `SELECT id FROM fee_seasons WHERE main_season_id = $1 LIMIT 1`,
+    [mainSeasonId]
+  );
+  return res.rows[0] ?? null;
+}
+
+export async function hasPlayerFeesForFeeSeason(feeSeasonId: string): Promise<boolean> {
+  const res = await councilQuery<{ count: string }>(
+    `SELECT COUNT(*)::text AS count FROM player_fees WHERE season_id = $1`,
+    [feeSeasonId]
+  );
+  return parseInt(res.rows[0]?.count ?? "0") > 0;
+}
+
+export async function getOutstandingFeeCount(feeSeasonId: string): Promise<number> {
+  const res = await councilQuery<{ count: string }>(
+    `SELECT COUNT(*)::text AS count
+     FROM player_fees pf
+     LEFT JOIN (
+       SELECT player_fee_id, SUM(amount) AS total_paid
+       FROM fee_payments GROUP BY player_fee_id
+     ) fp ON fp.player_fee_id = pf.id
+     WHERE pf.season_id = $1 AND pf.amount_due > COALESCE(fp.total_paid, 0)`,
+    [feeSeasonId]
+  );
+  return parseInt(res.rows[0]?.count ?? "0");
+}
+
+export async function updatePlayerFeeStripeLink(
+  playerFeeId: string,
+  sentAt: Date,
+  expiresAt: Date,
+): Promise<void> {
+  await councilQuery(
+    `UPDATE player_fees SET stripe_link_sent_at = $1, stripe_link_expires_at = $2 WHERE id = $3`,
+    [sentAt, expiresAt, playerFeeId]
+  );
 }
 
 // ─── Player Fees ──────────────────────────────────────────────────────────────
@@ -199,6 +243,8 @@ export interface PlayerFeeRow {
   amountDue: number;
   amountPaid: number;
   notes: string | null;
+  stripeLinkSentAt: Date | null;
+  stripeLinkExpiresAt: Date | null;
 }
 
 export async function getPlayerFeesForSeason(seasonId: string): Promise<PlayerFeeRow[]> {
@@ -206,16 +252,19 @@ export async function getPlayerFeesForSeason(seasonId: string): Promise<PlayerFe
     id: string; player_id: string; user_id: string | null; player_name: string;
     team_id: string | null; team_name: string | null;
     season_id: string; fee_type: string; amount_due: string; amount_paid: string; notes: string | null;
+    stripe_link_sent_at: Date | null; stripe_link_expires_at: Date | null;
   }>(
     `SELECT pf.id, pf.player_id, pf.user_id, pf.player_name, pf.team_id, ct.name AS team_name,
             pf.season_id, pf.fee_type, pf.amount_due::text,
             COALESCE(SUM(fp.amount), 0)::text AS amount_paid,
-            pf.notes
+            pf.notes, pf.stripe_link_sent_at, pf.stripe_link_expires_at
      FROM player_fees pf
      LEFT JOIN council_teams ct ON ct.id = pf.team_id
      LEFT JOIN fee_payments fp ON fp.player_fee_id = pf.id
      WHERE pf.season_id = $1
-     GROUP BY pf.id, pf.player_id, pf.user_id, pf.player_name, pf.team_id, ct.name, pf.season_id, pf.fee_type, pf.amount_due, pf.notes
+     GROUP BY pf.id, pf.player_id, pf.user_id, pf.player_name, pf.team_id, ct.name,
+              pf.season_id, pf.fee_type, pf.amount_due, pf.notes,
+              pf.stripe_link_sent_at, pf.stripe_link_expires_at
      ORDER BY ct.name ASC NULLS LAST, pf.player_name ASC`,
     [seasonId]
   );
@@ -226,6 +275,8 @@ export async function getPlayerFeesForSeason(seasonId: string): Promise<PlayerFe
     seasonId: r.season_id, feeType: r.fee_type as FeeType,
     amountDue: parseFloat(r.amount_due),
     amountPaid: parseFloat(r.amount_paid), notes: r.notes,
+    stripeLinkSentAt: r.stripe_link_sent_at,
+    stripeLinkExpiresAt: r.stripe_link_expires_at,
   }));
 }
 
@@ -302,7 +353,7 @@ export async function recordFeePayment(data: {
   paidAt: string;
   reference?: string;
   notes?: string;
-  recordedBy: string;
+  recordedBy?: string | null;
 }): Promise<void> {
   await councilQuery(
     `INSERT INTO fee_payments
