@@ -26,6 +26,7 @@ import {
   AlertTriangle,
   FileText,
   Megaphone,
+  Receipt,
 } from "lucide-react";
 
 type NavItem = {
@@ -83,9 +84,10 @@ const navGroups: NavGroup[] = [
   {
     label: "Records",
     items: [
-      { label: "Flags",     href: "/council/flags", icon: AlertTriangle, permission: null },
-      { label: "Archive",   href: "/council/archive", icon: Archive,    permission: null },
-      { label: "Audit Log", href: "/council/audit",   icon: ScrollText, permission: "chairman" },
+      { label: "Flags",        href: "/council/flags",       icon: AlertTriangle, permission: null },
+      { label: "Fee History",  href: "/council/fee-history", icon: Receipt,       permission: "treasurer" },
+      { label: "Archive",      href: "/council/archive",     icon: Archive,       permission: null },
+      { label: "Audit Log",    href: "/council/audit",       icon: ScrollText,    permission: "chairman" },
     ],
   },
 ];

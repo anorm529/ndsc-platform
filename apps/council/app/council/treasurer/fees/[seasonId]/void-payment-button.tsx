@@ -18,13 +18,19 @@ export function VoidPaymentButton({
 
   async function handleVoid() {
     const isStripe = paymentMethod === "stripe";
-    const confirmMsg = isStripe
-      ? `Void this £${amount} Stripe payment? The payment record will be removed but no refund will be issued in Stripe — process the refund separately in your Stripe dashboard.`
-      : `Void this £${amount} payment? This cannot be undone.`;
+    const promptMsg = isStripe
+      ? `Enter void reason for this £${amount} Stripe payment.\n\nNote: voiding removes it from the balance only — no refund is issued in Stripe. Process the refund there separately.\n\nReason:`
+      : `Enter void reason for this £${amount} payment:`;
 
-    if (!window.confirm(confirmMsg)) return;
+    const reason = window.prompt(promptMsg);
+    if (!reason?.trim()) return;
+
     setState("loading");
-    const res = await fetch(`/api/fees/payment/${paymentId}`, { method: "DELETE" });
+    const res = await fetch(`/api/fees/payment/${paymentId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ reason: reason.trim() }),
+    });
     if (res.ok) router.refresh();
     else setState("idle");
   }

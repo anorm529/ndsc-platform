@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCouncilUser, hasTreasurerAccess } from "@/lib/council-session";
-import { deleteFeePayment } from "@/lib/treasurer-queries";
+import { voidFeePayment } from "@/lib/treasurer-queries";
 
-export async function DELETE(
-  _req: NextRequest,
+export async function PATCH(
+  req: NextRequest,
   { params }: { params: Promise<{ paymentId: string }> },
 ) {
   const user = await getCouncilUser();
@@ -12,6 +12,13 @@ export async function DELETE(
   }
 
   const { paymentId } = await params;
-  await deleteFeePayment(paymentId);
+  const body = await req.json() as { reason?: string };
+  const reason = body.reason?.trim();
+
+  if (!reason) {
+    return NextResponse.json({ error: "A void reason is required" }, { status: 400 });
+  }
+
+  await voidFeePayment(paymentId, reason, user.id);
   return NextResponse.json({ ok: true });
 }

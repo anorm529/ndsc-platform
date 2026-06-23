@@ -359,23 +359,38 @@ export default async function SeasonFeesPage({ params }: { params: Promise<{ sea
                       {/* Individual payment history */}
                       {feePayments.length > 0 && (
                         <div className="mt-2 space-y-1">
-                          {feePayments.map((p) => (
-                            <div key={p.id} className="flex items-center gap-2 text-[0.72rem] text-[color:var(--muted-foreground)]">
-                              <span className={`rounded px-1.5 py-0.5 text-[0.6rem] font-medium ${PAYMENT_METHOD_STYLES[p.paymentMethod] ?? PAYMENT_METHOD_STYLES.other}`}>
-                                {PAYMENT_METHOD_LABELS[p.paymentMethod] ?? p.paymentMethod}
-                              </span>
-                              <span className="font-medium text-slate-700">{fmt(p.amount)}</span>
-                              <span>{p.paidAt.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}</span>
-                              {p.reference && <span className="text-slate-400">· {p.reference}</span>}
-                              {!isArchived && (
-                                <VoidPaymentButton
-                                  paymentId={p.id}
-                                  paymentMethod={p.paymentMethod}
-                                  amount={p.amount.toFixed(2)}
-                                />
-                              )}
-                            </div>
-                          ))}
+                          {feePayments.map((p) => {
+                            const isVoided = !!p.voidedAt;
+                            return (
+                              <div key={p.id} className="flex flex-wrap items-center gap-2 text-[0.72rem]">
+                                <span className={`rounded px-1.5 py-0.5 text-[0.6rem] font-medium ${isVoided ? "opacity-40" : ""} ${PAYMENT_METHOD_STYLES[p.paymentMethod] ?? PAYMENT_METHOD_STYLES.other}`}>
+                                  {PAYMENT_METHOD_LABELS[p.paymentMethod] ?? p.paymentMethod}
+                                </span>
+                                <span className={isVoided ? "text-slate-400 line-through" : "font-medium text-slate-700"}>
+                                  {fmt(p.amount)}
+                                </span>
+                                <span className={isVoided ? "text-slate-400" : "text-[color:var(--muted-foreground)]"}>
+                                  {p.paidAt.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}
+                                </span>
+                                {p.reference && (
+                                  <span className="text-slate-400">· {p.reference}</span>
+                                )}
+                                {isVoided ? (
+                                  <span className="rounded bg-red-50 px-1.5 py-0.5 text-[0.6rem] font-medium text-[color:var(--danger)]">
+                                    Voided{p.voidReason ? ` — ${p.voidReason}` : ""}
+                                  </span>
+                                ) : (
+                                  !isArchived && (
+                                    <VoidPaymentButton
+                                      paymentId={p.id}
+                                      paymentMethod={p.paymentMethod}
+                                      amount={p.amount.toFixed(2)}
+                                    />
+                                  )
+                                )}
+                              </div>
+                            );
+                          })}
                         </div>
                       )}
 
