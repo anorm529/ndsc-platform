@@ -68,10 +68,11 @@ export function FeeReminderButton({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ playerFeeId, type }),
     });
-    const data = await res.json();
+    let data: { error?: string } = {};
+    try { data = await res.json(); } catch { /* non-JSON response */ }
     setSending(null);
     if (res.ok) setSent(type);
-    else setError(data.error ?? "Failed to send");
+    else setError(data.error ?? `Failed to send (${res.status})`);
   }
 
   return (

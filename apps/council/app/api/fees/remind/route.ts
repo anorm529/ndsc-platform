@@ -11,6 +11,7 @@ const COUNCIL_BASE_URL = process.env.COUNCIL_BASE_URL ?? "http://localhost:3001"
 const STRIPE_LINK_TTL_SECONDS = 7 * 24 * 60 * 60; // 7 days
 
 export async function POST(req: NextRequest) {
+  try {
   const user = await getCouncilUser();
   if (!user || !hasTreasurerAccess(user)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
@@ -127,4 +128,10 @@ export async function POST(req: NextRequest) {
   }
 
   return NextResponse.json({ ok: true });
+
+  } catch (err) {
+    console.error("Fee remind route error:", err);
+    const message = err instanceof Error ? err.message : "Unexpected error";
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
 }
