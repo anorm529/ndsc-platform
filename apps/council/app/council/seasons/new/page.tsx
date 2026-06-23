@@ -3,6 +3,8 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { requireCouncilUser, requireRosterManagementAccess } from "@/lib/council-session";
 import { getAllSeasons, createSeason, type SeasonStatus } from "@/lib/season-queries";
+import { createFeeSeason, syncFeeSeasonActive } from "@/lib/treasurer-queries";
+import { councilQuery } from "@/db/council-db";
 
 export default async function NewSeasonPage() {
   const user = await requireCouncilUser();
@@ -28,6 +30,33 @@ export default async function NewSeasonPage() {
     if (!year || year < 2000 || year > 2100) return;
 
     const id = await createSeason(year, status);
+
+    // Auto-create a draft fee season so the treasurer doesn't have to do it manually.
+    // Skip silently if one already exists for this year (UNIQUE constraint on year).
+    const existing = await councilQuery<{ id: string }>(
+      `SELECT id FROM fee_seasons WHERE year = $1 LIMIT 1`, [year]
+    );
+    if (!existing.rows[0]) {
+      await createFeeSeason({
+        year,
+        label: `${year} Season`,
+        playerFee: 0,
+        rookieFee: 0,
+        umpireFee: 0,
+        mainSeasonId: id,
+      });
+    } else {
+      // Backfill the link if the fee season was created before auto-linking existed.
+      await councilQuery(
+        `UPDATE fee_seasons SET main_season_id = $1 WHERE year = $2 AND main_season_id IS NULL`,
+        [id, year]
+      );
+    }
+
+    if (status === "active") {
+      await syncFeeSeasonActive(year, true);
+    }
+
     redirect(`/council/seasons/${id}`);
   }
 

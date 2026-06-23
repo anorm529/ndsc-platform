@@ -326,13 +326,28 @@ export async function createFeeSeason(data: {
   rookieFee: number;
   umpireFee: number;
   dueDate?: string;
+  mainSeasonId?: string;
 }): Promise<string> {
   const result = await councilQuery<{ id: string }>(
-    `INSERT INTO fee_seasons (year, label, standard_fee, rookie_fee, umpire_fee, due_date)
-     VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
-    [data.year, data.label, data.playerFee, data.rookieFee, data.umpireFee, data.dueDate ?? null]
+    `INSERT INTO fee_seasons (year, label, standard_fee, rookie_fee, umpire_fee, due_date, main_season_id)
+     VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id`,
+    [data.year, data.label, data.playerFee, data.rookieFee, data.umpireFee, data.dueDate ?? null, data.mainSeasonId ?? null]
   );
   return result.rows[0]!.id;
+}
+
+// Called when a playing season is activated or closed to keep fee season in sync.
+// Activating: marks the matching year's fee season active, deactivates all others.
+// Deactivating: marks the matching year's fee season inactive.
+export async function deleteFeeSeasonByMainSeasonId(mainSeasonId: string): Promise<void> {
+  await councilQuery(`DELETE FROM fee_seasons WHERE main_season_id = $1`, [mainSeasonId]);
+}
+
+export async function syncFeeSeasonActive(year: number, active: boolean): Promise<void> {
+  if (active) {
+    await councilQuery(`UPDATE fee_seasons SET is_active = false WHERE year != $1`, [year]);
+  }
+  await councilQuery(`UPDATE fee_seasons SET is_active = $1 WHERE year = $2`, [active, year]);
 }
 
 export async function updateFeeSeason(id: string, data: {

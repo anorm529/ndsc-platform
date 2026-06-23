@@ -4,8 +4,97 @@ import { councilQuery } from "@/db/council-db";
 import { mainQuery } from "@/lib/main-db";
 import { sendCouncilEmail } from "@/lib/email";
 
+type ReminderType = "initial" | "reminder" | "overdue";
+
 function fmt(n: number) {
   return new Intl.NumberFormat("en-GB", { style: "currency", currency: "GBP" }).format(n);
+}
+
+function buildEmail(
+  type: ReminderType,
+  name: string,
+  seasonLabel: string,
+  amountDue: number,
+  amountPaid: number,
+  outstanding: number,
+  dueDateStr: string | null,
+): { subject: string; html: string; text: string } {
+  const headerColour = type === "overdue" ? "#dc2626" : type === "reminder" ? "#d97706" : "#0d9488";
+
+  const intro = {
+    initial:  `Your membership fee for the <strong>${seasonLabel}</strong> season has been set. Here is a breakdown of what you owe${dueDateStr ? ` and when payment is due` : ""}.`,
+    reminder: `This is a friendly reminder that your membership fee for the <strong>${seasonLabel}</strong> season is due soon${dueDateStr ? ` on <strong>${dueDateStr}</strong>` : ""}. You still have an outstanding balance.`,
+    overdue:  `Your membership fee for the <strong>${seasonLabel}</strong> season${dueDateStr ? ` was due on <strong>${dueDateStr}</strong> and` : ""} is now <strong>overdue</strong>. Please note that you are <strong>ineligible for games</strong> until your fees are paid in full.`,
+  }[type];
+
+  const headerTitle = {
+    initial:  "Membership fee notice",
+    reminder: "Membership fee reminder",
+    overdue:  "Membership fee overdue",
+  }[type];
+
+  const subject = {
+    initial:  `Membership fee notice — ${seasonLabel}`,
+    reminder: `Reminder: membership fees due soon — ${seasonLabel}`,
+    overdue:  `Overdue: membership fees — ${seasonLabel}`,
+  }[type];
+
+  const closing = type === "overdue"
+    ? "Please arrange payment as soon as possible to restore your game eligibility. Reply to this email if you have any questions."
+    : "Please arrange payment at your earliest convenience. Reply to this email if you have any questions.";
+
+  const html = `
+    <div style="font-family:Arial,sans-serif;line-height:1.6;color:#1e293b;max-width:580px">
+      <div style="background:${headerColour};padding:18px 24px;border-radius:10px 10px 0 0">
+        <p style="margin:0;color:rgba(255,255,255,0.75);font-size:12px;text-transform:uppercase;letter-spacing:0.08em">North Down Softball Club</p>
+        <p style="margin:4px 0 0;color:#fff;font-size:17px;font-weight:700">${headerTitle}</p>
+      </div>
+      <div style="background:#f8fafc;padding:24px;border-radius:0 0 10px 10px;border:1px solid #e2e8f0;border-top:none">
+        <p>Hi ${name},</p>
+        <p>${intro}</p>
+        <table style="width:100%;border-collapse:collapse;margin:16px 0">
+          <tr>
+            <td style="padding:8px 0;color:#64748b;font-size:13px">Fee</td>
+            <td style="padding:8px 0;text-align:right;font-weight:600">${fmt(amountDue)}</td>
+          </tr>
+          <tr>
+            <td style="padding:8px 0;color:#64748b;font-size:13px">Paid to date</td>
+            <td style="padding:8px 0;text-align:right;font-weight:600">${fmt(amountPaid)}</td>
+          </tr>
+          <tr style="border-top:1px solid #e2e8f0">
+            <td style="padding:8px 0;font-weight:700">Outstanding</td>
+            <td style="padding:8px 0;text-align:right;font-weight:700;color:#dc2626">${fmt(outstanding)}</td>
+          </tr>
+        </table>
+        ${dueDateStr && type !== "overdue" ? `<p style="font-size:13px;color:#64748b">Payment due by <strong>${dueDateStr}</strong>.</p>` : ""}
+        <p>${closing}</p>
+        <p style="margin-top:20px;color:#94a3b8;font-size:12px;border-top:1px solid #e2e8f0;padding-top:16px">
+          North Down Softball Club — Council
+        </p>
+      </div>
+    </div>
+  `;
+
+  const text = [
+    `Hi ${name},`,
+    "",
+    {
+      initial:  `Your membership fee for the ${seasonLabel} season has been set.`,
+      reminder: `This is a friendly reminder that your membership fee for ${seasonLabel} is due soon${dueDateStr ? ` on ${dueDateStr}` : ""}.`,
+      overdue:  `Your membership fee for ${seasonLabel} is now overdue. You are ineligible for games until fees are paid in full.`,
+    }[type],
+    "",
+    `Fee: ${fmt(amountDue)}`,
+    `Paid: ${fmt(amountPaid)}`,
+    `Outstanding: ${fmt(outstanding)}`,
+    dueDateStr && type !== "overdue" ? `\nPayment due by ${dueDateStr}.` : "",
+    "",
+    closing,
+    "",
+    "— North Down Softball Club Council",
+  ].filter((l) => l !== undefined).join("\n");
+
+  return { subject, html, text };
 }
 
 export async function POST(req: NextRequest) {
@@ -14,12 +103,17 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const { playerFeeId } = await req.json() as { playerFeeId?: string };
+  const body = await req.json() as { playerFeeId?: string; type?: string };
+  const { playerFeeId } = body;
+  const type = (body.type ?? "reminder") as ReminderType;
+
   if (!playerFeeId) {
     return NextResponse.json({ error: "playerFeeId required" }, { status: 400 });
   }
+  if (!["initial", "reminder", "overdue"].includes(type)) {
+    return NextResponse.json({ error: "Invalid type" }, { status: 400 });
+  }
 
-  // Get fee record
   const feeRes = await councilQuery<{
     user_id: string;
     player_name: string;
@@ -48,7 +142,6 @@ export async function POST(req: NextRequest) {
   const amountPaid = parseFloat(fee.amount_paid);
   const outstanding = amountDue - amountPaid;
 
-  // Look up the player's email in the main DB
   const userRes = await mainQuery<{ email: string }>(
     `SELECT email FROM users WHERE id = $1 AND account_status = 'active'`,
     [fee.user_id]
@@ -63,47 +156,10 @@ export async function POST(req: NextRequest) {
     ? new Date(fee.due_date).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })
     : null;
 
-  const html = `
-    <div style="font-family:Arial,sans-serif;line-height:1.6;color:#1e293b;max-width:580px">
-      <div style="background:#0d9488;padding:18px 24px;border-radius:10px 10px 0 0">
-        <p style="margin:0;color:rgba(255,255,255,0.75);font-size:12px;text-transform:uppercase;letter-spacing:0.08em">North Down Softball Club</p>
-        <p style="margin:4px 0 0;color:#fff;font-size:17px;font-weight:700">Membership fee reminder</p>
-      </div>
-      <div style="background:#f8fafc;padding:24px;border-radius:0 0 10px 10px;border:1px solid #e2e8f0;border-top:none">
-        <p>Hi ${fee.player_name},</p>
-        <p>This is a friendly reminder that your membership fee for the <strong>${fee.season_label}</strong> season is outstanding.</p>
-        <table style="width:100%;border-collapse:collapse;margin:16px 0">
-          <tr>
-            <td style="padding:8px 0;color:#64748b;font-size:13px">Fee</td>
-            <td style="padding:8px 0;text-align:right;font-weight:600">${fmt(amountDue)}</td>
-          </tr>
-          <tr>
-            <td style="padding:8px 0;color:#64748b;font-size:13px">Paid to date</td>
-            <td style="padding:8px 0;text-align:right;font-weight:600">${fmt(amountPaid)}</td>
-          </tr>
-          <tr style="border-top:1px solid #e2e8f0">
-            <td style="padding:8px 0;font-weight:700">Outstanding</td>
-            <td style="padding:8px 0;text-align:right;font-weight:700;color:#dc2626">${fmt(outstanding)}</td>
-          </tr>
-        </table>
-        ${dueDateStr ? `<p style="color:#dc2626;font-size:13px">Payment due by ${dueDateStr}.</p>` : ""}
-        <p>Please arrange payment at your earliest convenience. Reply to this email if you have any questions.</p>
-        <p style="margin-top:20px;color:#94a3b8;font-size:12px;border-top:1px solid #e2e8f0;padding-top:16px">
-          North Down Softball Club — Council
-        </p>
-      </div>
-    </div>
-  `;
-
-  const text = `Hi ${fee.player_name},\n\nThis is a friendly reminder that your membership fee for ${fee.season_label} is outstanding.\n\nFee: ${fmt(amountDue)}\nPaid: ${fmt(amountPaid)}\nOutstanding: ${fmt(outstanding)}\n${dueDateStr ? `\nPayment due by ${dueDateStr}.\n` : ""}\nPlease arrange payment at your earliest convenience.\n\n— North Down Softball Club Council`;
+  const { subject, html, text } = buildEmail(type, fee.player_name, fee.season_label, amountDue, amountPaid, outstanding, dueDateStr);
 
   try {
-    await sendCouncilEmail({
-      to: email,
-      subject: `Membership fee reminder — ${fee.season_label}`,
-      html,
-      text,
-    });
+    await sendCouncilEmail({ to: email, subject, html, text });
   } catch (err) {
     console.error("Fee reminder email error:", err);
     return NextResponse.json({ error: "Failed to send email" }, { status: 500 });

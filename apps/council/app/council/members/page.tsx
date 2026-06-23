@@ -70,7 +70,7 @@ export default async function MembersPage() {
   const noLogin = visiblePlayers.filter((p) => !p.userId).length;
 
   return (
-    <div className="max-w-4xl space-y-6">
+    <div className="max-w-3xl space-y-6">
       <div className="flex flex-wrap items-center gap-4">
         <div className="flex items-center gap-3">
           <Users className="h-5 w-5 text-[color:var(--accent)]" />
@@ -183,13 +183,13 @@ function PlayerList({ players, profileMap, feeStatusMap, canToggle, flaggedIds }
   flaggedIds: Set<string>;
 }) {
   const colTemplate = canToggle
-    ? "grid-cols-[2rem_1fr_3rem_5rem_5rem_5.5rem_6rem]"
-    : "grid-cols-[2rem_1fr_3rem_5rem_5rem_5.5rem]";
+    ? "grid-cols-[2rem_1fr_3rem_4.5rem_4.5rem_5rem_5.5rem]"
+    : "grid-cols-[2rem_1fr_3rem_4.5rem_4.5rem_5rem]";
 
   return (
     <div>
       {/* Column headers */}
-      <div className={`mb-2 hidden ${colTemplate} items-center gap-4 px-1 sm:grid`}>
+      <div className={`mb-2 hidden ${colTemplate} items-center gap-3 px-1 sm:grid`}>
         <div />
         <span className="text-[0.65rem] font-semibold uppercase tracking-wider text-[color:var(--muted-foreground)]">Player</span>
         <span className="text-center text-[0.65rem] font-semibold uppercase tracking-wider text-[color:var(--muted-foreground)]">Gender</span>
@@ -210,7 +210,7 @@ function PlayerList({ players, profileMap, feeStatusMap, canToggle, flaggedIds }
           return (
             <li key={p.playerId} className="py-3">
               {/* Desktop: column grid */}
-              <div className={`hidden ${colTemplate} items-center gap-4 sm:grid`}>
+              <div className={`hidden ${colTemplate} items-center gap-3 sm:grid`}>
                 {/* Avatar */}
                 <div className={[
                   "flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[0.8rem] font-semibold",

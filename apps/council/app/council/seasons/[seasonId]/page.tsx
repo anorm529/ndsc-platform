@@ -7,7 +7,7 @@ import { requireCouncilUser, hasRosterManagementAccess } from "@/lib/council-ses
 import { mainQuery } from "@/lib/main-db";
 import {
   getSeasonById, getSeasonEnrollments, getAllTeams, updateSeasonStatus, setTransfersLocked,
-  archiveSeasonStats, getActiveSeason,
+  archiveSeasonStats, getActiveSeason, deleteSeason, getUnenrolledActivePlayers,
   type SeasonRow, type SeasonStatus, type EnrollmentRow,
 } from "@/lib/season-queries";
 import {
@@ -15,7 +15,7 @@ import {
   takeSeasonArchiveSnapshot,
   type PlayerProfile, type PlayerFeeStatus,
 } from "@/lib/council-queries";
-import { getUnenrolledActivePlayers } from "@/lib/season-queries";
+import { syncFeeSeasonActive, deleteFeeSeasonByMainSeasonId } from "@/lib/treasurer-queries";
 import { UnenrollButton } from "./unenroll-button";
 import { AddPlayerForm } from "./add-player-form";
 
@@ -138,6 +138,14 @@ export default async function SeasonDetailPage({
 
     await updateSeasonStatus(seasonId, to);
 
+    // Keep the fee season in sync: activating a playing season marks the
+    // matching fee season active; closing/archiving marks it inactive.
+    if (to === "active") {
+      await syncFeeSeasonActive(season!.year, true);
+    } else if (to === "closed" || to === "archived") {
+      await syncFeeSeasonActive(season!.year, false);
+    }
+
     const transitionAction: Record<string, string> = {
       active:   season!.status === "closed" ? "season.reopen" : "season.activate",
       closed:   "season.close",
@@ -161,6 +169,16 @@ export default async function SeasonDetailPage({
     const lock = formData.get("lock") === "true";
     await setTransfersLocked(seasonId, lock);
     redirect("/council/seasons/" + seasonId);
+  }
+
+  async function handleDelete() {
+    "use server";
+    const u = await requireCouncilUser();
+    if (!u.isOwner) redirect("/council/seasons/" + seasonId);
+    if (season!.status !== "draft") redirect("/council/seasons/" + seasonId);
+    await deleteFeeSeasonByMainSeasonId(seasonId);
+    await deleteSeason(seasonId);
+    redirect("/council/seasons");
   }
 
   return (
@@ -291,6 +309,23 @@ export default async function SeasonDetailPage({
                     </button>
                   </form>
                 </div>
+              </div>
+            )}
+
+            {/* Delete — draft only, no enrollments */}
+            {season.status === "draft" && (
+              <div className="flex items-center justify-between gap-3 border-t border-[color:var(--border)] pt-3">
+                <p className="text-[0.75rem] text-[color:var(--muted-foreground)]">
+                  Permanently delete this draft season and its fee season. Cannot be undone.
+                </p>
+                <form action={handleDelete}>
+                  <button
+                    type="submit"
+                    className="rounded-xl border border-[rgba(239,68,68,0.3)] px-4 py-2 text-[0.82rem] font-medium text-[color:var(--danger)] hover:bg-[rgba(239,68,68,0.06)]"
+                  >
+                    Delete season
+                  </button>
+                </form>
               </div>
             )}
 

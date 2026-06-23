@@ -114,6 +114,10 @@ export async function getActiveSeason(): Promise<{ id: string; year: number } | 
   return result.rows[0] ?? null;
 }
 
+export async function deleteSeason(id: string): Promise<void> {
+  await mainQuery(`DELETE FROM seasons WHERE id = $1`, [id]);
+}
+
 export async function updateSeasonStatus(id: string, status: SeasonStatus): Promise<void> {
   if (status === "active") {
     await mainQuery(`UPDATE seasons SET is_active = false WHERE id != $1`, [id]);

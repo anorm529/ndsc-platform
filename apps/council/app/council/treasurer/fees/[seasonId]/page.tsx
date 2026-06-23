@@ -6,6 +6,7 @@ import {
   getFeeSeasonById,
   getPlayerFeesForSeason,
   recordFeePayment,
+  updateFeeSeason,
   type FeeType,
 } from "@/lib/treasurer-queries";
 import { getAllActivePlayers } from "@/lib/main-db";
@@ -54,6 +55,21 @@ export default async function SeasonFeesPage({ params }: { params: Promise<{ sea
     .filter((p) => !existingPlayerIds.has(p.playerId))
     .map((p) => ({ ...p, profile: profileMap.get(p.playerId) ?? null }));
 
+  async function handleUpdateRates(formData: FormData) {
+    "use server";
+    await requireCouncilUser();
+    const playerFee = parseFloat(String(formData.get("player_fee") ?? "0"));
+    const rookieFee = parseFloat(String(formData.get("rookie_fee") ?? "0"));
+    const umpireFee = parseFloat(String(formData.get("umpire_fee") ?? "0"));
+    const dueDate   = String(formData.get("due_date") ?? "").trim();
+    await updateFeeSeason(seasonId, {
+      label: season!.label,
+      playerFee, rookieFee, umpireFee,
+      dueDate: dueDate || undefined,
+    });
+    redirect(`/council/treasurer/fees/${seasonId}`);
+  }
+
   async function handleRecordPayment(formData: FormData) {
     "use server";
     const u = await requireCouncilUser();
@@ -99,24 +115,69 @@ export default async function SeasonFeesPage({ params }: { params: Promise<{ sea
           )}
         </div>
 
-        {/* Fee rates */}
-        <div className="mt-4 flex flex-wrap gap-2">
-          <span className="flex items-center gap-1.5 rounded-lg bg-[rgba(20,184,166,0.08)] px-3 py-1.5 text-[0.75rem]">
-            <PoundSterling className="h-3 w-3 text-[color:var(--accent)]" />
-            <span className="text-[color:var(--muted-foreground)]">Player</span>
-            <span className="font-semibold text-slate-800">{fmt(season.playerFee)}</span>
-          </span>
-          <span className="flex items-center gap-1.5 rounded-lg bg-amber-50 px-3 py-1.5 text-[0.75rem]">
-            <PoundSterling className="h-3 w-3 text-amber-500" />
-            <span className="text-amber-600">Rookie</span>
-            <span className="font-semibold text-amber-800">{fmt(season.rookieFee)}</span>
-          </span>
-          <span className="flex items-center gap-1.5 rounded-lg bg-blue-50 px-3 py-1.5 text-[0.75rem]">
-            <PoundSterling className="h-3 w-3 text-blue-500" />
-            <span className="text-blue-600">Umpire</span>
-            <span className="font-semibold text-blue-800">{fmt(season.umpireFee)}</span>
-          </span>
-        </div>
+        {/* Fee rates — always editable */}
+        {season.playerFee === 0 && season.rookieFee === 0 && (
+          <p className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-[0.75rem] text-amber-700">
+            Fee rates are not set. Update them below before adding players.
+          </p>
+        )}
+        <form action={handleUpdateRates} className="mt-4 space-y-3">
+          <div className="grid gap-3 sm:grid-cols-3">
+            <label className="block">
+              <span className="mb-1 block text-[0.72rem] font-medium text-[color:var(--muted-foreground)]">Player fee (£)</span>
+              <input
+                name="player_fee"
+                type="number"
+                step="0.01"
+                min="0"
+                defaultValue={season.playerFee}
+                required
+                className="w-full rounded-xl border border-[color:var(--border)] bg-white px-3 py-2 text-[0.85rem] text-slate-800 outline-none focus:border-[color:var(--border-strong)]"
+              />
+            </label>
+            <label className="block">
+              <span className="mb-1 block text-[0.72rem] font-medium text-[color:var(--muted-foreground)]">Rookie fee (£)</span>
+              <input
+                name="rookie_fee"
+                type="number"
+                step="0.01"
+                min="0"
+                defaultValue={season.rookieFee}
+                required
+                className="w-full rounded-xl border border-[color:var(--border)] bg-white px-3 py-2 text-[0.85rem] text-slate-800 outline-none focus:border-[color:var(--border-strong)]"
+              />
+            </label>
+            <label className="block">
+              <span className="mb-1 block text-[0.72rem] font-medium text-[color:var(--muted-foreground)]">Umpire fee (£)</span>
+              <input
+                name="umpire_fee"
+                type="number"
+                step="0.01"
+                min="0"
+                defaultValue={season.umpireFee}
+                required
+                className="w-full rounded-xl border border-[color:var(--border)] bg-white px-3 py-2 text-[0.85rem] text-slate-800 outline-none focus:border-[color:var(--border-strong)]"
+              />
+            </label>
+          </div>
+          <div className="flex items-end gap-3">
+            <label className="block flex-1">
+              <span className="mb-1 block text-[0.72rem] font-medium text-[color:var(--muted-foreground)]">Due date</span>
+              <input
+                name="due_date"
+                type="date"
+                defaultValue={season.dueDate ?? ""}
+                className="w-full rounded-xl border border-[color:var(--border)] bg-white px-3 py-2 text-[0.85rem] text-slate-800 outline-none focus:border-[color:var(--border-strong)]"
+              />
+            </label>
+            <button
+              type="submit"
+              className="rounded-xl bg-[linear-gradient(180deg,#0d9488_0%,#0f766e_100%)] px-4 py-2 text-[0.82rem] font-medium text-white hover:brightness-105"
+            >
+              Save rates
+            </button>
+          </div>
+        </form>
 
         {/* Collection summary */}
         <div className="mt-5 grid grid-cols-3 gap-4">
