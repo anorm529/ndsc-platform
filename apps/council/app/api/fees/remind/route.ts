@@ -36,15 +36,19 @@ export async function POST(req: NextRequest) {
     amount_paid: string;
     season_label: string;
     due_date: string | null;
+    stripe_session_id: string | null;
+    stripe_link_expires_at: Date | null;
   }>(
     `SELECT pf.user_id, pf.player_name, pf.fee_type, pf.season_id,
             pf.amount_due::text, COALESCE(SUM(fp.amount), 0)::text AS amount_paid,
-            fs.label AS season_label, fs.due_date::text
+            fs.label AS season_label, fs.due_date::text,
+            pf.stripe_session_id, pf.stripe_link_expires_at
      FROM player_fees pf
      JOIN fee_seasons fs ON fs.id = pf.season_id
      LEFT JOIN fee_payments fp ON fp.player_fee_id = pf.id
      WHERE pf.id = $1
-     GROUP BY pf.user_id, pf.player_name, pf.fee_type, pf.season_id, pf.amount_due, fs.label, fs.due_date`,
+     GROUP BY pf.user_id, pf.player_name, pf.fee_type, pf.season_id, pf.amount_due,
+              fs.label, fs.due_date, pf.stripe_session_id, pf.stripe_link_expires_at`,
     [playerFeeId]
   );
 
@@ -67,6 +71,16 @@ export async function POST(req: NextRequest) {
   }
 
   const email = userRes.rows[0].email;
+
+  // Cancel the previous Stripe session if it's still active, to avoid stale duplicate links
+  if (fee.stripe_session_id && fee.stripe_link_expires_at && fee.stripe_link_expires_at > new Date()) {
+    try {
+      await stripe.checkout.sessions.expire(fee.stripe_session_id);
+    } catch {
+      // Session may already be paid/cancelled — safe to ignore
+    }
+  }
+
   const dueDateStr = fee.due_date
     ? new Date(fee.due_date).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })
     : null;
@@ -94,16 +108,11 @@ export async function POST(req: NextRequest) {
       playerName: fee.player_name,
       seasonId: fee.season_id,
     },
-    success_url: `${COUNCIL_BASE_URL}/payment-confirmed`,
+    success_url: `${COUNCIL_BASE_URL}/payment-confirmed?name=${encodeURIComponent(fee.player_name)}&amount=${outstanding.toFixed(2)}`,
     cancel_url: `${COUNCIL_BASE_URL}/treasurer/fees/${fee.season_id}`,
   });
 
-  // Record when this link was sent and when it expires so the UI can show status
-  await updatePlayerFeeStripeLink(
-    playerFeeId,
-    new Date(),
-    new Date(expiresAt * 1000),
-  );
+  await updatePlayerFeeStripeLink(playerFeeId, new Date(), new Date(expiresAt * 1000), session.id);
 
   const { subject, html, text } = buildFeeEmail(
     type, fee.player_name, fee.season_label,

@@ -9,6 +9,12 @@ import { buildFeeEmail, type ReminderType } from "@/lib/fee-emails";
 
 const COUNCIL_BASE_URL = process.env.COUNCIL_BASE_URL ?? "http://localhost:3001";
 const STRIPE_LINK_TTL_SECONDS = 7 * 24 * 60 * 60;
+const BATCH_SIZE = 10;
+const BATCH_DELAY_MS = 1000;
+
+function sleep(ms: number) {
+  return new Promise<void>((r) => setTimeout(r, ms));
+}
 
 export async function POST(req: NextRequest) {
   const user = await getCouncilUser();
@@ -25,7 +31,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid type" }, { status: 400 });
   }
 
-  // Get all player fees for the season that still have an outstanding balance
+  // All outstanding player fees for the season, including existing Stripe session state
   const feesRes = await councilQuery<{
     id: string;
     user_id: string | null;
@@ -36,16 +42,20 @@ export async function POST(req: NextRequest) {
     amount_paid: string;
     season_label: string;
     due_date: string | null;
+    stripe_session_id: string | null;
+    stripe_link_expires_at: Date | null;
   }>(
     `SELECT pf.id, pf.user_id, pf.player_name, pf.fee_type, pf.season_id,
             pf.amount_due::text, COALESCE(SUM(fp.amount), 0)::text AS amount_paid,
-            fs.label AS season_label, fs.due_date::text
+            fs.label AS season_label, fs.due_date::text,
+            pf.stripe_session_id, pf.stripe_link_expires_at
      FROM player_fees pf
      JOIN fee_seasons fs ON fs.id = pf.season_id
      LEFT JOIN fee_payments fp ON fp.player_fee_id = pf.id
      WHERE pf.season_id = $1
      GROUP BY pf.id, pf.user_id, pf.player_name, pf.fee_type, pf.season_id,
-              pf.amount_due, fs.label, fs.due_date
+              pf.amount_due, fs.label, fs.due_date,
+              pf.stripe_session_id, pf.stripe_link_expires_at
      HAVING pf.amount_due > COALESCE(SUM(fp.amount), 0)`,
     [seasonId]
   );
@@ -53,7 +63,7 @@ export async function POST(req: NextRequest) {
   const fees = feesRes.rows;
   if (fees.length === 0) return NextResponse.json({ sent: 0, skipped: 0, errors: [] });
 
-  // Batch-resolve active accounts in one query
+  // Batch-resolve active accounts
   const userIds = fees.map((f) => f.user_id).filter(Boolean) as string[];
   const activeEmailMap = new Map<string, string>();
   if (userIds.length > 0) {
@@ -68,7 +78,14 @@ export async function POST(req: NextRequest) {
   let skipped = 0;
   const errors: string[] = [];
 
-  for (const fee of fees) {
+  for (let i = 0; i < fees.length; i++) {
+    const fee = fees[i];
+
+    // Pause between batches to stay within email provider rate limits
+    if (i > 0 && i % BATCH_SIZE === 0) {
+      await sleep(BATCH_DELAY_MS);
+    }
+
     if (!fee.user_id || !activeEmailMap.has(fee.user_id)) {
       skipped++;
       continue;
@@ -80,6 +97,15 @@ export async function POST(req: NextRequest) {
     const outstanding = amountDue - amountPaid;
 
     try {
+      // Cancel existing active session before creating a fresh one
+      if (fee.stripe_session_id && fee.stripe_link_expires_at && fee.stripe_link_expires_at > new Date()) {
+        try {
+          await stripe.checkout.sessions.expire(fee.stripe_session_id);
+        } catch {
+          // Already paid/expired — safe to ignore
+        }
+      }
+
       const feeTypeLabel = fee.fee_type === "rookie" ? "Rookie fee" : fee.fee_type === "umpire" ? "Umpire fee" : "Player fee";
       const expiresAt = Math.floor(Date.now() / 1000) + STRIPE_LINK_TTL_SECONDS;
 
@@ -103,11 +129,11 @@ export async function POST(req: NextRequest) {
           playerName: fee.player_name,
           seasonId: fee.season_id,
         },
-        success_url: `${COUNCIL_BASE_URL}/payment-confirmed`,
+        success_url: `${COUNCIL_BASE_URL}/payment-confirmed?name=${encodeURIComponent(fee.player_name)}&amount=${outstanding.toFixed(2)}`,
         cancel_url: `${COUNCIL_BASE_URL}/treasurer/fees/${fee.season_id}`,
       });
 
-      await updatePlayerFeeStripeLink(fee.id, new Date(), new Date(expiresAt * 1000));
+      await updatePlayerFeeStripeLink(fee.id, new Date(), new Date(expiresAt * 1000), session.id);
 
       const dueDateStr = fee.due_date
         ? new Date(fee.due_date).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })

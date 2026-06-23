@@ -5,6 +5,7 @@ import { requireCouncilUser, requireTreasurerAccess } from "@/lib/council-sessio
 import {
   getFeeSeasonById,
   getPlayerFeesForSeason,
+  getPaymentsForSeason,
   recordFeePayment,
   updateFeeSeason,
   type FeeType,
@@ -15,6 +16,8 @@ import { getEnrolledPlayerIds } from "@/lib/season-queries";
 import { AddPlayerForm } from "./add-player-form";
 import { FeeReminderButton } from "./fee-reminder-button";
 import { BulkSendButton } from "./bulk-send-button";
+import { RemovePlayerButton } from "./remove-player-button";
+import { VoidPaymentButton } from "./void-payment-button";
 
 function fmt(n: number) {
   return new Intl.NumberFormat("en-GB", { style: "currency", currency: "GBP" }).format(n);
@@ -34,19 +37,41 @@ const FEE_TYPE_LABELS: Record<FeeType, string> = {
   custom: "Custom",
 };
 
+const PAYMENT_METHOD_STYLES: Record<string, string> = {
+  stripe:        "bg-[rgba(20,184,166,0.1)] text-[color:var(--accent)]",
+  bank_transfer: "bg-blue-50 text-blue-700",
+  cash:          "bg-green-50 text-green-700",
+  other:         "bg-[rgba(115,145,176,0.1)] text-[color:var(--muted-foreground)]",
+};
+
+const PAYMENT_METHOD_LABELS: Record<string, string> = {
+  stripe:        "Stripe",
+  bank_transfer: "Bank transfer",
+  cash:          "Cash",
+  other:         "Other",
+};
+
 export default async function SeasonFeesPage({ params }: { params: Promise<{ seasonId: string }> }) {
   const { seasonId } = await params;
   const user = await requireCouncilUser();
   await requireTreasurerAccess(user);
 
-  const [season, playerFees, allPlayers, profileMap] = await Promise.all([
+  const [season, playerFees, allPayments, allPlayers, profileMap] = await Promise.all([
     getFeeSeasonById(seasonId),
     getPlayerFeesForSeason(seasonId),
+    getPaymentsForSeason(seasonId),
     getAllActivePlayers(),
     getPlayerProfiles(),
   ]);
 
   if (!season) notFound();
+
+  // Group payments by player fee ID for inline display
+  const paymentsByFee = new Map<string, typeof allPayments>();
+  for (const p of allPayments) {
+    if (!paymentsByFee.has(p.playerFeeId)) paymentsByFee.set(p.playerFeeId, []);
+    paymentsByFee.get(p.playerFeeId)!.push(p);
+  }
 
   // Resolve enrolled players and playing season status in parallel
   const [enrolledPlayerIds, playingSeasonRes] = await Promise.all([
@@ -298,6 +323,7 @@ export default async function SeasonFeesPage({ params }: { params: Promise<{ sea
               const overdue = !fullyPaid && season.dueDate && new Date(season.dueDate) < new Date();
               const hasAccount = pf.userId ? activeUserIds.has(pf.userId) : false;
               const stripeLinkExpiresAt = pf.stripeLinkExpiresAt?.toISOString() ?? null;
+              const feePayments = paymentsByFee.get(pf.id) ?? [];
 
               return (
                 <div key={pf.id} className={[
@@ -330,10 +356,27 @@ export default async function SeasonFeesPage({ params }: { params: Promise<{ sea
                         </span>
                       </div>
 
-                      {pf.amountPaid > 0 && (
-                        <p className="mt-0.5 text-[0.7rem] text-[color:var(--muted-foreground)]">
-                          {fmt(pf.amountPaid)} paid · {fmt(Math.max(0, remaining))} remaining
-                        </p>
+                      {/* Individual payment history */}
+                      {feePayments.length > 0 && (
+                        <div className="mt-2 space-y-1">
+                          {feePayments.map((p) => (
+                            <div key={p.id} className="flex items-center gap-2 text-[0.72rem] text-[color:var(--muted-foreground)]">
+                              <span className={`rounded px-1.5 py-0.5 text-[0.6rem] font-medium ${PAYMENT_METHOD_STYLES[p.paymentMethod] ?? PAYMENT_METHOD_STYLES.other}`}>
+                                {PAYMENT_METHOD_LABELS[p.paymentMethod] ?? p.paymentMethod}
+                              </span>
+                              <span className="font-medium text-slate-700">{fmt(p.amount)}</span>
+                              <span>{p.paidAt.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}</span>
+                              {p.reference && <span className="text-slate-400">· {p.reference}</span>}
+                              {!isArchived && (
+                                <VoidPaymentButton
+                                  paymentId={p.id}
+                                  paymentMethod={p.paymentMethod}
+                                  amount={p.amount.toFixed(2)}
+                                />
+                              )}
+                            </div>
+                          ))}
+                        </div>
                       )}
 
                       {!fullyPaid && (
@@ -378,6 +421,13 @@ export default async function SeasonFeesPage({ params }: { params: Promise<{ sea
                             hasAccount={hasAccount}
                             stripeLinkExpiresAt={stripeLinkExpiresAt}
                           />
+                        </div>
+                      )}
+
+                      {/* Remove from season — only if no payments have been recorded */}
+                      {!isArchived && feePayments.length === 0 && (
+                        <div className="mt-2 border-t border-[color:var(--border)] pt-2">
+                          <RemovePlayerButton playerFeeId={pf.id} playerName={pf.playerName} />
                         </div>
                       )}
                     </div>
