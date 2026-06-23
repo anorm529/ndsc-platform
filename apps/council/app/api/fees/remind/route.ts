@@ -8,7 +8,7 @@ import { updatePlayerFeeStripeLink } from "@/lib/treasurer-queries";
 import { buildFeeEmail, type ReminderType } from "@/lib/fee-emails";
 
 const COUNCIL_BASE_URL = process.env.COUNCIL_BASE_URL ?? "http://localhost:3001";
-const STRIPE_LINK_TTL_SECONDS = 7 * 24 * 60 * 60; // 7 days
+const STRIPE_LINK_TTL_SECONDS = 23 * 60 * 60; // 23 h (Stripe max is 24 h)
 
 export async function POST(req: NextRequest) {
   try {
@@ -92,7 +92,6 @@ export async function POST(req: NextRequest) {
   const session = await stripe.checkout.sessions.create({
     mode: "payment",
     customer_email: email,
-    expires_at: expiresAt,
     line_items: [{
       price_data: {
         currency: "gbp",
