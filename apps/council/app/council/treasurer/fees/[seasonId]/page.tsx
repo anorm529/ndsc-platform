@@ -439,8 +439,8 @@ export default async function SeasonFeesPage({ params }: { params: Promise<{ sea
                         </div>
                       )}
 
-                      {/* Remove from season — only if no payments have been recorded */}
-                      {!isArchived && feePayments.length === 0 && (
+                      {/* Remove from season — only blocked by real (non-voided) payments */}
+                      {!isArchived && feePayments.filter((p) => !p.voidedAt).length === 0 && (
                         <div className="mt-2 border-t border-[color:var(--border)] pt-2">
                           <RemovePlayerButton playerFeeId={pf.id} playerName={pf.playerName} />
                         </div>

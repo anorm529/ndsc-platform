@@ -14,14 +14,15 @@ export async function DELETE(
 
   const { playerFeeId } = await params;
 
-  // Block removal if any payments have been recorded against this player fee
+  // Block removal only if real (non-voided) payments exist — voided records
+  // carry no financial weight and will be cascade-deleted with the player fee row.
   const paymentCheck = await councilQuery<{ count: string }>(
-    `SELECT COUNT(*)::text AS count FROM fee_payments WHERE player_fee_id = $1`,
+    `SELECT COUNT(*)::text AS count FROM fee_payments WHERE player_fee_id = $1 AND voided_at IS NULL`,
     [playerFeeId]
   );
   if (parseInt(paymentCheck.rows[0]?.count ?? "0") > 0) {
     return NextResponse.json(
-      { error: "Cannot remove a player who has recorded payments. Void all payments first." },
+      { error: "Cannot remove a player who has unvoided payments. Void all payments first." },
       { status: 409 }
     );
   }
