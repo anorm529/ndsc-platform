@@ -107,6 +107,13 @@ export async function createSeason(year: number, status: SeasonStatus = "draft")
   return result.rows[0]!.id;
 }
 
+export async function getActiveSeason(): Promise<{ id: string; year: number } | null> {
+  const result = await mainQuery<{ id: string; year: number }>(
+    `SELECT id, year FROM seasons WHERE status = 'active' LIMIT 1`
+  );
+  return result.rows[0] ?? null;
+}
+
 export async function updateSeasonStatus(id: string, status: SeasonStatus): Promise<void> {
   if (status === "active") {
     await mainQuery(`UPDATE seasons SET is_active = false WHERE id != $1`, [id]);
@@ -115,6 +122,13 @@ export async function updateSeasonStatus(id: string, status: SeasonStatus): Prom
     `UPDATE seasons SET status = $1, is_active = $2 WHERE id = $3`,
     [status, status === "active", id]
   );
+}
+
+// Refresh the season stats summary from per-game data, then move them into the
+// archive table. Called automatically when a season transitions to "archived".
+export async function archiveSeasonStats(year: number, userId: string): Promise<void> {
+  await mainQuery("SELECT refresh_player_season_stats($1)", [year]);
+  await mainQuery("SELECT archive_player_season_stats($1, $2)", [year, userId]);
 }
 
 export async function setTransfersLocked(id: string, locked: boolean): Promise<void> {
@@ -221,6 +235,7 @@ export async function getPreviousSeasonPlayers(currentYear: number): Promise<Pre
     playerId: r.player_id,
     displayName: r.display_name,
     gender: r.gender,
+    active: true,
     userId: r.user_id,
     email: r.email,
     accountStatus: r.account_status,
@@ -256,6 +271,7 @@ export async function getUnenrolledActivePlayers(seasonId: string): Promise<Play
     playerId: r.player_id,
     displayName: r.display_name,
     gender: r.gender,
+    active: true,
     userId: r.user_id,
     email: r.email,
     accountStatus: r.account_status,
@@ -400,12 +416,11 @@ export async function assignToTeam(
 // ─── Player creation ──────────────────────────────────────────────────────────
 
 export async function createPlayer(displayName: string, gender?: string): Promise<string> {
-  const normalized = displayName.trim().toLowerCase().replace(/\s+/g, " ");
   const result = await mainQuery<{ id: string }>(
-    `INSERT INTO players (display_name, normalized_name, gender, active)
-     VALUES ($1, $2, $3, true)
+    `INSERT INTO players (display_name, gender, active)
+     VALUES ($1, $2, true)
      RETURNING id`,
-    [displayName.trim(), normalized, gender ?? "Unknown"]
+    [displayName.trim(), gender ?? "Unknown"]
   );
   return result.rows[0]!.id;
 }

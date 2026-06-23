@@ -3,6 +3,7 @@ import { UserCheck, UserX, Link2, AlertCircle, CheckCircle2, Clock } from "lucid
 import { requireCouncilUser } from "@/lib/council-session";
 import { getPendingAccounts } from "@/lib/account-queries";
 import { AccountActions } from "./account-actions";
+import { ResendVerificationButton } from "./resend-verification-button";
 
 const ELEVATED = new Set(["chairman", "vice_chair"]);
 
@@ -110,7 +111,7 @@ export default async function AccountsPage() {
           <div className="space-y-2">
             {unverified.map((account) => (
               <div key={account.id} className="flex flex-wrap items-center gap-3 rounded-xl border border-[color:var(--border)] bg-slate-50/50 p-3">
-                <AlertCircle className="h-4 w-4 shrink-0 text-[color:var(--muted-foreground)]" />
+                <AlertCircle className="h-4 w-4 shrink-0 text-amber-500" />
                 <div className="flex-1 min-w-0">
                   <p className="text-[0.85rem] font-medium text-slate-700 truncate">
                     {account.registrationName ?? account.email.split("@")[0]}
@@ -120,7 +121,7 @@ export default async function AccountsPage() {
                 <span className="text-[0.7rem] text-[color:var(--muted-foreground)]">
                   {account.createdAt.toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
                 </span>
-                <AccountActions account={account} mode="approve-deny" />
+                <ResendVerificationButton userId={account.id} />
               </div>
             ))}
           </div>

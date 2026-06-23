@@ -8,16 +8,17 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const { teamId, seasonId, opponent, scheduledAt, homeAway, location } = await req.json() as {
+  const { teamId, seasonId, opponent, scheduledAt, homeAway, location, latitude, longitude } = await req.json() as {
     teamId?: string; seasonId?: string; opponent?: string;
     scheduledAt?: string; homeAway?: string; location?: string;
+    latitude?: number | null; longitude?: number | null;
   };
 
   if (!teamId || !seasonId || !opponent || !scheduledAt || !homeAway) {
     return NextResponse.json({ error: "teamId, seasonId, opponent, scheduledAt, homeAway required" }, { status: 400 });
   }
 
-  const id = await createFixture({ teamId, seasonId, opponent, scheduledAt, homeAway, location });
+  const id = await createFixture({ teamId, seasonId, opponent, scheduledAt, homeAway, location, latitude, longitude });
   return NextResponse.json({ id });
 }
 

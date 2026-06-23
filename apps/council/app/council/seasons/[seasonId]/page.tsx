@@ -1,13 +1,14 @@
 import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import {
-  ArrowLeft, Trophy, Users, CheckCircle2, Archive, Lock, Pencil,
-  UserPlus, ChevronRight,
+  ArrowLeft, Trophy, Users, UserPlus, ChevronRight,
 } from "lucide-react";
-import { requireCouncilUser, hasRosterManagementAccess, type CouncilUser } from "@/lib/council-session";
+import { requireCouncilUser, hasRosterManagementAccess } from "@/lib/council-session";
+import { mainQuery } from "@/lib/main-db";
 import {
   getSeasonById, getSeasonEnrollments, getAllTeams, updateSeasonStatus, setTransfersLocked,
-  type SeasonRow, type SeasonStatus, type EnrollmentRow, type TeamRow,
+  archiveSeasonStats, getActiveSeason,
+  type SeasonRow, type SeasonStatus, type EnrollmentRow,
 } from "@/lib/season-queries";
 import {
   getPlayerProfiles, getCurrentFeeStatuses, getFeeStatusesForYear,
@@ -15,11 +16,8 @@ import {
   type PlayerProfile, type PlayerFeeStatus,
 } from "@/lib/council-queries";
 import { getUnenrolledActivePlayers } from "@/lib/season-queries";
-import { getCouncilMembers } from "@/lib/main-db";
-import { getAllCaptainAssignmentsForSeason } from "@/lib/captain-queries";
-import { AssignTeamForm } from "./assign-team-form";
+import { UnenrollButton } from "./unenroll-button";
 import { AddPlayerForm } from "./add-player-form";
-import { CaptainAssignmentForm } from "./captain-assignment-form";
 
 // ─── Status helpers ───────────────────────────────────────────────────────────
 
@@ -30,7 +28,7 @@ const STATUS_CONFIG: Record<SeasonStatus, { label: string; bg: string; text: str
   archived: { label: "Archived", bg: "bg-[rgba(115,145,176,0.08)]",     text: "text-[color:var(--muted-foreground)]" },
 };
 
-// ─── Fee badge ────────────────────────────────────────────────────────────────
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function FeeBadge({ fee }: { fee: PlayerFeeStatus | null }) {
   if (!fee) return null;
@@ -39,18 +37,14 @@ function FeeBadge({ fee }: { fee: PlayerFeeStatus | null }) {
   return <span className="rounded bg-[rgba(239,68,68,0.1)] px-1.5 py-0.5 text-[0.6rem] font-medium text-[color:var(--danger)]">Due</span>;
 }
 
-// ─── Player row ───────────────────────────────────────────────────────────────
-
 function EnrollmentPlayerRow({
-  enr, profile, fee, teams, season, canManage, user,
+  enr, profile, fee, season, canManage,
 }: {
   enr: EnrollmentRow;
   profile: PlayerProfile | null;
   fee: PlayerFeeStatus | null;
-  teams: TeamRow[];
   season: SeasonRow;
   canManage: boolean;
-  user: CouncilUser;
 }) {
   const name = enr.registrationName || enr.displayName || enr.email?.split("@")[0] || "Unknown";
   return (
@@ -69,13 +63,7 @@ function EnrollmentPlayerRow({
         {enr.gender?.toLowerCase() === "male"   && <span className="rounded-full bg-[rgba(30,208,216,0.1)] px-1.5 py-0.5 text-[0.6rem] font-medium text-[#1ED0D8]">M</span>}
         <FeeBadge fee={fee} />
         {canManage && (season.status === "active" || season.status === "draft") && (
-          <AssignTeamForm
-            playerId={enr.playerId}
-            seasonId={season.id}
-            currentTeamId={enr.currentTeamId}
-            teams={teams}
-            userId={user.id}
-          />
+          <UnenrollButton playerId={enr.playerId} playerName={name} seasonId={season.id} />
         )}
       </div>
     </li>
@@ -86,10 +74,15 @@ function EnrollmentPlayerRow({
 
 export default async function SeasonDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ seasonId: string }>;
+  searchParams?: Promise<{ error?: string; year?: string }>;
 }) {
   const { seasonId } = await params;
+  const sp = await searchParams;
+  const error = sp?.error;
+  const conflictYear = sp?.year;
   const user = await requireCouncilUser();
   const canManage = hasRosterManagementAccess(user);
 
@@ -107,27 +100,11 @@ export default async function SeasonDetailPage({
     ? await getUnenrolledActivePlayers(seasonId)
     : [];
 
-  const [captainAssignments, councilMembers] = canManage
-    ? await Promise.all([
-        getAllCaptainAssignmentsForSeason(season.year),
-        getCouncilMembers(),
-      ])
-    : [[], []];
-
-  // Group enrollments by team
-  const teamMap = new Map(teams.map((t) => [t.id, t]));
-  const byTeam = new Map<string, EnrollmentRow[]>();
-  const unassigned: EnrollmentRow[] = [];
-
-  for (const e of enrollments) {
-    if (e.currentTeamId) {
-      const list = byTeam.get(e.currentTeamId) ?? [];
-      list.push(e);
-      byTeam.set(e.currentTeamId, list);
-    } else {
-      unassigned.push(e);
-    }
-  }
+  const sortedEnrollments = [...enrollments].sort((a, b) => {
+    const nameA = (a.registrationName || a.displayName || "").toLowerCase();
+    const nameB = (b.registrationName || b.displayName || "").toLowerCase();
+    return nameA.localeCompare(nameB);
+  });
 
   const statusCfg = STATUS_CONFIG[season.status];
 
@@ -137,6 +114,13 @@ export default async function SeasonDetailPage({
     if (!u.isOwner) redirect("/council/seasons/" + seasonId);
     const to = String(formData.get("to")) as SeasonStatus;
 
+    if (to === "active") {
+      const existing = await getActiveSeason();
+      if (existing && existing.id !== seasonId) {
+        redirect("/council/seasons/" + seasonId + "?error=already-active&year=" + existing.year);
+      }
+    }
+
     if (to === "archived") {
       const [allEnrollments, profiles, fees] = await Promise.all([
         getSeasonEnrollments(seasonId),
@@ -144,9 +128,29 @@ export default async function SeasonDetailPage({
         getFeeStatusesForYear(season!.year),
       ]);
       await takeSeasonArchiveSnapshot(season!.year, allEnrollments, profiles, fees, u.id);
+      await archiveSeasonStats(season!.year, u.id);
+      await mainQuery(
+        `INSERT INTO admin_audit_log (actor_user_id, action, new_value)
+         VALUES ($1, 'season.archive', $2::jsonb)`,
+        [u.id, JSON.stringify({ year: season!.year, enrolled: allEnrollments.length })]
+      );
     }
 
     await updateSeasonStatus(seasonId, to);
+
+    const transitionAction: Record<string, string> = {
+      active:   season!.status === "closed" ? "season.reopen" : "season.activate",
+      closed:   "season.close",
+    };
+    const logAction = transitionAction[to];
+    if (logAction) {
+      await mainQuery(
+        `INSERT INTO admin_audit_log (actor_user_id, action, new_value)
+         VALUES ($1, $2, $3::jsonb)`,
+        [u.id, logAction, JSON.stringify({ year: season!.year })]
+      );
+    }
+
     redirect("/council/seasons/" + seasonId);
   }
 
@@ -165,6 +169,12 @@ export default async function SeasonDetailPage({
         <ArrowLeft className="h-3.5 w-3.5" />
         Seasons
       </Link>
+
+      {error === "already-active" && (
+        <div className="rounded-xl border border-amber-300/30 bg-amber-50/60 px-4 py-3 text-[0.82rem] text-amber-800">
+          The {conflictYear} season is already active. Close or archive it before opening this one.
+        </div>
+      )}
 
       {/* Season header */}
       <div className="council-panel rounded-2xl border p-5">
@@ -188,12 +198,16 @@ export default async function SeasonDetailPage({
               <p className="text-[0.68rem] text-[color:var(--muted-foreground)]">enrolled</p>
             </div>
             <div>
-              <p className="text-[1.4rem] font-bold text-[color:var(--accent)]">{enrollments.length - unassigned.length}</p>
-              <p className="text-[0.68rem] text-[color:var(--muted-foreground)]">assigned</p>
+              <p className="text-[1.4rem] font-bold text-[color:var(--accent)]">
+                {enrollments.filter((e) => e.gender?.toLowerCase() === "female").length}
+              </p>
+              <p className="text-[0.68rem] text-[color:var(--muted-foreground)]">female</p>
             </div>
             <div>
-              <p className="text-[1.4rem] font-bold text-[color:var(--warning)]">{unassigned.length}</p>
-              <p className="text-[0.68rem] text-[color:var(--muted-foreground)]">unassigned</p>
+              <p className="text-[1.4rem] font-bold text-[#1ED0D8]">
+                {enrollments.filter((e) => e.gender?.toLowerCase() === "male").length}
+              </p>
+              <p className="text-[0.68rem] text-[color:var(--muted-foreground)]">male</p>
             </div>
           </div>
         </div>
@@ -306,76 +320,8 @@ export default async function SeasonDetailPage({
         </div>
       )}
 
-      {/* Roster by team */}
-      {teams.map((team) => {
-        const roster = byTeam.get(team.id) ?? [];
-        if (roster.length === 0) return null;
-        const female = roster.filter((e) => e.gender?.toLowerCase() === "female");
-        const male   = roster.filter((e) => e.gender?.toLowerCase() === "male");
-        const other  = roster.filter((e) => !["female","male"].includes(e.gender?.toLowerCase() ?? ""));
-
-        return (
-          <section key={team.id} className="council-panel rounded-2xl border p-5">
-            <div className="mb-4 flex items-center gap-2">
-              <h3 className="text-[0.92rem] font-semibold text-slate-800">{team.name}</h3>
-              <span className="ml-auto rounded-full bg-[rgba(20,184,166,0.1)] px-2 py-0.5 text-[0.7rem] text-[color:var(--accent)]">
-                {roster.length} {roster.length === 1 ? "player" : "players"}
-              </span>
-            </div>
-            <div className="grid gap-4 sm:grid-cols-2">
-              {female.length > 0 && (
-                <div>
-                  <p className="mb-1 text-[0.68rem] font-semibold uppercase tracking-wide text-[#E84AA5]">Female · {female.length}</p>
-                  <ul className="divide-y divide-[color:var(--border)]">
-                    {female.map((e) => (
-                      <EnrollmentPlayerRow key={e.id} enr={e} profile={profileMap.get(e.playerId) ?? null} fee={feeStatusMap.get(e.playerId) ?? null} teams={teams} season={season} canManage={canManage} user={user} />
-                    ))}
-                  </ul>
-                </div>
-              )}
-              {male.length > 0 && (
-                <div>
-                  <p className="mb-1 text-[0.68rem] font-semibold uppercase tracking-wide text-[#1ED0D8]">Male · {male.length}</p>
-                  <ul className="divide-y divide-[color:var(--border)]">
-                    {male.map((e) => (
-                      <EnrollmentPlayerRow key={e.id} enr={e} profile={profileMap.get(e.playerId) ?? null} fee={feeStatusMap.get(e.playerId) ?? null} teams={teams} season={season} canManage={canManage} user={user} />
-                    ))}
-                  </ul>
-                </div>
-              )}
-              {other.length > 0 && (
-                <div className="sm:col-span-2">
-                  <p className="mb-1 text-[0.68rem] font-semibold uppercase tracking-wide text-[color:var(--muted-foreground)]">Other · {other.length}</p>
-                  <ul className="divide-y divide-[color:var(--border)]">
-                    {other.map((e) => (
-                      <EnrollmentPlayerRow key={e.id} enr={e} profile={profileMap.get(e.playerId) ?? null} fee={feeStatusMap.get(e.playerId) ?? null} teams={teams} season={season} canManage={canManage} user={user} />
-                    ))}
-                  </ul>
-                </div>
-              )}
-            </div>
-          </section>
-        );
-      })}
-
-      {/* Unassigned pool */}
-      {unassigned.length > 0 && (
-        <section className="council-panel rounded-2xl border p-5">
-          <div className="mb-4 flex items-center gap-2">
-            <h3 className="text-[0.92rem] font-semibold text-slate-800">Unassigned pool</h3>
-            <span className="ml-auto rounded-full bg-[rgba(233,185,62,0.1)] px-2 py-0.5 text-[0.7rem] text-[color:var(--warning)]">
-              {unassigned.length} awaiting team
-            </span>
-          </div>
-          <ul className="divide-y divide-[color:var(--border)]">
-            {unassigned.map((e) => (
-              <EnrollmentPlayerRow key={e.id} enr={e} profile={profileMap.get(e.playerId) ?? null} fee={feeStatusMap.get(e.playerId) ?? null} teams={teams} season={season} canManage={canManage} user={user} />
-            ))}
-          </ul>
-        </section>
-      )}
-
-      {enrollments.length === 0 && (
+      {/* Enrolled players — flat alphabetical list */}
+      {sortedEnrollments.length === 0 ? (
         <div className="council-panel rounded-2xl border p-12 text-center text-[color:var(--muted-foreground)]">
           <Users className="mx-auto mb-3 h-8 w-8 opacity-30" />
           <p className="text-[0.9rem]">No players enrolled yet.</p>
@@ -388,30 +334,29 @@ export default async function SeasonDetailPage({
             </Link>
           )}
         </div>
+      ) : (
+        <section className="council-panel rounded-2xl border p-5">
+          <div className="mb-4 flex items-center gap-2">
+            <Users className="h-4 w-4 text-[color:var(--accent)]" />
+            <h3 className="text-[0.92rem] font-semibold text-slate-800">Enrolled players</h3>
+            <span className="ml-auto rounded-full bg-[rgba(20,184,166,0.1)] px-2 py-0.5 text-[0.7rem] text-[color:var(--accent)]">
+              {sortedEnrollments.length}
+            </span>
+          </div>
+          <ul className="divide-y divide-[color:var(--border)]">
+            {sortedEnrollments.map((e) => (
+              <EnrollmentPlayerRow
+                key={e.id}
+                enr={e}
+                profile={profileMap.get(e.playerId) ?? null}
+                fee={feeStatusMap.get(e.playerId) ?? null}
+                season={season}
+                canManage={canManage}
+              />
+            ))}
+          </ul>
+        </section>
       )}
-
-      {/* Captain assignment management — owner/chair only */}
-      {canManage && (() => {
-        const captainMap = Object.fromEntries(
-          teams.map((t) => {
-            const assignment = captainAssignments.find((a) => a.teamId === t.id);
-            if (!assignment) return [t.id, null];
-            const member = councilMembers.find((m) => m.id === assignment.userId);
-            const name = member
-              ? (member.registrationName || member.displayName || member.email.split("@")[0])
-              : "Unknown";
-            return [t.id, { userId: assignment.userId, name }];
-          })
-        );
-        return (
-          <CaptainAssignmentForm
-            teams={teams}
-            seasonYear={season.year}
-            captainMap={captainMap}
-            members={councilMembers}
-          />
-        );
-      })()}
     </div>
   );
 }
