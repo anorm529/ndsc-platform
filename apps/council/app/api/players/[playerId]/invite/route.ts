@@ -34,6 +34,9 @@ export async function POST(
   if (!account) {
     return NextResponse.json({ error: "No user account linked to this player" }, { status: 404 });
   }
+  if (account.account_status === "active") {
+    return NextResponse.json({ error: "Account is already active" }, { status: 409 });
+  }
 
   const actorRes = await mainQuery<{ registration_name: string | null; email: string }>(
     `SELECT registration_name, email FROM users WHERE id = $1`,

@@ -12,6 +12,7 @@ type Props = {
 export function PlayerProfileEditor({ playerId, profile: initial }: Props) {
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [profile, setProfile] = useState<PlayerProfile>({
     playerId,
     yearOfBirth: initial?.yearOfBirth ?? null,
@@ -26,6 +27,7 @@ export function PlayerProfileEditor({ playerId, profile: initial }: Props) {
 
   function openEditor() {
     setDraft({ ...profile });
+    setSaveError(null);
     setOpen(true);
   }
 
@@ -35,6 +37,7 @@ export function PlayerProfileEditor({ playerId, profile: initial }: Props) {
 
   async function save() {
     setSaving(true);
+    setSaveError(null);
     try {
       const res = await fetch("/api/player-profile", {
         method: "POST",
@@ -52,7 +55,7 @@ export function PlayerProfileEditor({ playerId, profile: initial }: Props) {
       setProfile({ ...draft });
       setOpen(false);
     } catch {
-      // leave open so user can retry
+      setSaveError("Failed to save — please try again");
     } finally {
       setSaving(false);
     }
@@ -153,7 +156,8 @@ export function PlayerProfileEditor({ playerId, profile: initial }: Props) {
             />
           </label>
 
-          <div className="flex items-center justify-end">
+          <div className="flex flex-col items-end gap-1">
+            {saveError && <p className="text-[0.68rem] text-[color:var(--danger)]">{saveError}</p>}
             <button
               type="button"
               onClick={save}

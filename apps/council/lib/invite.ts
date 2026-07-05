@@ -9,10 +9,9 @@ export async function createInviteToken(userId: string): Promise<string> {
   const tokenHash = createHash("sha256").update(rawToken).digest("hex");
   const expiresAt = new Date(Date.now() + INVITE_TTL_DAYS * 24 * 60 * 60 * 1000);
 
-  await mainQuery(
-    `UPDATE password_reset_tokens SET used_at = NOW() WHERE user_id = $1 AND used_at IS NULL`,
-    [userId]
-  );
+  // Do not invalidate existing tokens here — this table is shared with the
+  // password-reset flow and blanket-voiding would silently break a reset link
+  // the user may already have in their inbox. Old invite tokens expire naturally.
   await mainQuery(
     `INSERT INTO password_reset_tokens (user_id, token_hash, expires_at) VALUES ($1, $2, $3)`,
     [userId, tokenHash, expiresAt]

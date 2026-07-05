@@ -342,16 +342,43 @@ export async function getGameStatRecords(gameId: string): Promise<StatRecord[]> 
 
 // ─── CSV processing ───────────────────────────────────────────────────────────
 
+function parseCsvLine(line: string): string[] {
+  const fields: string[] = [];
+  let i = 0;
+  while (i <= line.length) {
+    if (line[i] === '"') {
+      let field = "";
+      i++;
+      while (i < line.length) {
+        if (line[i] === '"') {
+          if (line[i + 1] === '"') { field += '"'; i += 2; }
+          else { i++; break; }
+        } else {
+          field += line[i++];
+        }
+      }
+      fields.push(field.trim());
+      if (line[i] === ",") i++;
+    } else {
+      const end = line.indexOf(",", i);
+      if (end === -1) { fields.push(line.slice(i).trim()); break; }
+      fields.push(line.slice(i, end).trim());
+      i = end + 1;
+    }
+  }
+  return fields;
+}
+
 export function parseCsvText(text: string): StatRow[] {
   const lines = text.trim().split(/\r?\n/);
   if (lines.length < 2) return [];
 
-  const headers = lines[0].split(",").map((h) => h.trim().toLowerCase());
+  const headers = parseCsvLine(lines[0]).map((h) => h.toLowerCase());
 
   return lines.slice(1)
     .filter((l) => l.trim())
     .map((line) => {
-      const values = line.split(",").map((v) => v.trim());
+      const values = parseCsvLine(line);
       const row: Record<string, string> = {};
       for (let i = 0; i < headers.length; i++) {
         row[headers[i]] = values[i] ?? "";

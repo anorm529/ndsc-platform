@@ -47,10 +47,12 @@ function StatRow({ record, canEdit }: { record: StatRecord; canEdit: boolean }) 
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState<EditState>(() => toEdit(record));
   const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   async function handleSave() {
     setBusy(true);
-    await fetch(`/api/stats/records/${record.id}`, {
+    setError(null);
+    const res = await fetch(`/api/stats/records/${record.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -69,6 +71,11 @@ function StatRow({ record, canEdit }: { record: StatRecord; canEdit: boolean }) 
       }),
     });
     setBusy(false);
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      setError(body?.error ?? "Failed to save — try again");
+      return;
+    }
     setEditing(false);
     router.refresh();
   }
@@ -76,8 +83,13 @@ function StatRow({ record, canEdit }: { record: StatRecord; canEdit: boolean }) 
   async function handleDelete() {
     if (!confirm(`Delete stats for ${record.playerName}?`)) return;
     setBusy(true);
-    await fetch(`/api/stats/records/${record.id}`, { method: "DELETE" });
+    const res = await fetch(`/api/stats/records/${record.id}`, { method: "DELETE" });
     setBusy(false);
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      setError(body?.error ?? "Failed to delete — try again");
+      return;
+    }
     router.refresh();
   }
 
@@ -102,23 +114,26 @@ function StatRow({ record, canEdit }: { record: StatRecord; canEdit: boolean }) 
           <td key={col.key} className="py-2 pr-2 text-center">{field(col.key)}</td>
         ))}
         <td className="py-2 text-right">
-          <div className="flex items-center justify-end gap-1">
-            <button
-              type="button"
-              onClick={handleSave}
-              disabled={busy}
-              className="rounded p-1 text-[color:var(--success)] hover:bg-[rgba(16,185,129,0.1)] disabled:opacity-50"
-            >
-              {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
-            </button>
-            <button
-              type="button"
-              onClick={() => { setEditing(false); setForm(toEdit(record)); }}
-              disabled={busy}
-              className="rounded p-1 text-[color:var(--muted-foreground)] hover:bg-slate-100 disabled:opacity-50"
-            >
-              <X className="h-3.5 w-3.5" />
-            </button>
+          <div className="flex flex-col items-end gap-1">
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                onClick={handleSave}
+                disabled={busy}
+                className="rounded p-1 text-[color:var(--success)] hover:bg-[rgba(16,185,129,0.1)] disabled:opacity-50"
+              >
+                {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
+              </button>
+              <button
+                type="button"
+                onClick={() => { setEditing(false); setForm(toEdit(record)); setError(null); }}
+                disabled={busy}
+                className="rounded p-1 text-[color:var(--muted-foreground)] hover:bg-slate-100 disabled:opacity-50"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </div>
+            {error && <p className="text-[0.65rem] text-[color:var(--danger)]">{error}</p>}
           </div>
         </td>
       </tr>
@@ -142,23 +157,26 @@ function StatRow({ record, canEdit }: { record: StatRecord; canEdit: boolean }) 
       <td className="py-2 pr-2 text-center text-[0.78rem] text-slate-600">{record.assistedOuts}</td>
       {canEdit && (
         <td className="py-2 text-right">
-          <div className="flex items-center justify-end gap-1">
-            <button
-              type="button"
-              onClick={() => setEditing(true)}
-              disabled={busy}
-              className="rounded p-1 text-[color:var(--muted-foreground)] hover:bg-slate-100 hover:text-teal-600 disabled:opacity-50"
-            >
-              <Pencil className="h-3.5 w-3.5" />
-            </button>
-            <button
-              type="button"
-              onClick={handleDelete}
-              disabled={busy}
-              className="rounded p-1 text-[color:var(--muted-foreground)] hover:bg-red-50 hover:text-[color:var(--danger)] disabled:opacity-50"
-            >
-              {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
-            </button>
+          <div className="flex flex-col items-end gap-1">
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                onClick={() => { setEditing(true); setError(null); }}
+                disabled={busy}
+                className="rounded p-1 text-[color:var(--muted-foreground)] hover:bg-slate-100 hover:text-teal-600 disabled:opacity-50"
+              >
+                <Pencil className="h-3.5 w-3.5" />
+              </button>
+              <button
+                type="button"
+                onClick={handleDelete}
+                disabled={busy}
+                className="rounded p-1 text-[color:var(--muted-foreground)] hover:bg-red-50 hover:text-[color:var(--danger)] disabled:opacity-50"
+              >
+                {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+              </button>
+            </div>
+            {error && <p className="text-[0.65rem] text-[color:var(--danger)]">{error}</p>}
           </div>
         </td>
       )}
