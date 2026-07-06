@@ -1,3 +1,4 @@
+import { notFound, redirect } from "next/navigation";
 import { CalendarDays, MapPin, RefreshCw, Trophy } from "lucide-react";
 
 import { AutoRefresh } from "@/components/tournaments/auto-refresh";
@@ -12,12 +13,16 @@ export const dynamic = "force-dynamic";
 export default async function TournamentLivePage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   const { fixtures, standings, teams, tournament } = await getTournamentBundle(slug);
+
+  if (tournament.status === "draft") notFound();
+  if (!tournament.schedulePublished) redirect(`/tournaments/${slug}`);
+
   const nextFixtures = fixtures.filter((fixture) => !isFixtureComplete(fixture)).slice(0, 4);
   const latestResults = fixtures
     .filter(isFixtureComplete)
     .sort((a, b) => new Date(b.startsAt).getTime() - new Date(a.startsAt).getTime())
     .slice(0, 4);
-  const leader = standings[0];
+  const leader = fixtures.some(isFixtureComplete) ? standings[0] : undefined;
 
   return (
     <main className="min-h-screen bg-slate-950 p-4 text-white sm:p-6">

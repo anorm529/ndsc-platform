@@ -33,7 +33,7 @@ export async function updateFixtureScores(_state: ActionState, formData: FormDat
         id: { in: uniqueFixtureIds },
         tournamentId: tournament.id,
       },
-      select: { awayRuns: true, awayTeamId: true, homeRuns: true, homeTeamId: true, id: true },
+      select: { awayRuns: true, awayTeamId: true, homeRuns: true, homeTeamId: true, id: true, stage: true },
     });
     const validFixturesById = new Map(validFixtures.map((fixture) => [fixture.id, fixture]));
 
@@ -66,11 +66,18 @@ export async function updateFixtureScores(_state: ActionState, formData: FormDat
         throw new Error("One or more submitted fixtures do not belong to this tournament.");
       }
 
+      const newHomeRuns = readOptionalScore(formData, `homeRuns-${fixtureId}`);
+      const newAwayRuns = readOptionalScore(formData, `awayRuns-${fixtureId}`);
+
+      if (fixture.stage !== "group" && newHomeRuns !== null && newHomeRuns === newAwayRuns) {
+        throw new Error("Playoff games can't end in a draw. Enter a decisive score to set the placement.");
+      }
+
       const scoreUpdate = prisma.fixture.update({
         where: { id: fixtureId },
         data: {
-          homeRuns: readOptionalScore(formData, `homeRuns-${fixtureId}`),
-          awayRuns: readOptionalScore(formData, `awayRuns-${fixtureId}`),
+          homeRuns: newHomeRuns,
+          awayRuns: newAwayRuns,
         },
       });
 
@@ -383,6 +390,10 @@ async function materializePlannedPlayoffs(tournamentId: string) {
       },
     },
   });
+
+  if (tournament.format !== "round-robin-playoffs") {
+    return 0;
+  }
 
   if (tournament.bracketMatches.length === 0) {
     return 0;

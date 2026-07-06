@@ -6,9 +6,8 @@ import { prisma } from "@/lib/db";
 import { ActionState, errorState, successState } from "@/lib/action-state";
 import { requirePermission } from "@/lib/current-admin";
 import { getAuditActorData, writeAuditLog } from "@/lib/audit";
-import { generatePlacementPlayoffs, generateRoundRobinSchedule } from "@/lib/tournaments/scheduler";
-import { calculateStandings } from "@/lib/tournaments/standings";
-import { Fixture, Team, Tournament } from "@/lib/tournaments/types";
+import { generateRoundRobinSchedule } from "@/lib/tournaments/scheduler";
+import { Team, Tournament } from "@/lib/tournaments/types";
 
 export async function generateSchedule(_state: ActionState, formData: FormData) {
   try {
@@ -162,116 +161,6 @@ export async function generateSchedule(_state: ActionState, formData: FormData) 
     revalidateSchedulePages(tournament.slug);
     refresh();
     return successState(`${generatedFixtures.length} fixtures were generated.`);
-  } catch (error) {
-    return errorState(error);
-  }
-}
-
-export async function generatePlacementSchedule(_state: ActionState, formData: FormData) {
-  try {
-    await requirePermission("schedule");
-
-    const tournamentId = requireText(formData, "tournamentId");
-    const firstPitch = requireText(formData, "placementFirstPitch");
-    const includeFifthPlaceGame = formData.get("includeFifthPlaceGame") === "on";
-    const replaceExisting = formData.get("replaceExistingPlacement") === "on";
-
-    const tournament = await prisma.tournament.findUniqueOrThrow({
-      where: { id: tournamentId },
-      include: {
-        fixtures: {
-          include: { pitch: true },
-          orderBy: [{ startsAt: "asc" }, { pitch: { sortOrder: "asc" } }],
-        },
-        pitches: {
-          orderBy: { sortOrder: "asc" },
-        },
-        teams: {
-          orderBy: { name: "asc" },
-        },
-      },
-    });
-
-    const groupFixtures = tournament.fixtures.filter((fixture) => fixture.stage === "group");
-    const placementFixtures = tournament.fixtures.filter((fixture) => isPlacementStage(fixture.stage));
-
-    if (tournament.teams.length < 3) {
-      throw new Error("Add at least three teams before generating placement playoffs.");
-    }
-
-    if (groupFixtures.length === 0) {
-      throw new Error("Generate the round-robin schedule before generating placement playoffs.");
-    }
-
-    const hasIncompleteGroupGame = groupFixtures.some(
-      (fixture) => fixture.homeRuns === null || fixture.awayRuns === null,
-    );
-
-    if (hasIncompleteGroupGame) {
-      throw new Error("Enter scores for every round-robin game before generating placement playoffs.");
-    }
-
-    if (placementFixtures.length > 0 && !replaceExisting) {
-      throw new Error("Placement games already exist. Tick replace existing placement games to regenerate them.");
-    }
-
-    const hasPlacementScores = placementFixtures.some(
-      (fixture) => fixture.homeRuns !== null || fixture.awayRuns !== null,
-    );
-
-    if (hasPlacementScores && !replaceExisting) {
-      throw new Error("These placement games have scores. Tick replace existing placement games if you really want to clear them.");
-    }
-
-    const tournamentView = mapTournamentView(tournament);
-    const teams = tournament.teams.map(mapTeamView);
-    const standings = calculateStandings(
-      tournamentView,
-      teams,
-      groupFixtures.map(mapFixtureView),
-    );
-    const teamsById = new Map(teams.map((team) => [team.id, team]));
-    const rankedTeams = standings
-      .map((row) => teamsById.get(row.teamId))
-      .filter((team): team is Team => Boolean(team));
-
-    const generatedFixtures = generatePlacementPlayoffs({
-      firstPitch: parseDatetimeLocal(firstPitch).toISOString(),
-      includeFifthPlaceGame,
-      rankedTeams,
-      tournament: tournamentView,
-    });
-    const pitchIdsByName = new Map(tournament.pitches.map((pitch) => [pitch.name, pitch.id]));
-
-    await prisma.$transaction([
-      prisma.tournament.update({
-        where: { id: tournament.id },
-        data: { schedulePublished: false },
-      }),
-      prisma.fixture.deleteMany({
-        where: {
-          tournamentId: tournament.id,
-          stage: {
-            in: ["final", "third-place", "fifth-place"],
-          },
-        },
-      }),
-      prisma.fixture.createMany({
-        data: generatedFixtures.map((fixture) => ({
-          tournamentId: tournament.id,
-          round: fixture.round,
-          startsAt: new Date(fixture.startsAt),
-          pitchId: pitchIdsByName.get(fixture.pitch),
-          homeTeamId: fixture.homeTeamId,
-          awayTeamId: fixture.awayTeamId,
-          stage: fixture.stage,
-        })),
-      }),
-    ]);
-
-    revalidateSchedulePages(tournament.slug);
-    refresh();
-    return successState(`${generatedFixtures.length} placement game${generatedFixtures.length === 1 ? "" : "s"} generated.`);
   } catch (error) {
     return errorState(error);
   }
@@ -434,6 +323,10 @@ export async function generatePlannedPlayoffs(_state: ActionState, formData: For
         },
       },
     });
+
+    if (tournament.format !== "round-robin-playoffs") {
+      throw new Error("This tournament is round robin only. Set the format to round robin + playoffs to plan playoff slots.");
+    }
 
     if (tournament.teams.length < 3) {
       throw new Error("Add at least three teams before planning playoff slots.");
@@ -935,104 +828,4 @@ function revalidateSchedulePages(slug: string) {
   revalidatePath(`/tournaments/${slug}`);
   revalidateTag("tournament-bundle", "max");
   revalidateTag("tournament-cards", "max");
-}
-
-function isPlacementStage(stage: string) {
-  return stage === "final" || stage === "third-place" || stage === "fifth-place";
-}
-
-function mapTournamentView(record: {
-  id: string;
-  slug: string;
-  name: string;
-  startsOn: Date;
-  endsOn: Date | null;
-  venue: string;
-  city: string;
-  format: string;
-  status: string;
-  tournamentType: string;
-  seasonYear: number;
-  mvpMode: string;
-  gameMinutes: number;
-  slotGapMinutes: number;
-  schedulePublished: boolean;
-  checkInAt: Date | null;
-  winPoints: number;
-  drawPoints: number;
-  lossPoints: number;
-  announcements: string[];
-  pitches: Array<{ name: string }>;
-}): Tournament {
-  return {
-    id: record.id,
-    slug: record.slug,
-    name: record.name,
-    date: record.startsOn.toISOString(),
-    endDate: record.endsOn?.toISOString(),
-    venue: record.venue,
-    city: record.city,
-    format: record.format as Tournament["format"],
-    status: record.status as Tournament["status"],
-    tournamentType: record.tournamentType as Tournament["tournamentType"],
-    seasonYear: record.seasonYear,
-    mvpMode: record.mvpMode as Tournament["mvpMode"],
-    pitches: record.pitches.map((pitch) => pitch.name),
-    gameMinutes: record.gameMinutes,
-    slotGapMinutes: record.slotGapMinutes,
-    schedulePublished: record.schedulePublished,
-    checkInTime: record.checkInAt?.toISOString() ?? record.startsOn.toISOString(),
-    points: {
-      win: record.winPoints,
-      draw: record.drawPoints,
-      loss: record.lossPoints,
-    },
-    announcements: record.announcements,
-  };
-}
-
-function mapTeamView(record: {
-  id: string;
-  tournamentId: string;
-  name: string;
-  shortName: string;
-  colour: string;
-  contactName: string | null;
-  contactEmail: string | null;
-}): Team {
-  return {
-    id: record.id,
-    tournamentId: record.tournamentId,
-    name: record.name,
-    shortName: record.shortName,
-    colour: record.colour,
-    contactName: record.contactName ?? undefined,
-    contactEmail: record.contactEmail ?? undefined,
-  };
-}
-
-function mapFixtureView(record: {
-  id: string;
-  tournamentId: string;
-  round: number;
-  startsAt: Date;
-  pitch: { name: string } | null;
-  homeTeamId: string;
-  awayTeamId: string;
-  stage: string;
-  homeRuns: number | null;
-  awayRuns: number | null;
-}): Fixture {
-  return {
-    id: record.id,
-    tournamentId: record.tournamentId,
-    round: record.round,
-    startsAt: record.startsAt.toISOString(),
-    pitch: record.pitch?.name ?? "TBC",
-    homeTeamId: record.homeTeamId,
-    awayTeamId: record.awayTeamId,
-    stage: record.stage as Fixture["stage"],
-    homeRuns: record.homeRuns ?? undefined,
-    awayRuns: record.awayRuns ?? undefined,
-  };
 }

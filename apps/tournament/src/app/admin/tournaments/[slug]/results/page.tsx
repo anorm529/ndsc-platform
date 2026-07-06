@@ -97,7 +97,7 @@ export default async function AdminTournamentResultsPage({
         </div>
       </ActionForm>
 
-      {groupStageComplete ? (
+      {groupStageComplete && tournament.format === "round-robin-playoffs" ? (
         <Panel
           title="Placement Playoffs"
           action={

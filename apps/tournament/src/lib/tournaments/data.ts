@@ -53,6 +53,11 @@ export const getTournamentCards = unstable_cache(
   { revalidate: 20, tags: ["tournament-cards"] },
 );
 
+/** Cards for public pages — drafts are admin-only until published. */
+export async function getPublicTournamentCards(): Promise<TournamentCard[]> {
+  return (await getTournamentCards()).filter((card) => card.status !== "draft");
+}
+
 async function _getTournamentCards(): Promise<TournamentCard[]> {
   const events = await prisma.tournament.findMany({
     include: {
@@ -75,14 +80,17 @@ async function _getTournamentCards(): Promise<TournamentCard[]> {
     orderBy: [{ startsOn: "asc" }, { name: "asc" }],
   });
   const now = new Date();
-  const liveEvents = events.filter((event) => event.status === "live");
+  const mapped = events.map((event) => ({ event, tournament: mapTournament(event) }));
+  const liveEvents = mapped.filter(({ tournament }) => tournament.status === "live");
   const nextEvent =
-    liveEvents[0] ??
-    events.find((event) => event.startsOn >= now && event.status !== "complete");
+    liveEvents[0]?.event ??
+    mapped.find(
+      ({ event, tournament }) =>
+        event.startsOn >= now && tournament.status !== "complete" && tournament.status !== "draft",
+    )?.event;
 
-  return events
-    .map((event) => {
-      const tournament = mapTournament(event);
+  return mapped
+    .map(({ event, tournament }) => {
       const playedFixturesCount = event.fixtures.filter(
         (fixture) => fixture.homeRuns !== null && fixture.awayRuns !== null,
       ).length;
@@ -92,7 +100,7 @@ async function _getTournamentCards(): Promise<TournamentCard[]> {
         teamsCount: event._count.teams,
         fixturesCount: event._count.fixtures,
         playedFixturesCount,
-        priority: getTournamentPriority(event.id, nextEvent?.id, event.startsOn, event.status),
+        priority: getTournamentPriority(event.id, nextEvent?.id, event.startsOn, tournament.status),
       };
     })
     .sort(sortTournamentCards);
@@ -101,10 +109,10 @@ async function _getTournamentCards(): Promise<TournamentCard[]> {
 export async function getInternalSeasonLeaderboard(
   seasonYear = new Date().getFullYear(),
 ): Promise<InternalSeasonLeaderboard> {
-  const events = await getTournamentCards();
-  const internalCards = events.filter(
-    (event) => event.tournamentType === "internal" && event.seasonYear === seasonYear,
-  );
+  const events = await getPublicTournamentCards();
+  const internalEvents = events.filter((event) => event.tournamentType === "internal");
+  const seasonYears = [...new Set(internalEvents.map((event) => event.seasonYear))].sort((a, b) => b - a);
+  const internalCards = internalEvents.filter((event) => event.seasonYear === seasonYear);
 
   const tournaments = await Promise.all(
     internalCards.map((event) => getTournamentBundle(event.slug)),
@@ -114,6 +122,7 @@ export async function getInternalSeasonLeaderboard(
 
   return {
     seasonYear,
+    seasonYears,
     tournaments: internalCards,
     teamRows,
     mvpRows,
@@ -131,16 +140,33 @@ export async function getActiveTournamentBundle(): Promise<TournamentBundle> {
 }
 
 export async function getActiveTournamentSlug(): Promise<string | null> {
-  const event = await prisma.tournament.findFirst({
+  const events = await prisma.tournament.findMany({
     orderBy: [{ startsOn: "asc" }, { name: "asc" }],
     where: {
       status: {
         in: ["published", "live", "draft"],
       },
     },
+    select: { slug: true, startsOn: true, endsOn: true, status: true },
   });
 
-  return event?.slug ?? null;
+  if (events.length === 0) return null;
+
+  const withStatus = events.map((event) => ({
+    ...event,
+    status: deriveStatus(event.status as Tournament["status"], event.startsOn, event.endsOn),
+  }));
+
+  const live = withStatus.find((event) => event.status === "live");
+  if (live) return live.slug;
+
+  const todayStart = new Date();
+  todayStart.setUTCHours(0, 0, 0, 0);
+  const upcoming = withStatus.find((event) => event.startsOn >= todayStart);
+  if (upcoming) return upcoming.slug;
+
+  // Everything left is in the past; land on the most recent event.
+  return withStatus[withStatus.length - 1].slug;
 }
 
 export const getTournamentBundle = unstable_cache(
@@ -229,7 +255,7 @@ export function mapTournament(
     venue: record.venue,
     city: record.city,
     format: record.format as Tournament["format"],
-    status: record.status as Tournament["status"],
+    status: deriveStatus(record.status as Tournament["status"], record.startsOn, record.endsOn),
     tournamentType: record.tournamentType as Tournament["tournamentType"],
     seasonYear: record.seasonYear,
     mvpMode: record.mvpMode as Tournament["mvpMode"],
@@ -383,6 +409,24 @@ function mapMvpVote(record: {
   };
 }
 
+// A published tournament automatically reads as "live" for the duration of its
+// event day(s); the stored status stays "published" until an admin changes it.
+function deriveStatus(
+  status: Tournament["status"],
+  startsOn: Date,
+  endsOn: Date | null,
+): Tournament["status"] {
+  if (status !== "published") return status;
+
+  const now = new Date();
+  const start = new Date(startsOn);
+  start.setUTCHours(0, 0, 0, 0);
+  const end = new Date(endsOn ?? startsOn);
+  end.setUTCHours(23, 59, 59, 999);
+
+  return now >= start && now <= end ? "live" : status;
+}
+
 function getTournamentPriority(
   tournamentId: string,
   nextTournamentId: string | undefined,
@@ -466,18 +510,32 @@ function calculateInternalTeamRows(tournaments: TournamentBundle[]): InternalSea
       continue;
     }
 
+    // Games lost across the whole event, playoffs included.
+    const lossesByTeamId = new Map<string, number>();
+    for (const fixture of event.fixtures) {
+      if (
+        fixture.homeRuns === undefined ||
+        fixture.awayRuns === undefined ||
+        fixture.homeRuns === fixture.awayRuns
+      ) {
+        continue;
+      }
+      const loserId = fixture.homeRuns > fixture.awayRuns ? fixture.awayTeamId : fixture.homeTeamId;
+      lossesByTeamId.set(loserId, (lossesByTeamId.get(loserId) ?? 0) + 1);
+    }
+
     for (const placement of placements) {
       const existing = rows.get(placement.teamName) ?? {
         teamName: placement.teamName,
         eventsPlayed: 0,
         wins: 0,
-        topThreeFinishes: 0,
+        losses: 0,
         points: 0,
       };
 
       existing.eventsPlayed += 1;
       existing.wins += placement.position === 1 ? 1 : 0;
-      existing.topThreeFinishes += placement.position <= 3 ? 1 : 0;
+      existing.losses += lossesByTeamId.get(placement.teamId) ?? 0;
       existing.points += getSeasonPoints(placement.position);
       rows.set(placement.teamName, existing);
     }
@@ -486,7 +544,7 @@ function calculateInternalTeamRows(tournaments: TournamentBundle[]): InternalSea
   return [...rows.values()].sort((a, b) => {
     if (b.points !== a.points) return b.points - a.points;
     if (b.wins !== a.wins) return b.wins - a.wins;
-    if (b.topThreeFinishes !== a.topThreeFinishes) return b.topThreeFinishes - a.topThreeFinishes;
+    if (a.losses !== b.losses) return a.losses - b.losses;
     return a.teamName.localeCompare(b.teamName);
   });
 }

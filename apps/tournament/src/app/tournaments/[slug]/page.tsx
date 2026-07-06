@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { notFound } from "next/navigation";
 import {
   ArrowLeft,
   CalendarDays,
@@ -27,7 +28,9 @@ export const dynamic = "force-dynamic";
 
 export async function generateStaticParams() {
   const tournaments = await getTournaments();
-  return tournaments.map((event) => ({ slug: event.slug }));
+  return tournaments
+    .filter((event) => event.status !== "draft")
+    .map((event) => ({ slug: event.slug }));
 }
 
 export default async function TournamentPage({
@@ -39,6 +42,9 @@ export default async function TournamentPage({
 }) {
   const [{ slug }, { team: teamParam }] = await Promise.all([params, searchParams]);
   const { bracket, fixtures, mvpLeaders, scheduleBlocks, standings, teams, tournament: event } = await getTournamentBundle(slug);
+
+  if (event.status === "draft") notFound();
+
   const publicFixtures = event.schedulePublished ? fixtures : [];
   const publicBracket = event.schedulePublished ? bracket : [];
   const publicScheduleBlocks = event.schedulePublished ? scheduleBlocks : [];
@@ -55,15 +61,13 @@ export default async function TournamentPage({
   const placementFixtures = publicFixtures.filter((fixture) =>
     fixture.stage === "final" || fixture.stage === "third-place" || fixture.stage === "fifth-place"
   );
-  const groupFixtures = publicFixtures.filter((fixture) => fixture.stage === "group");
   const displayPlacementFixtures = selectedTeam
     ? placementFixtures.filter((f) => f.homeTeamId === selectedTeam.id || f.awayTeamId === selectedTeam.id)
     : placementFixtures;
-  const roundRobinComplete =
-    groupFixtures.length > 0 && groupFixtures.every((fixture) => isFixtureComplete(fixture));
   const finalPlacements = getFinalPlacements(publicStandings, placementFixtures, teams);
   const hasFinalPlacements = finalPlacements.length > 0;
-  const leader = publicStandings[0];
+  const hasAnyResult = publicFixtures.some(isFixtureComplete);
+  const leader = hasAnyResult ? publicStandings[0] : undefined;
   const winner = finalPlacements[0];
   const scheduleItemCount = displayFixtures.length + publicScheduleBlocks.length + (placementFixtures.length > 0 ? 0 : publicBracket.length);
 
@@ -72,8 +76,11 @@ export default async function TournamentPage({
       <AutoRefresh enabled={event.status !== "complete"} intervalMs={10000} />
       <section className="overflow-hidden text-white" style={{ background: ndscHeroGradient() }}>
         <div className="mx-auto w-full max-w-5xl px-4 py-6 sm:px-6 lg:py-8">
-          <Link href="/" className="inline-flex items-center gap-2 text-sm font-semibold text-slate-300 hover:text-white">
-            <ArrowLeft size={16} /> All tournaments
+          <Link
+            href={event.tournamentType === "internal" ? "/internal" : "/"}
+            className="inline-flex items-center gap-2 text-sm font-semibold text-slate-300 hover:text-white"
+          >
+            <ArrowLeft size={16} /> {event.tournamentType === "internal" ? "Internal league" : "All tournaments"}
           </Link>
           <div className="mt-7">
             <div className="grid min-w-0 gap-5 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
@@ -82,9 +89,6 @@ export default async function TournamentPage({
                   {event.status} tournament
                 </p>
                 <h1 className="mt-2 break-words text-4xl font-black tracking-tight sm:text-5xl">{event.name}</h1>
-                <p className="mt-3 max-w-2xl text-base leading-7 text-white/90 sm:text-lg">
-                  Schedule, live standings, results, playoffs, and MVP leaders for the club tournament day.
-                </p>
               </div>
               <div className="flex flex-wrap gap-2">
                 <ShareButton
@@ -121,7 +125,7 @@ export default async function TournamentPage({
             <TabLink href="#overview" label="Overview" />
             <TabLink href="#schedule" label="Schedule" />
             <TabLink href="#standings" label={hasFinalPlacements ? "Placements" : "Standings"} />
-            <TabLink href="#playoffs" label="Playoffs" />
+            {event.format === "round-robin-playoffs" ? <TabLink href="#playoffs" label="Playoffs" /> : null}
             <TabLink href="#mvp" label="MVP" />
             {event.schedulePublished ? <TabLink href={`/tournaments/${event.slug}/live`} label="Live board" /> : null}
           </nav>
@@ -161,8 +165,8 @@ export default async function TournamentPage({
             )}
           </section>
 
-          {roundRobinComplete && placementFixtures.length === 0 ? (
-            <PlayoffPanel bracket={bracket} placementFixtures={placementFixtures} teams={teams} />
+          {event.format === "round-robin-playoffs" && placementFixtures.length === 0 ? (
+            <PlayoffPanel bracket={publicBracket} placementFixtures={placementFixtures} teams={teams} />
           ) : null}
         </div>
 
@@ -428,7 +432,7 @@ function Info({ icon: Icon, label }: { icon: LucideIcon; label: string }) {
 
 function Announcements({ announcements }: { announcements: string[] }) {
   return (
-    <section id="playoffs" className="scroll-mt-5 rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+    <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
       <div className="flex items-center gap-2">
         <Megaphone size={18} className="text-teal-700" />
         <h2 className="text-lg font-bold">Announcements</h2>
@@ -509,14 +513,14 @@ function PlayoffPanel({
 }) {
   if (placementFixtures.length === 0 && bracket.length === 0) {
     return (
-      <section className="rounded-lg border border-dashed border-slate-300 bg-white p-5 text-sm font-medium text-slate-600">
+      <section id="playoffs" className="scroll-mt-5 rounded-lg border border-dashed border-slate-300 bg-white p-5 text-sm font-medium text-slate-600">
         Playoff games will appear after the round robin is complete.
       </section>
     );
   }
 
   return (
-    <section className="min-w-0 rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+    <section id="playoffs" className="min-w-0 scroll-mt-5 rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
       <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h2 className="text-xl font-bold">Playoffs</h2>

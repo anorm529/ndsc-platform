@@ -129,6 +129,7 @@ export default async function AdminTournamentSchedulePage({
           </div>
         </ActionForm>
       </Panel>
+      {tournament.format === "round-robin-playoffs" ? (
       <Panel title="Placement Playoff Slots">
         <ActionForm action={generatePlannedPlayoffs} className="grid gap-4 lg:grid-cols-[1fr_1fr_1fr_auto] lg:items-end">
           <input name="tournamentId" type="hidden" value={tournament.id} />
@@ -161,6 +162,7 @@ export default async function AdminTournamentSchedulePage({
           1st v 2nd only; 4+ teams also get 3rd v 4th, and 6+ teams can optionally add 5th v 6th.
         </p>
       </Panel>
+      ) : null}
       <Panel title="Breaks and Lunch">
         <ActionForm action={addScheduleBlock} className="grid gap-4 md:grid-cols-[1fr_1fr_0.7fr_auto] md:items-end">
           <input name="tournamentId" type="hidden" value={tournament.id} />

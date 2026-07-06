@@ -101,7 +101,7 @@ export default async function AdminTournamentLayout({
           <div className="flex flex-wrap gap-2">
             <Link
               href="/admin/tournaments"
-              className="inline-flex h-9 items-center rounded-md border border-slate-300 px-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+              className="inline-flex h-9 items-center rounded-md border border-slate-300 px-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 sm:hidden"
             >
               All tournaments
             </Link>

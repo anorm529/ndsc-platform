@@ -14,7 +14,7 @@ import {
 
 import { AutoRefresh } from "@/components/tournaments/auto-refresh";
 import { ndscColours } from "@/lib/ndsc-theme";
-import { getTournamentCards } from "@/lib/tournaments/data";
+import { getPublicTournamentCards } from "@/lib/tournaments/data";
 import { formatDate } from "@/lib/tournaments/format";
 import { TournamentCard } from "@/lib/tournaments/types";
 
@@ -35,7 +35,7 @@ const statusLabels: Record<TournamentCard["status"], string> = {
 };
 
 export default async function Home() {
-  const allTournaments = await getTournamentCards();
+  const allTournaments = await getPublicTournamentCards();
   const tournaments = allTournaments.filter((tournament) => tournament.tournamentType === "public");
   const internalCount = allTournaments.filter((tournament) => tournament.tournamentType === "internal").length;
   const featuredTournament = tournaments.find((tournament) =>

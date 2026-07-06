@@ -7,8 +7,16 @@ import { formatDate } from "@/lib/tournaments/format";
 
 export const dynamic = "force-dynamic";
 
-export default async function InternalSeasonPage() {
-  const season = await getInternalSeasonLeaderboard();
+export default async function InternalSeasonPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ year?: string }>;
+}) {
+  const { year } = await searchParams;
+  const requestedYear = Number(year);
+  const season = await getInternalSeasonLeaderboard(
+    Number.isInteger(requestedYear) && requestedYear >= 2000 ? requestedYear : undefined,
+  );
   const champion = season.teamRows[0];
   const maleMvpRows = season.mvpRows.filter((row) => row.category === "male");
   const femaleMvpRows = season.mvpRows.filter((row) => row.category === "female");
@@ -35,6 +43,24 @@ export default async function InternalSeasonPage() {
               <p className="mt-4 max-w-2xl text-lg leading-8 text-slate-300">
                 Yearly team points and MVP leaderboards from internal NDSC tournaments.
               </p>
+              {season.seasonYears.length > 1 ? (
+                <div className="mt-5 flex flex-wrap gap-2">
+                  {season.seasonYears.map((seasonYear) => (
+                    <Link
+                      key={seasonYear}
+                      href={`/internal?year=${seasonYear}`}
+                      className={`inline-flex h-9 items-center rounded-full px-4 text-sm font-bold transition ${
+                        seasonYear === season.seasonYear
+                          ? "text-slate-950"
+                          : "border border-white/20 text-slate-300 hover:bg-white/10 hover:text-white"
+                      }`}
+                      style={seasonYear === season.seasonYear ? { backgroundColor: ndscColours.mint } : undefined}
+                    >
+                      {seasonYear}
+                    </Link>
+                  ))}
+                </div>
+              ) : null}
             </div>
             <div className="grid gap-3 rounded-lg border border-white/10 bg-white/5 p-4">
               <Stat icon={Trophy} label="Current leader" value={champion?.teamName ?? "TBC"} />
@@ -63,7 +89,7 @@ export default async function InternalSeasonPage() {
                     <th className="py-3 pr-4">Team</th>
                     <th className="px-3 py-3 text-center">Events</th>
                     <th className="px-3 py-3 text-center">Wins</th>
-                    <th className="px-3 py-3 text-center">Top 3</th>
+                    <th className="px-3 py-3 text-center">Losses</th>
                     <th className="py-3 pl-3 text-right">Pts</th>
                   </tr>
                 </thead>
@@ -78,7 +104,7 @@ export default async function InternalSeasonPage() {
                       </td>
                       <td className="px-3 py-3 text-center">{row.eventsPlayed}</td>
                       <td className="px-3 py-3 text-center">{row.wins}</td>
-                      <td className="px-3 py-3 text-center">{row.topThreeFinishes}</td>
+                      <td className="px-3 py-3 text-center">{row.losses}</td>
                       <td className="py-3 pl-3 text-right font-black">{row.points}</td>
                     </tr>
                   ))}
