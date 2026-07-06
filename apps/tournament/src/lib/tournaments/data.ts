@@ -510,32 +510,16 @@ function calculateInternalTeamRows(tournaments: TournamentBundle[]): InternalSea
       continue;
     }
 
-    // Games lost across the whole event, playoffs included.
-    const lossesByTeamId = new Map<string, number>();
-    for (const fixture of event.fixtures) {
-      if (
-        fixture.homeRuns === undefined ||
-        fixture.awayRuns === undefined ||
-        fixture.homeRuns === fixture.awayRuns
-      ) {
-        continue;
-      }
-      const loserId = fixture.homeRuns > fixture.awayRuns ? fixture.awayTeamId : fixture.homeTeamId;
-      lossesByTeamId.set(loserId, (lossesByTeamId.get(loserId) ?? 0) + 1);
-    }
-
     for (const placement of placements) {
       const existing = rows.get(placement.teamName) ?? {
         teamName: placement.teamName,
         eventsPlayed: 0,
         wins: 0,
-        losses: 0,
         points: 0,
       };
 
       existing.eventsPlayed += 1;
       existing.wins += placement.position === 1 ? 1 : 0;
-      existing.losses += lossesByTeamId.get(placement.teamId) ?? 0;
       existing.points += getSeasonPoints(placement.position);
       rows.set(placement.teamName, existing);
     }
@@ -544,7 +528,6 @@ function calculateInternalTeamRows(tournaments: TournamentBundle[]): InternalSea
   return [...rows.values()].sort((a, b) => {
     if (b.points !== a.points) return b.points - a.points;
     if (b.wins !== a.wins) return b.wins - a.wins;
-    if (a.losses !== b.losses) return a.losses - b.losses;
     return a.teamName.localeCompare(b.teamName);
   });
 }

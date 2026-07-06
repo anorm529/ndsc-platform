@@ -114,7 +114,6 @@ export type InternalSeasonTeamRow = {
   teamName: string;
   eventsPlayed: number;
   wins: number;
-  losses: number;
   points: number;
 };
 

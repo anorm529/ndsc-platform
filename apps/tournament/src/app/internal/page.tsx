@@ -89,7 +89,6 @@ export default async function InternalSeasonPage({
                     <th className="py-3 pr-4">Team</th>
                     <th className="px-3 py-3 text-center">Events</th>
                     <th className="px-3 py-3 text-center">Wins</th>
-                    <th className="px-3 py-3 text-center">Losses</th>
                     <th className="py-3 pl-3 text-right">Pts</th>
                   </tr>
                 </thead>
@@ -104,7 +103,6 @@ export default async function InternalSeasonPage({
                       </td>
                       <td className="px-3 py-3 text-center">{row.eventsPlayed}</td>
                       <td className="px-3 py-3 text-center">{row.wins}</td>
-                      <td className="px-3 py-3 text-center">{row.losses}</td>
                       <td className="py-3 pl-3 text-right font-black">{row.points}</td>
                     </tr>
                   ))}
