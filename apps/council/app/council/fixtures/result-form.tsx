@@ -10,18 +10,21 @@ export function ResultForm({ gameId, runsFor, runsAgainst }: { gameId: string; r
   const [ra, setRa] = useState(runsAgainst?.toString() ?? "");
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [error, setError] = useState(false);
 
   async function handleSave() {
     const rfn = parseInt(rf, 10);
     const ran = parseInt(ra, 10);
     if (isNaN(rfn) || isNaN(ran)) return;
     setSaving(true);
+    setError(false);
     try {
-      await fetch("/api/fixtures/result", {
+      const res = await fetch("/api/fixtures/result", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id: gameId, runsFor: rfn, runsAgainst: ran }),
       });
+      if (!res.ok) { setError(true); return; }
       setSaved(true);
       router.refresh();
     } finally {
@@ -54,7 +57,7 @@ export function ResultForm({ gameId, runsFor, runsAgainst }: { gameId: string; r
         disabled={saving || !rf || !ra}
         className="rounded-lg bg-[color:var(--accent)] px-2.5 py-1 text-[0.72rem] font-medium text-white hover:brightness-105 disabled:opacity-40"
       >
-        {saving ? <Loader2 className="h-3 w-3 animate-spin" /> : saved ? <CheckCircle className="h-3 w-3" /> : "Save"}
+        {saving ? <Loader2 className="h-3 w-3 animate-spin" /> : saved ? <CheckCircle className="h-3 w-3" /> : error ? "!" : "Save"}
       </button>
     </div>
   );

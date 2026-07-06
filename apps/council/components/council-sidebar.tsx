@@ -26,6 +26,7 @@ import {
   AlertTriangle,
   FileText,
   Megaphone,
+  Receipt,
 } from "lucide-react";
 
 type NavItem = {
@@ -53,7 +54,6 @@ const navGroups: NavGroup[] = [
       { label: "Actions",       href: "/council/actions",       icon: CheckSquare,   permission: null },
       { label: "Announcements", href: "/council/announcements", icon: Megaphone,     permission: null },
       { label: "Accounts",      href: "/council/accounts",      icon: UserCheck,     permission: "chairman" },
-      { label: "Flags",         href: "/council/flags",         icon: AlertTriangle, permission: null },
     ],
   },
   {
@@ -84,13 +84,15 @@ const navGroups: NavGroup[] = [
   {
     label: "Records",
     items: [
-      { label: "Archive",   href: "/council/archive", icon: Archive,    permission: null },
-      { label: "Audit Log", href: "/council/audit",   icon: ScrollText, permission: "chairman" },
+      { label: "Flags",        href: "/council/flags",       icon: AlertTriangle, permission: null },
+      { label: "Fee History",  href: "/council/fee-history", icon: Receipt,       permission: "treasurer" },
+      { label: "Archive",      href: "/council/archive",     icon: Archive,       permission: null },
+      { label: "Audit Log",    href: "/council/audit",       icon: ScrollText,    permission: "chairman" },
     ],
   },
 ];
 
-function SidebarLink({ item, active }: { item: NavItem; active: boolean }) {
+function SidebarLink({ item, active, badge }: { item: NavItem; active: boolean; badge?: number }) {
   const Icon = item.icon;
   return (
     <Link
@@ -108,7 +110,12 @@ function SidebarLink({ item, active }: { item: NavItem; active: boolean }) {
           active ? "text-teal-400" : "text-slate-500 group-hover:text-slate-300",
         ].join(" ")}
       />
-      <span>{item.label}</span>
+      <span className="flex-1">{item.label}</span>
+      {badge != null && badge > 0 && (
+        <span className="rounded-full bg-amber-500/20 px-1.5 py-0.5 text-[0.6rem] font-semibold text-amber-400">
+          {badge}
+        </span>
+      )}
     </Link>
   );
 }
@@ -129,12 +136,14 @@ export function CouncilSidebar({
   userName,
   councilPermissions,
   isOwner,
+  flagCount,
 }: {
   mobileOpen: boolean;
   onClose: () => void;
   userName: string;
   councilPermissions: string[];
   isOwner: boolean;
+  flagCount: number;
 }) {
   const pathname = usePathname();
   const permSet = new Set(councilPermissions);
@@ -195,7 +204,12 @@ export function CouncilSidebar({
           <div key={group.label}>
             <GroupLabel label={group.label} />
             {group.items.map((item) => (
-              <SidebarLink key={item.href} item={item} active={isActive(item.href)} />
+              <SidebarLink
+                key={item.href}
+                item={item}
+                active={isActive(item.href)}
+                badge={item.href === "/council/flags" ? flagCount : undefined}
+              />
             ))}
           </div>
         ))}

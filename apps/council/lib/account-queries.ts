@@ -152,13 +152,10 @@ export async function approveAccount(userId: string, actorId: string): Promise<v
     [userId]
   );
   await mainQuery(
-    `INSERT INTO audit_log (actor_id, target_user_id, action, new_value)
-     VALUES ($1, $2, 'account_approve', 'active')
-     ON CONFLICT DO NOTHING`,
-    [actorId, userId]
-  ).catch(() => {
-    // audit_log may not exist in all environments; non-fatal
-  });
+    `INSERT INTO admin_audit_log (actor_user_id, target_user_id, action, new_value)
+     VALUES ($1, $2, 'account_approve', to_jsonb($3::text))`,
+    [actorId, userId, 'active']
+  );
 }
 
 export async function denyAccount(userId: string, actorId: string): Promise<void> {
@@ -167,11 +164,10 @@ export async function denyAccount(userId: string, actorId: string): Promise<void
     [userId]
   );
   await mainQuery(
-    `INSERT INTO audit_log (actor_id, target_user_id, action, new_value)
-     VALUES ($1, $2, 'account_disable', 'disabled')
-     ON CONFLICT DO NOTHING`,
-    [actorId, userId]
-  ).catch(() => {});
+    `INSERT INTO admin_audit_log (actor_user_id, target_user_id, action, new_value)
+     VALUES ($1, $2, 'account_disable', to_jsonb($3::text))`,
+    [actorId, userId, 'disabled']
+  );
 }
 
 export async function linkPlayerToUser(
@@ -189,11 +185,10 @@ export async function linkPlayerToUser(
     [playerId, userId]
   );
   await mainQuery(
-    `INSERT INTO audit_log (actor_id, target_user_id, action, new_value)
-     VALUES ($1, $2, 'link', $3)
-     ON CONFLICT DO NOTHING`,
+    `INSERT INTO admin_audit_log (actor_user_id, target_user_id, action, new_value)
+     VALUES ($1, $2, 'link', to_jsonb($3::text))`,
     [actorId, userId, playerId]
-  ).catch(() => {});
+  );
 }
 
 // ─── Data integrity flags ─────────────────────────────────────────────────────
@@ -295,4 +290,23 @@ export async function getDataFlags(): Promise<DataFlags> {
       gender: r.gender,
     })),
   };
+}
+
+export async function getFlagCount(): Promise<number> {
+  const result = await mainQuery<{ total: string }>(
+    `SELECT (
+       (SELECT COUNT(*) FROM users WHERE account_status = 'active' AND player_id IS NULL) +
+       (SELECT COUNT(*) FROM (SELECT player_id FROM users WHERE player_id IS NOT NULL GROUP BY player_id HAVING COUNT(*) > 1) x) +
+       (SELECT COUNT(*) FROM users WHERE account_status = 'pending' AND created_at < NOW() - INTERVAL '14 days') +
+       (SELECT COUNT(*) FROM players p WHERE p.active = true AND NOT EXISTS (SELECT 1 FROM users u WHERE u.player_id = p.id))
+     )::text AS total`
+  );
+  return parseInt(result.rows[0]?.total ?? "0", 10);
+}
+
+export async function getFlaggedPlayerIds(): Promise<Set<string>> {
+  const result = await mainQuery<{ player_id: string }>(
+    `SELECT player_id FROM users WHERE player_id IS NOT NULL GROUP BY player_id HAVING COUNT(*) > 1`
+  );
+  return new Set(result.rows.map((r) => r.player_id));
 }

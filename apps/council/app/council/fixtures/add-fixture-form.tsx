@@ -13,8 +13,10 @@ export function AddFixtureForm({ seasonId, teams }: { seasonId: string; teams: T
     teamId: teams[0]?.id ?? "",
     opponent: "",
     scheduledAt: "",
-    homeAway: "home",
+    homeAway: "Home",
     location: "",
+    latitude: "",
+    longitude: "",
   });
 
   function set(k: keyof typeof form, v: string) {
@@ -29,9 +31,14 @@ export function AddFixtureForm({ seasonId, teams }: { seasonId: string; teams: T
       await fetch("/api/fixtures", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...form, seasonId }),
+        body: JSON.stringify({
+          ...form,
+          seasonId,
+          latitude: form.latitude !== "" ? parseFloat(form.latitude) : null,
+          longitude: form.longitude !== "" ? parseFloat(form.longitude) : null,
+        }),
       });
-      setForm({ teamId: teams[0]?.id ?? "", opponent: "", scheduledAt: "", homeAway: "home", location: "" });
+      setForm({ teamId: teams[0]?.id ?? "", opponent: "", scheduledAt: "", homeAway: "Home", location: "", latitude: "", longitude: "" });
       setOpen(false);
       router.refresh();
     } finally {
@@ -86,6 +93,7 @@ export function AddFixtureForm({ seasonId, teams }: { seasonId: string; teams: T
           <input
             required
             type="datetime-local"
+            min="2000-01-01T00:00"
             value={form.scheduledAt}
             onChange={(e) => set("scheduledAt", e.target.value)}
             className="w-full rounded-xl border border-[color:var(--border)] px-3 py-2 text-[0.82rem] text-slate-700 outline-none focus:border-[color:var(--border-strong)]"
@@ -99,8 +107,8 @@ export function AddFixtureForm({ seasonId, teams }: { seasonId: string; teams: T
             onChange={(e) => set("homeAway", e.target.value)}
             className="w-full rounded-xl border border-[color:var(--border)] bg-white px-3 py-2 text-[0.82rem] text-slate-700 outline-none focus:border-[color:var(--border-strong)]"
           >
-            <option value="home">Home</option>
-            <option value="away">Away</option>
+            <option value="Home">Home</option>
+            <option value="Away">Away</option>
           </select>
         </div>
 
@@ -111,6 +119,30 @@ export function AddFixtureForm({ seasonId, teams }: { seasonId: string; teams: T
             value={form.location}
             onChange={(e) => set("location", e.target.value)}
             placeholder="e.g. Ormeau Park, Belfast"
+            className="w-full rounded-xl border border-[color:var(--border)] px-3 py-2 text-[0.82rem] text-slate-700 outline-none focus:border-[color:var(--border-strong)]"
+          />
+        </div>
+
+        <div>
+          <label className="mb-1 block text-[0.72rem] font-medium text-[color:var(--muted-foreground)]">Latitude (optional)</label>
+          <input
+            type="number"
+            step="any"
+            value={form.latitude}
+            onChange={(e) => set("latitude", e.target.value)}
+            placeholder="e.g. 54.5918"
+            className="w-full rounded-xl border border-[color:var(--border)] px-3 py-2 text-[0.82rem] text-slate-700 outline-none focus:border-[color:var(--border-strong)]"
+          />
+        </div>
+
+        <div>
+          <label className="mb-1 block text-[0.72rem] font-medium text-[color:var(--muted-foreground)]">Longitude (optional)</label>
+          <input
+            type="number"
+            step="any"
+            value={form.longitude}
+            onChange={(e) => set("longitude", e.target.value)}
+            placeholder="e.g. -5.9301"
             className="w-full rounded-xl border border-[color:var(--border)] px-3 py-2 text-[0.82rem] text-slate-700 outline-none focus:border-[color:var(--border-strong)]"
           />
         </div>

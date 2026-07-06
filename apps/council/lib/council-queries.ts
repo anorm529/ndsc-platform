@@ -366,13 +366,28 @@ export interface PlayerFeeStatus {
 }
 
 export async function getCurrentFeeStatuses(): Promise<Map<string, PlayerFeeStatus>> {
-  // Use the active season; fall back to the most recent season
-  const seasonResult = await councilQuery<{ id: string }>(
-    `SELECT id FROM fee_seasons
-     ORDER BY is_active DESC, year DESC
-     LIMIT 1`
+  // Anchor to the active playing season year so we never show 2026 fees for 2027 members.
+  const activePlayingSeason = await mainQuery<{ year: number }>(
+    `SELECT year FROM seasons WHERE status = 'active' LIMIT 1`
   );
-  const seasonId = seasonResult.rows[0]?.id;
+
+  let seasonId: string | undefined;
+  if (activePlayingSeason.rows[0]) {
+    const match = await councilQuery<{ id: string }>(
+      `SELECT id FROM fee_seasons WHERE year = $1 LIMIT 1`,
+      [activePlayingSeason.rows[0].year]
+    );
+    seasonId = match.rows[0]?.id;
+  }
+
+  if (!seasonId) {
+    // No active playing season — fall back to the most recent fee season
+    const fallback = await councilQuery<{ id: string }>(
+      `SELECT id FROM fee_seasons ORDER BY is_active DESC, year DESC LIMIT 1`
+    );
+    seasonId = fallback.rows[0]?.id;
+  }
+
   if (!seasonId) return new Map();
 
   const result = await councilQuery<{

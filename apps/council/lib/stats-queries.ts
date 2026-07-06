@@ -17,6 +17,7 @@ export interface ImportResult {
   skipped: number;
   unmatchedPlayers: string[];
   unmatchedGames: string[];
+  notOnRoster: string[];
   errors: string[];
 }
 
@@ -27,6 +28,8 @@ export interface PreviewResult {
   unmatchedGames: string[];
   matchedPlayers: number;
   unmatchedPlayers: string[];
+  notOnRosterPlayers: string[];
+  enrollmentChecked: boolean;
 }
 
 // ─── Lookups ──────────────────────────────────────────────────────────────────
@@ -34,8 +37,9 @@ export interface PreviewResult {
 export async function findPlayerId(name: string): Promise<string | null> {
   const result = await mainQuery<{ id: string }>(
     `SELECT id::text AS id FROM public.players
-     WHERE lower(trim(display_name)) = lower(trim($1))
-        OR lower(trim(coalesce(normalized_name, ''))) = lower(trim($1))
+     WHERE active = true
+       AND (lower(trim(display_name)) = lower(trim($1))
+         OR lower(trim(coalesce(normalized_name, ''))) = lower(trim($1)))
      LIMIT 1`,
     [name],
   );
@@ -79,7 +83,7 @@ export async function findGameId(params: {
     `SELECT id::text AS id FROM public.games
      WHERE season_id = $1 AND team_id = $2
        AND lower(trim(opponent)) = lower(trim($3))
-       AND game_date::date = $4::date
+       AND game_date BETWEEN ($4::date - 1) AND ($4::date + 1)
        ${homeAwaySql}
      LIMIT 1`,
     values,
@@ -141,32 +145,21 @@ export async function upsertStatRow(
   playerId: string,
   row: StatRow,
 ): Promise<"inserted" | "updated"> {
-  const innings = parseNum(row.innings);
-  const rbis = parseNum(row.rbi);
-  const runs = parseNum(row.runs);
-  const walks = parseNum(row.bb);
-  const singles = parseNum(row["1b"]);
-  const doubles = parseNum(row["2b"]);
-  const triples = parseNum(row["3b"]);
-  const homeRuns = parseNum(row.hr);
-  const batterOuts = parseNum(row.batter_outs);
-  const atBats = parseNum(row.ab);
-  const unassistedOuts = parseNum(row.unassisted_outs);
-  const assistedOuts = parseNum(row.assisted_outs);
+  const innings = parseNum(row.innings); // nullable — not all players have an innings count
+  // Counting stats default to 0 when blank — these columns are NOT NULL in the schema
+  const rbis = parseNum(row.rbi) ?? 0;
+  const runs = parseNum(row.runs) ?? 0;
+  const walks = parseNum(row.bb) ?? 0;
+  const singles = parseNum(row["1b"]) ?? 0;
+  const doubles = parseNum(row["2b"]) ?? 0;
+  const triples = parseNum(row["3b"]) ?? 0;
+  const homeRuns = parseNum(row.hr) ?? 0;
+  const batterOuts = parseNum(row.batter_outs) ?? 0;
+  const atBats = parseNum(row.ab) ?? 0;
+  const unassistedOuts = parseNum(row.unassisted_outs) ?? 0;
+  const assistedOuts = parseNum(row.assisted_outs) ?? 0;
 
-  const totalOuts =
-    unassistedOuts !== null && assistedOuts !== null
-      ? unassistedOuts + assistedOuts
-      : unassistedOuts ?? assistedOuts;
-
-  const totalOnBase =
-    (singles ?? 0) + (doubles ?? 0) + (triples ?? 0) + (homeRuns ?? 0) + (walks ?? 0);
-
-  const obp = atBats ? totalOnBase / atBats : null;
-  const slg = atBats
-    ? ((singles ?? 0) + 2 * (doubles ?? 0) + 3 * (triples ?? 0) + 4 * (homeRuns ?? 0)) / atBats
-    : null;
-  const ops = obp !== null && slg !== null ? obp + slg : null;
+  // total_outs, total_on_base, obp, slg, ops are generated columns — Postgres computes them automatically.
 
   // Check if already exists
   const existing = await mainQuery<{ id: string }>(
@@ -180,15 +173,13 @@ export async function upsertStatRow(
       `UPDATE public.player_game_stats SET
         innings = $3, rbis = $4, runs = $5, walks = $6,
         singles = $7, doubles = $8, triples = $9, home_runs = $10,
-        batter_outs = $11, at_bats = $12, unassisted_outs = $13, assisted_outs = $14,
-        total_outs = $15, total_on_base = $16, obp = $17, slg = $18, ops = $19
+        batter_outs = $11, at_bats = $12, unassisted_outs = $13, assisted_outs = $14
        WHERE game_id = $1 AND player_id = $2`,
       [
         gameId, playerId,
         innings, rbis, runs, walks,
         singles, doubles, triples, homeRuns,
         batterOuts, atBats, unassistedOuts, assistedOuts,
-        totalOuts, totalOnBase, obp, slg, ops,
       ],
     );
     return "updated";
@@ -198,23 +189,40 @@ export async function upsertStatRow(
     `INSERT INTO public.player_game_stats
       (game_id, player_id, innings, rbis, runs, walks,
        singles, doubles, triples, home_runs,
-       batter_outs, at_bats, unassisted_outs, assisted_outs,
-       total_outs, total_on_base, obp, slg, ops)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19)`,
+       batter_outs, at_bats, unassisted_outs, assisted_outs)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)`,
     [
       gameId, playerId,
       innings, rbis, runs, walks,
       singles, doubles, triples, homeRuns,
       batterOuts, atBats, unassistedOuts, assistedOuts,
-      totalOuts, totalOnBase, obp, slg, ops,
     ],
   );
   return "inserted";
 }
 
+export async function getActiveSeasonId(): Promise<string | null> {
+  const result = await mainQuery<{ id: string }>(
+    `SELECT id::text FROM public.seasons WHERE status = 'active' ORDER BY year DESC LIMIT 1`,
+    [],
+  );
+  return result.rows[0]?.id ?? null;
+}
+
+// Returns map of player_id → current_team_id (null if unassigned) for every enrolled player in the season.
+export async function getAllEnrollmentsForSeason(seasonId: string): Promise<Map<string, string | null>> {
+  const result = await mainQuery<{ player_id: string; current_team_id: string | null }>(
+    `SELECT player_id::text, current_team_id::text
+     FROM public.season_enrollments
+     WHERE season_id = $1`,
+    [seasonId],
+  );
+  return new Map(result.rows.map((r) => [r.player_id, r.current_team_id ?? null]));
+}
+
 // ─── Recent games ─────────────────────────────────────────────────────────────
 
-export async function getRecentGamesWithStats(limit = 20): Promise<GameRow[]> {
+export async function getRecentGamesWithStats(limit = 20, seasonId?: string): Promise<GameRow[]> {
   const result = await mainQuery<{
     id: string;
     team_name: string;
@@ -230,10 +238,11 @@ export async function getRecentGamesWithStats(limit = 20): Promise<GameRow[]> {
      JOIN public.teams t ON t.id = g.team_id
      JOIN public.seasons s ON s.id = g.season_id
      LEFT JOIN public.player_game_stats pgs ON pgs.game_id = g.id
+     WHERE ($2::uuid IS NULL OR g.season_id = $2::uuid)
      GROUP BY g.id, t.name, g.opponent, g.game_date, g.home_away, s.year
      ORDER BY g.game_date DESC, t.name
      LIMIT $1`,
-    [limit],
+    [limit, seasonId ?? null],
   );
 
   return result.rows.map((r) => ({
@@ -247,18 +256,129 @@ export async function getRecentGamesWithStats(limit = 20): Promise<GameRow[]> {
   }));
 }
 
+// ─── Game drill-down ──────────────────────────────────────────────────────────
+
+export interface GameDetail {
+  id: string;
+  teamName: string;
+  opponent: string;
+  gameDate: string;
+  homeAway: string;
+  year: number;
+}
+
+export interface StatRecord {
+  id: string;
+  playerId: string;
+  playerName: string;
+  innings: number | null;
+  singles: number;
+  doubles: number;
+  triples: number;
+  homeRuns: number;
+  rbis: number;
+  runs: number;
+  walks: number;
+  batterOuts: number;
+  atBats: number;
+  unassistedOuts: number;
+  assistedOuts: number;
+}
+
+export async function getGameById(gameId: string): Promise<GameDetail | null> {
+  const result = await mainQuery<{
+    id: string; team_name: string; opponent: string;
+    game_date: string; home_away: string; year: number;
+  }>(
+    `SELECT g.id::text AS id, t.name AS team_name, g.opponent,
+            g.game_date::text, g.home_away, s.year
+     FROM games g
+     JOIN teams t ON t.id = g.team_id
+     JOIN seasons s ON s.id = g.season_id
+     WHERE g.id = $1`,
+    [gameId]
+  );
+  const r = result.rows[0];
+  if (!r) return null;
+  return { id: r.id, teamName: r.team_name, opponent: r.opponent, gameDate: r.game_date, homeAway: r.home_away, year: r.year };
+}
+
+export async function getGameStatRecords(gameId: string): Promise<StatRecord[]> {
+  const result = await mainQuery<{
+    id: string; player_id: string; player_name: string;
+    innings: number | null; singles: number; doubles: number; triples: number;
+    home_runs: number; rbis: number; runs: number; walks: number;
+    batter_outs: number; at_bats: number; unassisted_outs: number; assisted_outs: number;
+  }>(
+    `SELECT pgs.id::text AS id, pgs.player_id::text AS player_id,
+            coalesce(p.display_name, 'Unknown') AS player_name,
+            pgs.innings, pgs.singles, pgs.doubles, pgs.triples,
+            pgs.home_runs, pgs.rbis, pgs.runs, pgs.walks,
+            pgs.batter_outs, pgs.at_bats, pgs.unassisted_outs, pgs.assisted_outs
+     FROM player_game_stats pgs
+     JOIN players p ON p.id = pgs.player_id
+     WHERE pgs.game_id = $1
+     ORDER BY p.display_name ASC`,
+    [gameId]
+  );
+  return result.rows.map((r) => ({
+    id: r.id,
+    playerId: r.player_id,
+    playerName: r.player_name,
+    innings: r.innings,
+    singles: r.singles,
+    doubles: r.doubles,
+    triples: r.triples,
+    homeRuns: r.home_runs,
+    rbis: r.rbis,
+    runs: r.runs,
+    walks: r.walks,
+    batterOuts: r.batter_outs,
+    atBats: r.at_bats,
+    unassistedOuts: r.unassisted_outs,
+    assistedOuts: r.assisted_outs,
+  }));
+}
+
 // ─── CSV processing ───────────────────────────────────────────────────────────
+
+function parseCsvLine(line: string): string[] {
+  const fields: string[] = [];
+  let i = 0;
+  while (i <= line.length) {
+    if (line[i] === '"') {
+      let field = "";
+      i++;
+      while (i < line.length) {
+        if (line[i] === '"') {
+          if (line[i + 1] === '"') { field += '"'; i += 2; }
+          else { i++; break; }
+        } else {
+          field += line[i++];
+        }
+      }
+      fields.push(field.trim());
+      if (line[i] === ",") i++;
+    } else {
+      const end = line.indexOf(",", i);
+      if (end === -1) { fields.push(line.slice(i).trim()); break; }
+      fields.push(line.slice(i, end).trim());
+      i = end + 1;
+    }
+  }
+  return fields;
+}
 
 export function parseCsvText(text: string): StatRow[] {
   const lines = text.trim().split(/\r?\n/);
   if (lines.length < 2) return [];
 
-  const headers = lines[0].split(",").map((h) => h.trim().toLowerCase());
+  const headers = parseCsvLine(lines[0]).map((h) => h.toLowerCase());
 
   return lines.slice(1)
     .filter((l) => l.trim())
     .map((line) => {
-      const values = line.split(",").map((v) => v.trim());
+      const values = parseCsvLine(line);
       const row: Record<string, string> = {};
       for (let i = 0; i < headers.length; i++) {
         row[headers[i]] = values[i] ?? "";
@@ -270,12 +390,20 @@ export function parseCsvText(text: string): StatRow[] {
 export async function previewCsvImport(rows: StatRow[]): Promise<PreviewResult> {
   const gameKeys = new Set<string>();
   const playerNames = new Set<string>();
+  // "playerName\x00teamName\x00year" — tracks which (player, team, season) combos appear
+  const playerYearTeamKeys = new Set<string>();
 
   for (const row of rows) {
     const key = `${row.year}::${row.team}::${row.opponent}::${row.game_date}::${row.home_away}`;
     gameKeys.add(key);
-    if (row.player?.trim()) playerNames.add(row.player.trim());
+    if (row.player?.trim()) {
+      playerNames.add(row.player.trim());
+      playerYearTeamKeys.add(`${row.player.trim()}\x00${row.team?.trim() ?? ""}\x00${row.year ?? ""}`);
+    }
   }
+
+  const teamCache = new Map<string, string | null>();
+  const seasonCache = new Map<number, string | null>();
 
   // Check games — match only, never create
   let matchedGames = 0;
@@ -283,8 +411,12 @@ export async function previewCsvImport(rows: StatRow[]): Promise<PreviewResult> 
 
   for (const key of gameKeys) {
     const [year, team, opponent, gameDate, homeAway] = key.split("::");
-    const teamId = await findTeamId(team);
-    const seasonId = await findSeasonId(parseInt(year, 10));
+    const teamKey = team?.toLowerCase() ?? "";
+    if (!teamCache.has(teamKey)) teamCache.set(teamKey, await findTeamId(team));
+    const teamId = teamCache.get(teamKey);
+    const yearNum = parseInt(year, 10);
+    if (!seasonCache.has(yearNum)) seasonCache.set(yearNum, await findSeasonId(yearNum));
+    const seasonId = seasonCache.get(yearNum);
     const existing = teamId && seasonId
       ? await findGameId({ seasonId, teamId, opponent, gameDate: normDate(gameDate), homeAway })
       : null;
@@ -295,14 +427,52 @@ export async function previewCsvImport(rows: StatRow[]): Promise<PreviewResult> 
     }
   }
 
-  // Check players
+  // Check players exist in DB (active only)
   const unmatchedPlayers: string[] = [];
   let matchedPlayers = 0;
+  const playerCache = new Map<string, string | null>();
 
   for (const name of playerNames) {
     const id = await findPlayerId(name);
+    playerCache.set(name.toLowerCase(), id);
     if (id) matchedPlayers++;
     else unmatchedPlayers.push(name);
+  }
+
+  // Enrollment check: player must be enrolled AND assigned to their CSV team for the game's season.
+  // Uses per-season cache so multi-season CSVs are handled correctly.
+  const notOnRosterPlayers: string[] = [];
+  let enrollmentChecked = false;
+  const enrollmentCache = new Map<string, Map<string, string | null>>();
+
+  for (const key of playerYearTeamKeys) {
+    const parts = key.split("\x00");
+    const playerName = parts[0];
+    const teamName = parts[1];
+    const yearNum = parseInt(parts[2], 10);
+
+    const playerId = playerCache.get(playerName.toLowerCase());
+    if (!playerId) continue; // already in unmatchedPlayers
+
+    const teamKey = teamName.toLowerCase();
+    if (!teamCache.has(teamKey)) teamCache.set(teamKey, await findTeamId(teamName));
+    const teamId = teamCache.get(teamKey);
+
+    const seasonId = seasonCache.get(yearNum);
+    if (!seasonId || !teamId) continue; // season/team unknown — already flagged as unmatched game
+
+    enrollmentChecked = true;
+
+    if (!enrollmentCache.has(seasonId)) {
+      enrollmentCache.set(seasonId, await getAllEnrollmentsForSeason(seasonId));
+    }
+    const enrollment = enrollmentCache.get(seasonId)!;
+
+    const assignedTeamId = enrollment.get(playerId);
+    const correctlyAssigned = enrollment.has(playerId) && assignedTeamId === teamId;
+    if (!correctlyAssigned) {
+      notOnRosterPlayers.push(playerName);
+    }
   }
 
   return {
@@ -312,6 +482,8 @@ export async function previewCsvImport(rows: StatRow[]): Promise<PreviewResult> 
     unmatchedGames,
     matchedPlayers,
     unmatchedPlayers,
+    notOnRosterPlayers: [...new Set(notOnRosterPlayers)],
+    enrollmentChecked,
   };
 }
 
@@ -322,6 +494,7 @@ export async function importCsvRows(rows: StatRow[]): Promise<ImportResult> {
     skipped: 0,
     unmatchedPlayers: [],
     unmatchedGames: [],
+    notOnRoster: [],
     errors: [],
   };
 
@@ -330,6 +503,7 @@ export async function importCsvRows(rows: StatRow[]): Promise<ImportResult> {
   const seasonCache = new Map<number, string | null>();
   const playerCache = new Map<string, string | null>();
   const gameCache = new Map<string, string | null>();
+  const enrollmentCache = new Map<string, Map<string, string | null>>();
 
   for (const row of rows) {
     const playerName = row.player?.trim();
@@ -380,6 +554,18 @@ export async function importCsvRows(rows: StatRow[]): Promise<ImportResult> {
       if (!result.unmatchedPlayers.includes(playerName)) {
         result.unmatchedPlayers.push(playerName);
       }
+      result.skipped++;
+      continue;
+    }
+
+    // Enrollment check: must be enrolled AND assigned to this team for this season
+    if (!enrollmentCache.has(seasonId)) {
+      enrollmentCache.set(seasonId, await getAllEnrollmentsForSeason(seasonId));
+    }
+    const enrollment = enrollmentCache.get(seasonId)!;
+    const assignedTeamId = enrollment.get(playerId);
+    if (!enrollment.has(playerId) || assignedTeamId !== teamId) {
+      if (!result.notOnRoster.includes(playerName)) result.notOnRoster.push(playerName);
       result.skipped++;
       continue;
     }

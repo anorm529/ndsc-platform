@@ -68,8 +68,9 @@ export default function CountdownBar({
 
       <div className="h-4 w-full rounded-full bg-white/10 overflow-hidden">
         <div
-        className="h-full bg-teal-400 transition-all duration-500"
-        style={{ width: `${progress * 100}%` }}
+          suppressHydrationWarning
+          className="h-full bg-teal-400 transition-all duration-500"
+          style={{ width: `${progress * 100}%` }}
         />
       </div>
 

@@ -3,9 +3,15 @@ import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import LoginForm from "@/app/members/login-form";
 
-export default async function MembersLoginPage() {
+export default async function MembersLoginPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ verified?: string }>;
+}) {
   const user = await getCurrentUser();
   if (user) redirect("/members/home");
+
+  const verified = (await searchParams)?.verified;
 
   return (
     <main className="min-h-screen bg-[#0F172A] text-white">
@@ -35,6 +41,16 @@ export default async function MembersLoginPage() {
           <p className="mt-2 text-sm text-slate-400">
             Use your member account. The old shared PIN has been retired.
           </p>
+          {verified === "1" && (
+            <div className="mt-4 rounded-xl border border-teal-300/20 bg-teal-500/10 px-4 py-3 text-sm text-teal-300">
+              Email verified — you can sign in now.
+            </div>
+          )}
+          {verified === "invalid" && (
+            <div className="mt-4 rounded-xl border border-rose-300/20 bg-rose-500/10 px-4 py-3 text-sm text-rose-300">
+              That verification link is invalid or has already been used. Request a new one from the council.
+            </div>
+          )}
           <LoginForm />
           <Link href="/members/forgot-password" className="mt-4 inline-flex text-sm font-semibold text-teal-400">
             Forgot password?

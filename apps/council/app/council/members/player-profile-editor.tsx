@@ -12,6 +12,7 @@ type Props = {
 export function PlayerProfileEditor({ playerId, profile: initial }: Props) {
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [profile, setProfile] = useState<PlayerProfile>({
     playerId,
     yearOfBirth: initial?.yearOfBirth ?? null,
@@ -26,6 +27,7 @@ export function PlayerProfileEditor({ playerId, profile: initial }: Props) {
 
   function openEditor() {
     setDraft({ ...profile });
+    setSaveError(null);
     setOpen(true);
   }
 
@@ -35,6 +37,7 @@ export function PlayerProfileEditor({ playerId, profile: initial }: Props) {
 
   async function save() {
     setSaving(true);
+    setSaveError(null);
     try {
       const res = await fetch("/api/player-profile", {
         method: "POST",
@@ -52,7 +55,7 @@ export function PlayerProfileEditor({ playerId, profile: initial }: Props) {
       setProfile({ ...draft });
       setOpen(false);
     } catch {
-      // leave open so user can retry
+      setSaveError("Failed to save — please try again");
     } finally {
       setSaving(false);
     }
@@ -61,43 +64,41 @@ export function PlayerProfileEditor({ playerId, profile: initial }: Props) {
   const hasProfile = profile.yearOfBirth || profile.postcode || profile.isRookie || profile.isUmpire;
 
   return (
-    <div className="mt-1">
-      {/* Inline summary badges */}
-      {!open && (
-        <div className="flex flex-wrap items-center gap-1.5">
-          {profile.yearOfBirth ? (
-            <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[0.65rem] text-slate-500">
-              b. {profile.yearOfBirth}
-            </span>
-          ) : null}
-          {profile.postcode ? (
-            <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[0.65rem] text-slate-500">
-              {profile.postcode.toUpperCase()}
-            </span>
-          ) : null}
-          {profile.isRookie ? (
-            <span className="rounded bg-amber-50 px-1.5 py-0.5 text-[0.65rem] font-medium text-amber-600">
-              Rookie
-            </span>
-          ) : null}
-          {profile.isUmpire ? (
-            <span className="rounded bg-blue-50 px-1.5 py-0.5 text-[0.65rem] font-medium text-blue-600">
-              Umpire
-            </span>
-          ) : null}
-          <button
-            onClick={openEditor}
-            className="flex items-center gap-1 rounded px-1.5 py-0.5 text-[0.65rem] text-slate-400 hover:bg-slate-100 hover:text-slate-600"
-          >
-            <Pencil className="h-2.5 w-2.5" />
-            {hasProfile ? "Edit" : "Add profile"}
-          </button>
-        </div>
-      )}
+    <div className="relative">
+      {/* Summary badges + edit trigger */}
+      <div className="flex flex-wrap items-center gap-1.5">
+        {!open && profile.yearOfBirth ? (
+          <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[0.65rem] text-slate-500">
+            b. {profile.yearOfBirth}
+          </span>
+        ) : null}
+        {!open && profile.postcode ? (
+          <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[0.65rem] text-slate-500">
+            {profile.postcode.toUpperCase()}
+          </span>
+        ) : null}
+        {!open && profile.isRookie ? (
+          <span className="rounded bg-amber-50 px-1.5 py-0.5 text-[0.65rem] font-medium text-amber-600">
+            Rookie
+          </span>
+        ) : null}
+        {!open && profile.isUmpire ? (
+          <span className="rounded bg-blue-50 px-1.5 py-0.5 text-[0.65rem] font-medium text-blue-600">
+            Umpire
+          </span>
+        ) : null}
+        <button
+          onClick={open ? cancel : openEditor}
+          className="flex items-center gap-1 rounded px-1.5 py-0.5 text-[0.65rem] text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+        >
+          {open ? <X className="h-2.5 w-2.5" /> : <Pencil className="h-2.5 w-2.5" />}
+          {open ? "Close" : hasProfile ? "Edit" : "Add profile"}
+        </button>
+      </div>
 
-      {/* Inline edit form */}
+      {/* Floating edit form — absolutely positioned so it doesn't displace grid rows */}
       {open && (
-        <div className="mt-2 rounded-xl border border-[color:var(--border)] bg-slate-50 p-3 space-y-2.5">
+        <div className="absolute right-0 top-full z-30 mt-1 w-60 rounded-xl border border-[color:var(--border)] bg-white shadow-lg p-3 space-y-2.5">
           <div className="grid grid-cols-2 gap-2">
             <label className="block">
               <span className="mb-0.5 block text-[0.68rem] font-medium text-slate-500">Year of birth</span>
@@ -155,15 +156,8 @@ export function PlayerProfileEditor({ playerId, profile: initial }: Props) {
             />
           </label>
 
-          <div className="flex items-center justify-end gap-2">
-            <button
-              type="button"
-              onClick={cancel}
-              disabled={saving}
-              className="flex items-center gap-1 rounded-lg px-3 py-1.5 text-[0.75rem] text-slate-500 hover:bg-slate-200 disabled:opacity-50"
-            >
-              <X className="h-3 w-3" /> Cancel
-            </button>
+          <div className="flex flex-col items-end gap-1">
+            {saveError && <p className="text-[0.68rem] text-[color:var(--danger)]">{saveError}</p>}
             <button
               type="button"
               onClick={save}

@@ -243,9 +243,9 @@ export default async function MembersHomePage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {profile.seasonSummaries.map((s) => (
+                      {profile.seasonSummaries.map((s, i) => (
                         <tr
-                          key={s.season}
+                          key={`${s.season}-${s.teamSlugs[0] ?? i}`}
                           className="border-t border-[#2B4162] transition hover:bg-white/[0.02]"
                         >
                           <td className="py-3 pr-4 font-semibold text-teal-400">{s.season}</td>
@@ -304,8 +304,8 @@ export default async function MembersHomePage() {
                   </span>
                 </div>
                 <div className="mt-5 space-y-4">
-                  {[...profile.seasonSummaries].reverse().map((s) => (
-                    <div key={s.season} className="grid grid-cols-[56px_1fr] items-center gap-4">
+                  {[...profile.seasonSummaries].reverse().map((s, i) => (
+                    <div key={`${s.season}-${s.teamSlugs[0] ?? i}`} className="grid grid-cols-[56px_1fr] items-center gap-4">
                       <div className="text-xs text-slate-400">{s.season}</div>
                       <div className="space-y-1.5">
                         <div className="flex items-center gap-2">

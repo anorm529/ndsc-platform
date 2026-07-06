@@ -110,7 +110,7 @@ function RosterRow({
         {fee?.status === "unpaid" && (
           <span className="rounded bg-[rgba(239,68,68,0.1)] px-1.5 py-0.5 text-[0.6rem] font-medium text-[color:var(--danger)]">Due</span>
         )}
-        {canAssign && season.status === "active" && (
+        {canAssign && season.status === "active" && (!season.transfersLocked || canManage) && (
           <AssignTeamForm
             playerId={enr.playerId}
             seasonId={season.id}

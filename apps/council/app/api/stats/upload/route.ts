@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCouncilUser } from "@/lib/council-session";
 import { parseCsvText, previewCsvImport, importCsvRows } from "@/lib/stats-queries";
+import { mainQuery } from "@/lib/main-db";
 
 export async function POST(req: NextRequest) {
   const user = await getCouncilUser();
@@ -29,5 +30,14 @@ export async function POST(req: NextRequest) {
   }
 
   const result = await importCsvRows(rows);
+
+  if (user) {
+    await mainQuery(
+      `INSERT INTO admin_audit_log (actor_user_id, action, new_value)
+       VALUES ($1, 'stats.upload', $2::jsonb)`,
+      [user.id, JSON.stringify({ inserted: result.inserted, updated: result.updated, skipped: result.skipped })]
+    );
+  }
+
   return NextResponse.json(result);
 }

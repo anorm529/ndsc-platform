@@ -12,28 +12,76 @@ function formatDateTime(d: Date): string {
 
 function actionLabel(action: string): string {
   const map: Record<string, string> = {
-    "account.approve":       "Account approved",
-    "account.disable":       "Account disabled",
-    "account.role_change":   "Role changed",
-    "account.relink_player": "Player re-linked",
-    "account.password_reset":"Password reset",
-    "account.unlink":        "Player unlinked",
-    "account.link":          "Player linked",
+    "account.approve":        "Account approved",
+    "account.disable":        "Account disabled",
+    "account.role_change":    "Role changed",
+    "account.relink_player":  "Player re-linked",
+    "account.password_reset": "Password reset",
+    "account.unlink":         "Player unlinked",
+    "account.link":           "Player linked",
+    "player.activate":        "Player activated",
+    "player.deactivate":      "Player deactivated",
+    "stats.upload":           "Stats uploaded",
+    "stats.record.update":    "Stat row edited",
+    "stats.record.delete":    "Stat row deleted",
+    "season.archive":         "Season archived",
+    "season.activate":        "Season opened",
+    "season.close":           "Season closed",
+    "season.reopen":          "Season reopened",
+    "player.invite":          "Invite sent",
   };
   return map[action] ?? action;
 }
 
 function actionBadgeClass(action: string): string {
-  if (action.includes("approve") || action.includes("link")) {
-    return "bg-[rgba(16,185,129,0.1)] text-[color:var(--success)]";
-  }
-  if (action.includes("disable")) {
+  if (action === "player.deactivate" || action === "account.disable" || action === "stats.record.delete") {
     return "bg-[rgba(239,68,68,0.08)] text-[color:var(--danger)]";
   }
-  if (action.includes("role") || action.includes("password")) {
+  if (action === "player.activate" || action.includes("approve") || action.includes("link")) {
+    return "bg-[rgba(16,185,129,0.1)] text-[color:var(--success)]";
+  }
+  if (action.includes("role") || action.includes("password") || action === "stats.record.update") {
     return "bg-[rgba(233,185,62,0.1)] text-[color:var(--warning)]";
   }
+  if (action === "stats.upload") {
+    return "bg-[rgba(20,184,166,0.08)] text-[color:var(--accent)]";
+  }
+  if (action === "season.archive" || action === "season.close") {
+    return "bg-[rgba(115,145,176,0.08)] text-[color:var(--muted-foreground)]";
+  }
+  if (action === "season.activate" || action === "season.reopen") {
+    return "bg-[rgba(16,185,129,0.1)] text-[color:var(--success)]";
+  }
+  if (action === "player.invite") {
+    return "bg-[rgba(20,184,166,0.08)] text-[color:var(--accent)]";
+  }
   return "bg-slate-100 text-slate-600";
+}
+
+const STAT_FIELD_LABELS: Record<string, string> = {
+  innings: "IP", singles: "1B", doubles: "2B", triples: "3B",
+  home_runs: "HR", rbis: "RBI", runs: "R", walks: "BB",
+  batter_outs: "Outs", at_bats: "AB", unassisted_outs: "UAO", assisted_outs: "AO",
+};
+
+function StatDiff({ prev, next }: { prev: unknown; next: unknown }) {
+  if (!prev || typeof prev !== "object" || !next || typeof next !== "object") return null;
+  const from = prev as Record<string, number | null>;
+  const to = next as Record<string, number | null>;
+  const keys = Object.keys(to);
+  if (keys.length === 0) return null;
+  return (
+    <div className="flex flex-wrap gap-x-3 gap-y-1">
+      {keys.map((k) => (
+        <span key={k} className="inline-flex items-center gap-1 text-[0.65rem]">
+          <span className="font-medium text-slate-500">{STAT_FIELD_LABELS[k] ?? k}</span>
+          <code className="rounded bg-slate-100 px-1 py-0.5 text-slate-500 line-through">{from[k] ?? "—"}</code>
+          <span className="text-[color:var(--muted-foreground)]">→</span>
+          <code className="rounded bg-[rgba(20,184,166,0.08)] px-1 py-0.5 text-teal-700">{to[k] ?? "—"}</code>
+        </span>
+      ))}
+    </div>
+  );
 }
 
 function ValuePill({ value, label }: { value: unknown; label: string }) {
@@ -44,6 +92,35 @@ function ValuePill({ value, label }: { value: unknown; label: string }) {
       <span className="text-[color:var(--muted-foreground)]">{label}</span>
       <code className="rounded bg-slate-100 px-1.5 py-0.5 text-slate-700">{display}</code>
     </span>
+  );
+}
+
+function SeasonSummary({ value }: { value: unknown }) {
+  if (!value || typeof value !== "object") return null;
+  const v = value as { year?: number; enrolled?: number };
+  return (
+    <span className="text-[0.72rem] text-slate-600">
+      {v.year} season{v.enrolled != null ? ` · ${v.enrolled} players enrolled` : ""}
+    </span>
+  );
+}
+
+function ChangeCell({ entry }: { entry: AuditEntry }) {
+  if (entry.action === "stats.record.update") {
+    return <StatDiff prev={entry.previousValue} next={entry.newValue} />;
+  }
+  if (entry.action === "season.archive" || entry.action === "season.activate" ||
+      entry.action === "season.close"   || entry.action === "season.reopen") {
+    return <SeasonSummary value={entry.newValue} />;
+  }
+  return (
+    <div className="flex flex-wrap gap-2">
+      {entry.fieldName && (
+        <span className="text-[0.65rem] font-medium text-slate-500">{entry.fieldName}</span>
+      )}
+      <ValuePill value={entry.previousValue} label="from" />
+      <ValuePill value={entry.newValue} label="to" />
+    </div>
   );
 }
 
@@ -77,13 +154,7 @@ function AuditRow({ entry }: { entry: AuditEntry }) {
         )}
       </td>
       <td className="py-3 align-top">
-        <div className="flex flex-wrap gap-2">
-          {entry.fieldName && (
-            <span className="text-[0.65rem] font-medium text-slate-500">{entry.fieldName}</span>
-          )}
-          <ValuePill value={entry.previousValue} label="from" />
-          <ValuePill value={entry.newValue} label="to" />
-        </div>
+        <ChangeCell entry={entry} />
       </td>
     </tr>
   );
@@ -104,7 +175,7 @@ export default async function AuditPage() {
       <section className="council-panel rounded-2xl border p-5">
         <div className="mb-5 flex items-center gap-2">
           <ScrollText className="h-4 w-4 text-[color:var(--accent)]" />
-          <h3 className="text-[0.92rem] font-semibold text-slate-800">Account audit log</h3>
+          <h3 className="text-[0.92rem] font-semibold text-slate-800">Audit log</h3>
           <span className="ml-auto text-[0.72rem] text-[color:var(--muted-foreground)]">
             last {entries.length} entries
           </span>

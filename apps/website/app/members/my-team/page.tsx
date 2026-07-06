@@ -2,9 +2,11 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import MembersNav from "@/app/members/components/MembersNav";
 import TeamHubContent from "@/app/members/components/TeamHubContent";
+import CareerStatsTrigger from "@/app/members/components/CareerStatsTrigger";
 import { buildMemberProfile, fmtInt, fmtRate } from "@/app/members/lib/memberProfile";
 import { requireCurrentUser } from "@/lib/auth";
 import { getClubData, getTeamPageData, CLUB_TEAM_SLUGS, type ClubTeamSlug } from "@/lib/ndsc-data";
+import { getPlayerActiveTeamSlug } from "@/lib/player-queries";
 
 export const dynamic = "force-dynamic";
 
@@ -15,17 +17,33 @@ export default async function MyTeamPage({
 }) {
   const sp = (await searchParams) ?? {};
   const user = await requireCurrentUser();
-  const clubData = await getClubData();
+  const [clubData, enrolledTeamSlug] = await Promise.all([
+    getClubData(),
+    getPlayerActiveTeamSlug(user.playerId),
+  ]);
   const profile = buildMemberProfile(user, clubData);
 
   if (!profile.activeTeamSlug) return notFound();
 
   const selectedSeason = sp.season?.trim();
-  const playerSeasons = profile.seasonSummaries.map((s) => s.season);
+  // Unique season years for the tab links (deduplicated since summaries are now per-team)
+  const playerSeasons = [...new Set(profile.seasonSummaries.map((s) => s.season))];
 
   // "All" — personal career summary across every team and season
   if (!selectedSeason) {
     const seasons = profile.seasonSummaries;
+    // Resolved enrolled team name (from enrollment DB, more accurate than stats heuristic)
+    const resolvedActiveTeamName = enrolledTeamSlug
+      ? (clubData.teamSummaries[enrolledTeamSlug as ClubTeamSlug]?.team.name ?? profile.activeTeamName)
+      : profile.activeTeamName;
+    // Team Journey: one bubble per unique season year (collapsed across teams)
+    const uniqueYears = [...new Set(seasons.map((s) => s.season))].sort(
+      (a, b) => Number(b) - Number(a)
+    );
+    const journeySeasons = uniqueYears.map((year) => ({
+      season: year,
+      teamNames: seasons.filter((s) => s.season === year).flatMap((s) => s.teamNames),
+    }));
     const bestAvgSeason = seasons.reduce<(typeof seasons)[0] | null>(
       (b, s) => s.avg != null && (b == null || s.avg > (b.avg ?? -Infinity)) ? s : b, null
     );
@@ -60,7 +78,7 @@ export default async function MyTeamPage({
                     My Career
                   </span>
                   <h1 className="mt-3 text-3xl font-semibold text-white md:text-4xl">{user.playerName}</h1>
-                  <p className="mt-1 text-sm text-slate-300">Current team: {profile.activeTeamName}</p>
+                  <p className="mt-1 text-sm text-slate-300">Current team: {resolvedActiveTeamName}</p>
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2">
@@ -99,15 +117,15 @@ export default async function MyTeamPage({
 
             {profile.seasonSummaries.length ? (
               <>
-              {seasons.length > 1 && (
+              {journeySeasons.length > 1 && (
                 <section className="rounded-2xl border border-[#2B4162] bg-[#1D2E48] p-5">
                   <div className="mb-3 text-sm font-semibold uppercase tracking-wide text-teal-400">Team Journey</div>
                   <div className="flex flex-wrap items-center gap-2">
-                    {[...seasons].reverse().flatMap((s, i, arr) => [
+                    {[...journeySeasons].reverse().flatMap((s, i, arr) => [
                       <div key={`s-${s.season}`} className="text-center">
                         <div className="text-xs text-slate-500">{s.season}</div>
                         <div className="mt-0.5 rounded-lg border border-[#2B4162] bg-[#0F172A]/60 px-3 py-1.5 text-sm font-semibold text-slate-200">
-                          {s.teamNames[0] ?? "—"}
+                          {s.teamNames.join(" & ") || "—"}
                         </div>
                       </div>,
                       ...(i < arr.length - 1
@@ -151,13 +169,26 @@ export default async function MyTeamPage({
                     </thead>
                     <tbody>
                       {profile.seasonSummaries.map((s, i) => {
+                        // Only show delta vs previous entry when it's a different season year
                         const prev = profile.seasonSummaries[i + 1];
-                        const avgDelta = s.avg != null && prev?.avg != null ? s.avg - prev.avg : null;
-                        const opsDelta = s.ops != null && prev?.ops != null ? s.ops - prev.ops : null;
+                        const prevForDelta = prev != null && prev.season !== s.season ? prev : null;
+                        const avgDelta = s.avg != null && prevForDelta?.avg != null ? s.avg - prevForDelta.avg : null;
+                        const opsDelta = s.ops != null && prevForDelta?.ops != null ? s.ops - prevForDelta.ops : null;
+                        const teamSlug = s.teamSlugs[0] ?? null;
+                        const teamLabel = s.teamNames[0] || "—";
+                        const teamGames = teamSlug
+                          ? profile.gameRecords.filter(
+                              (g) =>
+                                g.season === Number(s.season) &&
+                                (!g.teamSlug || g.teamSlug === teamSlug)
+                            )
+                          : [];
                         return (
-                          <tr key={s.season} className="border-t border-[#2B4162] transition hover:bg-white/[0.02]">
+                          <tr key={`${s.season}-${teamSlug ?? ''}-${i}`} className="border-t border-[#2B4162] transition hover:bg-white/[0.02]">
                             <td className="py-3 px-3 font-semibold text-teal-400">{s.season}</td>
-                            <td className="py-3 px-3 text-slate-300">{s.teamNames.join(" & ") || "—"}</td>
+                            <td className="py-3 px-3">
+                              <CareerStatsTrigger label={teamLabel} games={teamGames} />
+                            </td>
                             <td className="py-3 px-3 text-right tabular-nums text-slate-200">{fmtInt(s.games)}</td>
                             <td className="py-3 px-3 text-right tabular-nums text-slate-200">{fmtInt(s.innings)}</td>
                             <td className="py-3 px-3 text-right tabular-nums text-slate-200">{fmtInt(s.singles)}</td>
@@ -328,8 +359,17 @@ export default async function MyTeamPage({
   }
 
   // Season view — full team hub for the team the player was on that year
-  let teamSlug: ClubTeamSlug = profile.activeTeamSlug;
-  const stat = profile.playerStats.find((s) => String(s.season ?? "") === selectedSeason);
+  let teamSlug: ClubTeamSlug = (
+    enrolledTeamSlug && (CLUB_TEAM_SLUGS as readonly string[]).includes(enrolledTeamSlug)
+      ? enrolledTeamSlug
+      : profile.activeTeamSlug
+  ) as ClubTeamSlug;
+  const statsForSeason = profile.playerStats.filter((s) => String(s.season ?? "") === selectedSeason);
+  // Prefer the enrolled team; fall back to fewest-games heuristic (most recently transferred to)
+  const preferredSlug = enrolledTeamSlug ?? null;
+  const stat =
+    statsForSeason.find((s) => preferredSlug != null && s.teamSlug === preferredSlug) ??
+    [...statsForSeason].sort((a, b) => Number(a.gamesPlayed ?? 0) - Number(b.gamesPlayed ?? 0))[0];
   const slug = stat?.teamSlug;
   if (slug && (CLUB_TEAM_SLUGS as readonly string[]).includes(slug)) {
     teamSlug = slug as ClubTeamSlug;
@@ -338,11 +378,82 @@ export default async function MyTeamPage({
   const teamData = await getTeamPageData(teamSlug, selectedSeason);
   if (!teamData) return notFound();
 
+  // Other teams the player was on during this same season (mid-season transfer stints)
+  const otherStints = profile.seasonSummaries.filter(
+    (s) => s.season === selectedSeason && s.teamSlugs[0] !== teamSlug
+  );
+
+  const additionalSection =
+    otherStints.length > 0 ? (
+      <section className="mt-8">
+        <div className="text-sm font-semibold uppercase tracking-wide text-slate-400 mb-4">
+          Also played for in {selectedSeason}
+        </div>
+        <div className="space-y-4">
+          {otherStints.map((s, si) => {
+            const stintTeamName = s.teamNames[0] || s.teamSlugs[0] || "Unknown";
+            const stintSlug = s.teamSlugs[0];
+            const stintGames = profile.gameRecords.filter(
+              (g) =>
+                g.season === Number(selectedSeason) &&
+                (!g.teamSlug || g.teamSlug === stintSlug)
+            );
+            return (
+              <div
+                key={`${stintSlug ?? ''}-${si}`}
+                className="rounded-2xl border border-[#2B4162] bg-[#1D2E48] p-5"
+              >
+                <div className="flex items-center gap-3 mb-4">
+                  <span className="text-base font-semibold text-white">{stintTeamName}</span>
+                  <span className="rounded-full border border-slate-600 px-2 py-0.5 text-[10px] font-semibold text-slate-400 uppercase tracking-wide">
+                    Previous team
+                  </span>
+                </div>
+                <div className="grid grid-cols-3 gap-3 sm:grid-cols-6">
+                  {(
+                    [
+                      { label: "GP", value: fmtInt(s.games) },
+                      { label: "H", value: fmtInt(s.hits) },
+                      { label: "HR", value: fmtInt(s.homeRuns) },
+                      { label: "RBI", value: fmtInt(s.rbi) },
+                      { label: "AVG", value: fmtRate(s.avg) },
+                      { label: "OPS", value: fmtRate(s.ops), teal: true },
+                    ] as { label: string; value: string; teal?: boolean }[]
+                  ).map(({ label, value, teal }) => (
+                    <div
+                      key={label}
+                      className="rounded-xl border border-[#2B4162] bg-[#0F172A]/60 p-3 text-center"
+                    >
+                      <div className={`text-lg font-bold tabular-nums ${teal ? "text-teal-300" : "text-white"}`}>
+                        {value}
+                      </div>
+                      <div className="mt-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+                        {label}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                {stintGames.length > 0 && (
+                  <div className="mt-4 border-t border-[#2B4162] pt-4">
+                    <CareerStatsTrigger
+                      label={`View ${stintGames.length} game${stintGames.length !== 1 ? "s" : ""} →`}
+                      games={stintGames}
+                    />
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </section>
+    ) : undefined;
+
   return (
     <TeamHubContent
       teamData={{ ...teamData, availableSeasons: playerSeasons }}
       user={user}
       basePath="/members/my-team"
+      additionalSection={additionalSection}
     />
   );
 }

@@ -2,10 +2,26 @@
 
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Upload, CheckCircle, AlertCircle, Loader2, FileText, X } from "lucide-react";
+import { Upload, CheckCircle, AlertCircle, Loader2, FileText, X, ShieldAlert, UserX } from "lucide-react";
 import type { PreviewResult, ImportResult } from "@/lib/stats-queries";
 
 type Stage = "idle" | "previewing" | "preview_done" | "importing" | "done" | "error";
+
+interface ParsedCsv {
+  headers: string[];
+  rows: string[][];
+}
+
+function parseCsvForDisplay(text: string): ParsedCsv | null {
+  const lines = text.trim().split(/\r?\n/);
+  if (lines.length < 2) return null;
+  const headers = lines[0].split(",").map((h) => h.trim());
+  const rows = lines
+    .slice(1)
+    .filter((l) => l.trim())
+    .map((l) => l.split(",").map((v) => v.trim()));
+  return { headers, rows };
+}
 
 export function StatsUploadForm() {
   const router = useRouter();
@@ -13,6 +29,7 @@ export function StatsUploadForm() {
   const [stage, setStage] = useState<Stage>("idle");
   const [fileName, setFileName] = useState<string>("");
   const [csvText, setCsvText] = useState<string>("");
+  const [parsedCsv, setParsedCsv] = useState<ParsedCsv | null>(null);
   const [preview, setPreview] = useState<PreviewResult | null>(null);
   const [result, setResult] = useState<ImportResult | null>(null);
   const [errorMsg, setErrorMsg] = useState<string>("");
@@ -21,6 +38,7 @@ export function StatsUploadForm() {
     setStage("idle");
     setFileName("");
     setCsvText("");
+    setParsedCsv(null);
     setPreview(null);
     setResult(null);
     setErrorMsg("");
@@ -33,6 +51,7 @@ export function StatsUploadForm() {
     setFileName(file.name);
     const text = await file.text();
     setCsvText(text);
+    setParsedCsv(parseCsvForDisplay(text));
     setPreview(null);
     setResult(null);
     setStage("idle");
@@ -151,6 +170,51 @@ export function StatsUploadForm() {
         )}
       </div>
 
+      {/* CSV data table — shown immediately after file load */}
+      {parsedCsv && stage !== "done" && (
+        <div className="council-panel rounded-2xl border p-5">
+          <div className="mb-3 flex items-center gap-2">
+            <FileText className="h-4 w-4 text-[color:var(--accent)]" />
+            <h3 className="text-[0.9rem] font-semibold text-slate-800">CSV data</h3>
+            <span className="ml-auto text-[0.72rem] text-[color:var(--muted-foreground)]">
+              {parsedCsv.rows.length} rows · {parsedCsv.headers.length} columns
+            </span>
+          </div>
+          <div className="overflow-x-auto rounded-xl border border-[color:var(--border)]">
+            <table className="w-full text-[0.72rem]">
+              <thead className="bg-slate-50">
+                <tr className="border-b border-[color:var(--border)]">
+                  {parsedCsv.headers.map((h, i) => (
+                    <th
+                      key={i}
+                      className="whitespace-nowrap px-2.5 py-1.5 text-left text-[0.65rem] font-semibold uppercase tracking-wide text-[color:var(--muted-foreground)]"
+                    >
+                      {h}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[color:var(--border)]">
+                {parsedCsv.rows.slice(0, 50).map((row, i) => (
+                  <tr key={i} className="hover:bg-slate-50/60">
+                    {row.map((cell, j) => (
+                      <td key={j} className="whitespace-nowrap px-2.5 py-1.5 text-slate-700">
+                        {cell}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {parsedCsv.rows.length > 50 && (
+              <p className="border-t border-[color:var(--border)] py-2 text-center text-[0.7rem] text-[color:var(--muted-foreground)]">
+                … and {parsedCsv.rows.length - 50} more rows
+              </p>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Preview */}
       {stage === "preview_done" && preview && (
         <div className="council-panel rounded-2xl border p-5 space-y-4">
@@ -183,13 +247,38 @@ export function StatsUploadForm() {
           {preview.unmatchedPlayers.length > 0 && (
             <div className="rounded-xl bg-amber-50 border border-amber-200 p-3">
               <p className="mb-1.5 text-[0.75rem] font-semibold text-amber-700">
-                Unmatched players — rows will be skipped:
+                Players not found in database — rows will be skipped:
               </p>
               <ul className="space-y-0.5">
                 {preview.unmatchedPlayers.map((name) => (
                   <li key={name} className="text-[0.78rem] text-amber-800">· {name}</li>
                 ))}
               </ul>
+            </div>
+          )}
+
+          {preview.notOnRosterPlayers.length > 0 && (
+            <div className="rounded-xl bg-red-50 border border-red-200 p-3">
+              <div className="mb-1.5 flex items-center gap-1.5">
+                <UserX className="h-3.5 w-3.5 text-red-600" />
+                <p className="text-[0.75rem] font-semibold text-red-700">
+                  Not on team roster — not enrolled or not assigned to their listed team. Rows will be skipped:
+                </p>
+              </div>
+              <ul className="space-y-0.5">
+                {preview.notOnRosterPlayers.map((name) => (
+                  <li key={name} className="text-[0.78rem] text-red-800">· {name}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {preview.enrollmentChecked && preview.notOnRosterPlayers.length === 0 && preview.matchedPlayers > 0 && (
+            <div className="flex items-center gap-1.5 rounded-xl bg-[rgba(16,185,129,0.07)] border border-[rgba(16,185,129,0.2)] px-3 py-2">
+              <CheckCircle className="h-3.5 w-3.5 text-[color:var(--success)]" />
+              <p className="text-[0.75rem] font-semibold text-[color:var(--success)]">
+                All matched players are enrolled and assigned to their listed team.
+              </p>
             </div>
           )}
 
@@ -253,6 +342,17 @@ export function StatsUploadForm() {
               </p>
               {result.unmatchedPlayers.map((n) => (
                 <p key={n} className="text-[0.78rem] text-amber-800">· {n}</p>
+              ))}
+            </div>
+          )}
+
+          {result.notOnRoster.length > 0 && (
+            <div className="rounded-xl bg-red-50 border border-red-200 p-3">
+              <p className="mb-1.5 text-[0.75rem] font-semibold text-red-700">
+                Skipped — not enrolled or not assigned to team:
+              </p>
+              {result.notOnRoster.map((n) => (
+                <p key={n} className="text-[0.78rem] text-red-800">· {n}</p>
               ))}
             </div>
           )}

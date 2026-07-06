@@ -114,7 +114,7 @@ export type InternalSeasonTeamRow = {
   teamName: string;
   eventsPlayed: number;
   wins: number;
-  topThreeFinishes: number;
+  losses: number;
   points: number;
 };
 
@@ -127,6 +127,7 @@ export type InternalSeasonMvpRow = {
 
 export type InternalSeasonLeaderboard = {
   seasonYear: number;
+  seasonYears: number[];
   tournaments: TournamentCard[];
   teamRows: InternalSeasonTeamRow[];
   mvpRows: InternalSeasonMvpRow[];

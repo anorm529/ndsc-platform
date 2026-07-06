@@ -62,7 +62,7 @@ export default async function CheckInPage({ params }: { params: Promise<{ slug: 
                     </span>
                   </div>
                   <p className="mt-2 text-xs font-semibold text-slate-500">
-                    {checkedIn ? `Checked in at ${new Date(team.checkedInAt!).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "UTC" })}` : "Not checked in"}
+                    {checkedIn ? `Checked in at ${new Date(team.checkedInAt!).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/London" })}` : "Not checked in"}
                   </p>
                   <div className="mt-3 flex flex-wrap gap-2 text-xs font-semibold text-slate-600">
                     {team.contactName ? (

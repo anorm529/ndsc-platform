@@ -76,12 +76,18 @@ export async function createFixture(data: {
   scheduledAt: string;
   homeAway: string;
   location?: string;
+  latitude?: number | null;
+  longitude?: number | null;
 }): Promise<string> {
+  // Extract the date portion directly from the input string to avoid timezone-shifting game_date.
+  // datetime-local inputs give "YYYY-MM-DDTHH:MM" in local time; $4::date on a timestamptz
+  // would shift to UTC and could move the date back by a day for UTC+ timezones.
+  const gameDate = data.scheduledAt.slice(0, 10);
   const result = await mainQuery<{ id: string }>(
-    `INSERT INTO public.games (team_id, season_id, opponent, scheduled_at, game_date, home_away, location)
-     VALUES ($1, $2, $3, $4::timestamptz, $4::date, $5, $6)
+    `INSERT INTO public.games (team_id, season_id, opponent, scheduled_at, game_date, home_away, location, latitude, longitude)
+     VALUES ($1, $2, $3, $4::timestamptz, $5::date, $6, $7, $8, $9)
      RETURNING id::text`,
-    [data.teamId, data.seasonId, data.opponent, data.scheduledAt, data.homeAway, data.location ?? null],
+    [data.teamId, data.seasonId, data.opponent, data.scheduledAt, gameDate, data.homeAway, data.location ?? null, data.latitude ?? null, data.longitude ?? null],
   );
   return result.rows[0].id;
 }
@@ -93,7 +99,7 @@ export async function updateFixtureResult(data: {
 }): Promise<void> {
   await mainQuery(
     `UPDATE public.games
-     SET runs_for = $2, runs_against = $3, status = 'completed'
+     SET runs_for = $2, runs_against = $3, status = 'Completed'
      WHERE id = $1`,
     [data.id, data.runsFor, data.runsAgainst],
   );
@@ -105,13 +111,16 @@ export async function updateFixtureDetails(data: {
   scheduledAt: string;
   homeAway: string;
   location?: string;
+  latitude?: number | null;
+  longitude?: number | null;
 }): Promise<void> {
+  const gameDate = data.scheduledAt.slice(0, 10);
   await mainQuery(
     `UPDATE public.games
-     SET opponent = $2, scheduled_at = $3::timestamptz, game_date = $3::date,
-         home_away = $4, location = $5
+     SET opponent = $2, scheduled_at = $3::timestamptz, game_date = $4::date,
+         home_away = $5, location = $6, latitude = $7, longitude = $8
      WHERE id = $1`,
-    [data.id, data.opponent, data.scheduledAt, data.homeAway, data.location ?? null],
+    [data.id, data.opponent, data.scheduledAt, gameDate, data.homeAway, data.location ?? null, data.latitude ?? null, data.longitude ?? null],
   );
 }
 

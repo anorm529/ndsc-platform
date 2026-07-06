@@ -1,7 +1,8 @@
+import Link from "next/link";
 import { BarChart2, Calendar, Home, Navigation } from "lucide-react";
 import { requireCouncilUser, hasRosterManagementAccess } from "@/lib/council-session";
 import { getRecentGamesWithStats } from "@/lib/stats-queries";
-import { getAllTeams } from "@/lib/season-queries";
+import { getAllTeams, getAllSeasons } from "@/lib/season-queries";
 import { StatsUploadForm } from "./upload-form";
 import { EosStatsPanel } from "./eos-form";
 
@@ -20,7 +21,9 @@ function formatDate(dateStr: string): string {
 export default async function StatsPage() {
   const user = await requireCouncilUser();
   const canManage = hasRosterManagementAccess(user);
-  const [recentGames, teams] = await Promise.all([getRecentGamesWithStats(25), getAllTeams()]);
+  const [seasons, teams] = await Promise.all([getAllSeasons(), getAllTeams()]);
+  const activeSeason = seasons.find((s) => s.status === "active") ?? seasons[0] ?? null;
+  const recentGames = await getRecentGamesWithStats(25, activeSeason?.id);
 
   return (
     <div className="max-w-4xl space-y-6">
@@ -42,6 +45,11 @@ export default async function StatsPage() {
         <div className="mb-4 flex items-center gap-2">
           <BarChart2 className="h-4 w-4 text-[color:var(--accent)]" />
           <h3 className="text-[0.92rem] font-semibold text-slate-800">Recent games</h3>
+          {activeSeason && (
+            <span className="rounded-full bg-[rgba(20,184,166,0.08)] px-2 py-0.5 text-[0.68rem] text-[color:var(--accent)]">
+              {activeSeason.year} season
+            </span>
+          )}
           <span className="ml-auto text-[0.72rem] text-[color:var(--muted-foreground)]">
             last {recentGames.length}
           </span>
@@ -66,8 +74,15 @@ export default async function StatsPage() {
               </thead>
               <tbody className="divide-y divide-[color:var(--border)]">
                 {recentGames.map((game) => (
-                  <tr key={game.id} className="hover:bg-slate-50/50">
-                    <td className="py-2 pr-4 text-slate-600">{formatDate(game.gameDate)}</td>
+                  <tr key={game.id} className="group hover:bg-slate-50/50">
+                    <td className="py-2 pr-4">
+                      <Link
+                        href={`/council/stats/games/${game.id}`}
+                        className="text-slate-600 group-hover:text-teal-600"
+                      >
+                        {formatDate(game.gameDate)}
+                      </Link>
+                    </td>
                     <td className="py-2 pr-4 font-medium text-slate-800">{game.teamName}</td>
                     <td className="py-2 pr-4 text-slate-700">{game.opponent}</td>
                     <td className="py-2 pr-4">
@@ -82,14 +97,17 @@ export default async function StatsPage() {
                     </td>
                     <td className="py-2 pr-4 text-slate-600">{game.year}</td>
                     <td className="py-2 text-right">
-                      <span className={[
-                        "rounded px-1.5 py-0.5 text-[0.68rem] font-medium",
-                        game.statRows > 0
-                          ? "bg-[rgba(16,185,129,0.1)] text-[color:var(--success)]"
-                          : "bg-[rgba(233,185,62,0.1)] text-[color:var(--warning)]",
-                      ].join(" ")}>
+                      <Link
+                        href={`/council/stats/games/${game.id}`}
+                        className={[
+                          "rounded px-1.5 py-0.5 text-[0.68rem] font-medium",
+                          game.statRows > 0
+                            ? "bg-[rgba(16,185,129,0.1)] text-[color:var(--success)] hover:bg-[rgba(16,185,129,0.2)]"
+                            : "bg-[rgba(233,185,62,0.1)] text-[color:var(--warning)] hover:bg-[rgba(233,185,62,0.2)]",
+                        ].join(" ")}
+                      >
                         {game.statRows}
-                      </span>
+                      </Link>
                     </td>
                   </tr>
                 ))}

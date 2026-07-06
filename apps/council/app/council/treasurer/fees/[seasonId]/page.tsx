@@ -1,17 +1,23 @@
 import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, CheckCircle2, AlertCircle, Clock, PoundSterling } from "lucide-react";
+import { ArrowLeft, CheckCircle2, AlertCircle, Clock, PoundSterling, Lock } from "lucide-react";
 import { requireCouncilUser, requireTreasurerAccess } from "@/lib/council-session";
 import {
   getFeeSeasonById,
   getPlayerFeesForSeason,
+  getPaymentsForSeason,
   recordFeePayment,
+  updateFeeSeason,
   type FeeType,
 } from "@/lib/treasurer-queries";
-import { getAllActivePlayers } from "@/lib/main-db";
+import { getAllActivePlayers, mainQuery } from "@/lib/main-db";
 import { getPlayerProfiles } from "@/lib/council-queries";
+import { getEnrolledPlayerIds } from "@/lib/season-queries";
 import { AddPlayerForm } from "./add-player-form";
 import { FeeReminderButton } from "./fee-reminder-button";
+import { BulkSendButton } from "./bulk-send-button";
+import { RemovePlayerButton } from "./remove-player-button";
+import { VoidPaymentButton } from "./void-payment-button";
 
 function fmt(n: number) {
   return new Intl.NumberFormat("en-GB", { style: "currency", currency: "GBP" }).format(n);
@@ -31,28 +37,91 @@ const FEE_TYPE_LABELS: Record<FeeType, string> = {
   custom: "Custom",
 };
 
+const PAYMENT_METHOD_STYLES: Record<string, string> = {
+  stripe:        "bg-[rgba(20,184,166,0.1)] text-[color:var(--accent)]",
+  bank_transfer: "bg-blue-50 text-blue-700",
+  cash:          "bg-green-50 text-green-700",
+  other:         "bg-[rgba(115,145,176,0.1)] text-[color:var(--muted-foreground)]",
+};
+
+const PAYMENT_METHOD_LABELS: Record<string, string> = {
+  stripe:        "Stripe",
+  bank_transfer: "Bank transfer",
+  cash:          "Cash",
+  other:         "Other",
+};
+
 export default async function SeasonFeesPage({ params }: { params: Promise<{ seasonId: string }> }) {
   const { seasonId } = await params;
   const user = await requireCouncilUser();
   await requireTreasurerAccess(user);
 
-  const [season, playerFees, allPlayers, profileMap] = await Promise.all([
+  const [season, playerFees, allPayments, allPlayers, profileMap] = await Promise.all([
     getFeeSeasonById(seasonId),
     getPlayerFeesForSeason(seasonId),
+    getPaymentsForSeason(seasonId),
     getAllActivePlayers(),
     getPlayerProfiles(),
   ]);
 
   if (!season) notFound();
 
+  // Group payments by player fee ID for inline display
+  const paymentsByFee = new Map<string, typeof allPayments>();
+  for (const p of allPayments) {
+    if (!paymentsByFee.has(p.playerFeeId)) paymentsByFee.set(p.playerFeeId, []);
+    paymentsByFee.get(p.playerFeeId)!.push(p);
+  }
+
+  // Resolve enrolled players and playing season status in parallel
+  const [enrolledPlayerIds, playingSeasonRes] = await Promise.all([
+    season.mainSeasonId ? getEnrolledPlayerIds(season.mainSeasonId) : Promise.resolve(null),
+    season.mainSeasonId
+      ? mainQuery<{ status: string }>(`SELECT status FROM seasons WHERE id = $1`, [season.mainSeasonId])
+      : Promise.resolve(null),
+  ]);
+
+  const enrolledSet = enrolledPlayerIds ? new Set(enrolledPlayerIds) : null;
+  const playingSeasonStatus = playingSeasonRes?.rows[0]?.status ?? null;
+  const isArchived = playingSeasonStatus === "archived";
+
   const totalDue = playerFees.reduce((s, f) => s + f.amountDue, 0);
   const totalPaid = playerFees.reduce((s, f) => s + f.amountPaid, 0);
   const paidCount = playerFees.filter((f) => f.amountPaid >= f.amountDue && f.amountDue >= 0).length;
+  const unpaidCount = playerFees.filter((f) => f.amountDue - f.amountPaid > 0).length;
 
+  // Filter available players: not already in fee season, and enrolled in the playing season if linked
   const existingPlayerIds = new Set(playerFees.map((f) => f.playerId));
   const unenrolled = allPlayers
     .filter((p) => !existingPlayerIds.has(p.playerId))
+    .filter((p) => !enrolledSet || enrolledSet.has(p.playerId))
     .map((p) => ({ ...p, profile: profileMap.get(p.playerId) ?? null }));
+
+  // Resolve which players have active accounts (for email button enable/disable)
+  const userIds = playerFees.map((f) => f.userId).filter(Boolean) as string[];
+  const activeUserIds = new Set<string>();
+  if (userIds.length > 0) {
+    const usersRes = await mainQuery<{ id: string }>(
+      `SELECT id FROM users WHERE id = ANY($1::uuid[]) AND account_status = 'active'`,
+      [userIds]
+    );
+    for (const u of usersRes.rows) activeUserIds.add(u.id);
+  }
+
+  async function handleUpdateRates(formData: FormData) {
+    "use server";
+    await requireCouncilUser();
+    const playerFee = parseFloat(String(formData.get("player_fee") ?? "0"));
+    const rookieFee = parseFloat(String(formData.get("rookie_fee") ?? "0"));
+    const umpireFee = parseFloat(String(formData.get("umpire_fee") ?? "0"));
+    const dueDate   = String(formData.get("due_date") ?? "").trim();
+    await updateFeeSeason(seasonId, {
+      label: season!.label,
+      playerFee, rookieFee, umpireFee,
+      dueDate: dueDate || undefined,
+    });
+    redirect(`/council/treasurer/fees/${seasonId}`);
+  }
 
   async function handleRecordPayment(formData: FormData) {
     "use server";
@@ -91,32 +160,110 @@ export default async function SeasonFeesPage({ params }: { params: Promise<{ sea
               </p>
             )}
           </div>
-          {season.isActive && (
-            <span className="flex items-center gap-1 rounded-full bg-[rgba(16,185,129,0.12)] px-2.5 py-1 text-[0.7rem] text-[color:var(--success)]">
-              <CheckCircle2 className="h-3 w-3" />
-              Active
-            </span>
-          )}
+          <div className="flex items-center gap-2">
+            {isArchived && (
+              <span className="flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-1 text-[0.7rem] text-[color:var(--muted-foreground)]">
+                <Lock className="h-3 w-3" />
+                Archived
+              </span>
+            )}
+            {season.isActive && !isArchived && (
+              <span className="flex items-center gap-1 rounded-full bg-[rgba(16,185,129,0.12)] px-2.5 py-1 text-[0.7rem] text-[color:var(--success)]">
+                <CheckCircle2 className="h-3 w-3" />
+                Active
+              </span>
+            )}
+          </div>
         </div>
 
-        {/* Fee rates */}
-        <div className="mt-4 flex flex-wrap gap-2">
-          <span className="flex items-center gap-1.5 rounded-lg bg-[rgba(20,184,166,0.08)] px-3 py-1.5 text-[0.75rem]">
-            <PoundSterling className="h-3 w-3 text-[color:var(--accent)]" />
-            <span className="text-[color:var(--muted-foreground)]">Player</span>
-            <span className="font-semibold text-slate-800">{fmt(season.playerFee)}</span>
-          </span>
-          <span className="flex items-center gap-1.5 rounded-lg bg-amber-50 px-3 py-1.5 text-[0.75rem]">
-            <PoundSterling className="h-3 w-3 text-amber-500" />
-            <span className="text-amber-600">Rookie</span>
-            <span className="font-semibold text-amber-800">{fmt(season.rookieFee)}</span>
-          </span>
-          <span className="flex items-center gap-1.5 rounded-lg bg-blue-50 px-3 py-1.5 text-[0.75rem]">
-            <PoundSterling className="h-3 w-3 text-blue-500" />
-            <span className="text-blue-600">Umpire</span>
-            <span className="font-semibold text-blue-800">{fmt(season.umpireFee)}</span>
-          </span>
-        </div>
+        {/* Archived notice */}
+        {isArchived && (
+          <p className="mt-3 rounded-lg bg-slate-50 px-3 py-2 text-[0.75rem] text-[color:var(--muted-foreground)]">
+            The playing season has been archived. Fee rates are read-only.
+          </p>
+        )}
+
+        {/* Rates form — editable unless archived */}
+        {!isArchived && season.playerFee === 0 && season.rookieFee === 0 && (
+          <p className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-[0.75rem] text-amber-700">
+            Fee rates are not set. Update them below before adding players.
+          </p>
+        )}
+        {!isArchived && playerFees.length > 0 && (season.playerFee > 0 || season.rookieFee > 0) && (
+          <p className="mt-3 rounded-lg bg-blue-50 px-3 py-2 text-[0.75rem] text-blue-700">
+            Changing rates will not update existing player records — only players added after saving will use the new rates.
+          </p>
+        )}
+
+        {isArchived ? (
+          /* Read-only rate display */
+          <div className="mt-4 grid gap-3 sm:grid-cols-3">
+            {[["Player fee", fmt(season.playerFee)], ["Rookie fee", fmt(season.rookieFee)], ["Umpire fee", fmt(season.umpireFee)]].map(([label, value]) => (
+              <div key={label} className="rounded-xl border border-[color:var(--border)] bg-slate-50 px-3 py-2">
+                <p className="text-[0.72rem] font-medium text-[color:var(--muted-foreground)]">{label}</p>
+                <p className="text-[0.9rem] font-semibold text-slate-700">{value}</p>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <form action={handleUpdateRates} className="mt-4 space-y-3">
+            <div className="grid gap-3 sm:grid-cols-3">
+              <label className="block">
+                <span className="mb-1 block text-[0.72rem] font-medium text-[color:var(--muted-foreground)]">Player fee (£)</span>
+                <input
+                  name="player_fee"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  defaultValue={season.playerFee}
+                  required
+                  className="w-full rounded-xl border border-[color:var(--border)] bg-white px-3 py-2 text-[0.85rem] text-slate-800 outline-none focus:border-[color:var(--border-strong)]"
+                />
+              </label>
+              <label className="block">
+                <span className="mb-1 block text-[0.72rem] font-medium text-[color:var(--muted-foreground)]">Rookie fee (£)</span>
+                <input
+                  name="rookie_fee"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  defaultValue={season.rookieFee}
+                  required
+                  className="w-full rounded-xl border border-[color:var(--border)] bg-white px-3 py-2 text-[0.85rem] text-slate-800 outline-none focus:border-[color:var(--border-strong)]"
+                />
+              </label>
+              <label className="block">
+                <span className="mb-1 block text-[0.72rem] font-medium text-[color:var(--muted-foreground)]">Umpire fee (£)</span>
+                <input
+                  name="umpire_fee"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  defaultValue={season.umpireFee}
+                  required
+                  className="w-full rounded-xl border border-[color:var(--border)] bg-white px-3 py-2 text-[0.85rem] text-slate-800 outline-none focus:border-[color:var(--border-strong)]"
+                />
+              </label>
+            </div>
+            <div className="flex items-end gap-3">
+              <label className="block flex-1">
+                <span className="mb-1 block text-[0.72rem] font-medium text-[color:var(--muted-foreground)]">Due date</span>
+                <input
+                  name="due_date"
+                  type="date"
+                  defaultValue={season.dueDate ?? ""}
+                  className="w-full rounded-xl border border-[color:var(--border)] bg-white px-3 py-2 text-[0.85rem] text-slate-800 outline-none focus:border-[color:var(--border-strong)]"
+                />
+              </label>
+              <button
+                type="submit"
+                className="rounded-xl bg-[linear-gradient(180deg,#0d9488_0%,#0f766e_100%)] px-4 py-2 text-[0.82rem] font-medium text-white hover:brightness-105"
+              >
+                Save rates
+              </button>
+            </div>
+          </form>
+        )}
 
         {/* Collection summary */}
         <div className="mt-5 grid grid-cols-3 gap-4">
@@ -144,10 +291,20 @@ export default async function SeasonFeesPage({ params }: { params: Promise<{ sea
             />
           </div>
         )}
+
+        {/* Bulk send — only when there are outstanding players with accounts */}
+        {!isArchived && unpaidCount > 0 && (
+          <div className="mt-4 flex items-center justify-between gap-3 border-t border-[color:var(--border)] pt-4">
+            <p className="text-[0.75rem] text-[color:var(--muted-foreground)]">
+              Send the initial fee notice and a Stripe payment link to all players with outstanding balances.
+            </p>
+            <BulkSendButton seasonId={seasonId} unpaidCount={unpaidCount} />
+          </div>
+        )}
       </div>
 
-      {/* Add player — client component */}
-      <AddPlayerForm season={season} unenrolled={unenrolled} />
+      {/* Add player — only when not archived */}
+      {!isArchived && <AddPlayerForm season={season} unenrolled={unenrolled} />}
 
       {/* Player fee rows */}
       {playerFees.length === 0 ? (
@@ -164,6 +321,9 @@ export default async function SeasonFeesPage({ params }: { params: Promise<{ sea
               const remaining = pf.amountDue - pf.amountPaid;
               const fullyPaid = remaining <= 0;
               const overdue = !fullyPaid && season.dueDate && new Date(season.dueDate) < new Date();
+              const hasAccount = pf.userId ? activeUserIds.has(pf.userId) : false;
+              const stripeLinkExpiresAt = pf.stripeLinkExpiresAt?.toISOString() ?? null;
+              const feePayments = paymentsByFee.get(pf.id) ?? [];
 
               return (
                 <div key={pf.id} className={[
@@ -196,47 +356,93 @@ export default async function SeasonFeesPage({ params }: { params: Promise<{ sea
                         </span>
                       </div>
 
-                      {pf.amountPaid > 0 && (
-                        <p className="mt-0.5 text-[0.7rem] text-[color:var(--muted-foreground)]">
-                          {fmt(pf.amountPaid)} paid · {fmt(Math.max(0, remaining))} remaining
-                        </p>
+                      {/* Individual payment history */}
+                      {feePayments.length > 0 && (
+                        <div className="mt-2 space-y-1">
+                          {feePayments.map((p) => {
+                            const isVoided = !!p.voidedAt;
+                            return (
+                              <div key={p.id} className="flex flex-wrap items-center gap-2 text-[0.72rem]">
+                                <span className={`rounded px-1.5 py-0.5 text-[0.6rem] font-medium ${isVoided ? "opacity-40" : ""} ${PAYMENT_METHOD_STYLES[p.paymentMethod] ?? PAYMENT_METHOD_STYLES.other}`}>
+                                  {PAYMENT_METHOD_LABELS[p.paymentMethod] ?? p.paymentMethod}
+                                </span>
+                                <span className={isVoided ? "text-slate-400 line-through" : "font-medium text-slate-700"}>
+                                  {fmt(p.amount)}
+                                </span>
+                                <span className={isVoided ? "text-slate-400" : "text-[color:var(--muted-foreground)]"}>
+                                  {p.paidAt.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}
+                                </span>
+                                {p.reference && (
+                                  <span className="text-slate-400">· {p.reference}</span>
+                                )}
+                                {isVoided ? (
+                                  <span className="rounded bg-red-50 px-1.5 py-0.5 text-[0.6rem] font-medium text-[color:var(--danger)]">
+                                    Voided{p.voidReason ? ` — ${p.voidReason}` : ""}
+                                  </span>
+                                ) : (
+                                  !isArchived && (
+                                    <VoidPaymentButton
+                                      paymentId={p.id}
+                                      paymentMethod={p.paymentMethod}
+                                      amount={p.amount.toFixed(2)}
+                                    />
+                                  )
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
                       )}
 
                       {!fullyPaid && (
                         <div className="mt-3 space-y-2">
-                          <form action={handleRecordPayment} className="flex flex-wrap items-center gap-2">
-                            <input type="hidden" name="playerFeeId" value={pf.id} />
-                            <input
-                              name="amount"
-                              type="number"
-                              step="0.01"
-                              min="0.01"
-                              defaultValue={remaining > 0 ? remaining.toFixed(2) : ""}
-                              placeholder="£"
-                              required
-                              className="w-24 rounded-lg border border-[color:var(--border)] bg-slate-100 px-2.5 py-1.5 text-[0.78rem] text-slate-800 outline-none focus:border-[color:var(--border-strong)]"
-                            />
-                            <select
-                              name="paymentMethod"
-                              className="rounded-lg border border-[color:var(--border)] bg-slate-100 px-2.5 py-1.5 text-[0.78rem] text-slate-800 outline-none"
-                            >
-                              <option value="bank_transfer">Bank transfer</option>
-                              <option value="cash">Cash</option>
-                              <option value="other">Other</option>
-                            </select>
-                            <input
-                              name="reference"
-                              placeholder="Ref"
-                              className="w-24 rounded-lg border border-[color:var(--border)] bg-slate-100 px-2.5 py-1.5 text-[0.78rem] text-slate-800 outline-none placeholder:text-slate-400 focus:border-[color:var(--border-strong)]"
-                            />
-                            <button
-                              type="submit"
-                              className="rounded-lg bg-[rgba(29,215,207,0.14)] px-3 py-1.5 text-[0.78rem] font-medium text-[color:var(--accent)] hover:bg-[rgba(29,215,207,0.22)]"
-                            >
-                              Record payment
-                            </button>
-                          </form>
-                          <FeeReminderButton playerFeeId={pf.id} playerName={pf.playerName} />
+                          {!isArchived && (
+                            <form action={handleRecordPayment} className="flex flex-wrap items-center gap-2">
+                              <input type="hidden" name="playerFeeId" value={pf.id} />
+                              <input
+                                name="amount"
+                                type="number"
+                                step="0.01"
+                                min="0.01"
+                                defaultValue={remaining > 0 ? remaining.toFixed(2) : ""}
+                                placeholder="£"
+                                required
+                                className="w-24 rounded-lg border border-[color:var(--border)] bg-slate-100 px-2.5 py-1.5 text-[0.78rem] text-slate-800 outline-none focus:border-[color:var(--border-strong)]"
+                              />
+                              <select
+                                name="paymentMethod"
+                                className="rounded-lg border border-[color:var(--border)] bg-slate-100 px-2.5 py-1.5 text-[0.78rem] text-slate-800 outline-none"
+                              >
+                                <option value="bank_transfer">Bank transfer</option>
+                                <option value="cash">Cash</option>
+                                <option value="other">Other</option>
+                              </select>
+                              <input
+                                name="reference"
+                                placeholder="Ref"
+                                className="w-24 rounded-lg border border-[color:var(--border)] bg-slate-100 px-2.5 py-1.5 text-[0.78rem] text-slate-800 outline-none placeholder:text-slate-400 focus:border-[color:var(--border-strong)]"
+                              />
+                              <button
+                                type="submit"
+                                className="rounded-lg bg-[rgba(29,215,207,0.14)] px-3 py-1.5 text-[0.78rem] font-medium text-[color:var(--accent)] hover:bg-[rgba(29,215,207,0.22)]"
+                              >
+                                Record payment
+                              </button>
+                            </form>
+                          )}
+                          <FeeReminderButton
+                            playerFeeId={pf.id}
+                            playerName={pf.playerName}
+                            hasAccount={hasAccount}
+                            stripeLinkExpiresAt={stripeLinkExpiresAt}
+                          />
+                        </div>
+                      )}
+
+                      {/* Remove from season — only blocked by real (non-voided) payments */}
+                      {!isArchived && feePayments.filter((p) => !p.voidedAt).length === 0 && (
+                        <div className="mt-2 border-t border-[color:var(--border)] pt-2">
+                          <RemovePlayerButton playerFeeId={pf.id} playerName={pf.playerName} />
                         </div>
                       )}
                     </div>

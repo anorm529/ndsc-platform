@@ -163,19 +163,27 @@ function combineStats(stats: PlayerStat[], season: string): SeasonSummary {
   };
 }
 
-function groupBySeason(stats: PlayerStat[]) {
+function groupBySeasonAndTeam(stats: PlayerStat[]) {
   const grouped = new Map<string, PlayerStat[]>();
   for (const row of stats) {
     const season = String(row.season ?? "Unknown");
-    grouped.set(season, [...(grouped.get(season) ?? []), row]);
+    const team = String(row.teamSlug ?? "");
+    const key = `${season}::${team}`;
+    grouped.set(key, [...(grouped.get(key) ?? []), row]);
   }
 
-  return Array.from(grouped.entries())
-    .map(([season, rows]) => {
-      const teamSlugs = [...new Set(rows.map((r) => r.teamSlug).filter(Boolean))];
-      return { ...combineStats(rows, season), teamSlugs };
+  return Array.from(grouped.values())
+    .map((rows) => {
+      const season = String(rows[0].season ?? "Unknown");
+      const teamSlug = rows[0].teamSlug ?? "";
+      return { ...combineStats(rows, season), teamSlugs: teamSlug ? [teamSlug] : [] };
     })
-    .sort((a, b) => Number(b.season) - Number(a.season));
+    .sort((a, b) => {
+      const yearDiff = Number(b.season) - Number(a.season);
+      if (yearDiff !== 0) return yearDiff;
+      // Within same year: fewer games = more recently transferred to this team
+      return a.games - b.games;
+    });
 }
 
 function rankPlayer(
@@ -298,7 +306,7 @@ export function buildMemberProfile(
     const rowName = normalizePlayerName(row.playerName ?? "");
     return rowId === playerIdKey || rowName === playerNameKey;
   });
-  const seasonSummaries = groupBySeason(playerStats).map((s) => ({
+  const seasonSummaries = groupBySeasonAndTeam(playerStats).map((s) => ({
     ...s,
     teamNames: s.teamSlugs.map((slug) => {
       const team = clubData.teamSummaries[slug as ClubTeamSlug]?.team;
@@ -308,7 +316,13 @@ export function buildMemberProfile(
   const currentSeason = seasonSummaries[0];
   const previousSeason = seasonSummaries[1];
   const career = combineStats(playerStats, "Career");
-  const latestStat = [...playerStats].sort((a, b) => statYear(b) - statYear(a))[0];
+  // Sort by year desc, then fewest games first (fewer games = most recently transferred team)
+  const latestStat = [...playerStats]
+    .sort((a, b) => {
+      const yearDiff = statYear(b) - statYear(a);
+      if (yearDiff !== 0) return yearDiff;
+      return num(a.gamesPlayed) - num(b.gamesPlayed);
+    })[0];
   const activeTeamSlug = latestStat?.teamSlug as ClubTeamSlug | undefined;
   const activeTeam = activeTeamSlug ? clubData.teamSummaries[activeTeamSlug]?.team : undefined;
   const awards =

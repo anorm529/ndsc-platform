@@ -36,6 +36,7 @@ function getTitle(pathname: string): string {
   if (pathname.startsWith("/council/meetings/")) return "Meeting";
   if (pathname.startsWith("/council/treasurer/accounts/")) return "Account Detail";
   if (pathname.startsWith("/council/treasurer/fees/")) return "Season Fees";
+  if (pathname.match(/^\/council\/stats\/games\/[^/]+/)) return "Game Stats";
   if (pathname.match(/^\/council\/archive\/\d{4}$/)) return "Season Archive";
   return "Council";
 }
@@ -45,11 +46,13 @@ export function CouncilShell({
   userName,
   councilPermissions,
   isOwner,
+  flagCount,
 }: {
   children: ReactNode;
   userName: string;
   councilPermissions: string[];
   isOwner: boolean;
+  flagCount: number;
 }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const pathname = usePathname();
@@ -63,6 +66,7 @@ export function CouncilShell({
         userName={userName}
         councilPermissions={councilPermissions}
         isOwner={isOwner}
+        flagCount={flagCount}
       />
 
       {mobileOpen ? (

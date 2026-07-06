@@ -104,52 +104,69 @@ export interface PlayerRow {
   accountStatus: string | null;
   registrationName: string | null;
   teamName: string | null;
+  active: boolean;
 }
 
-export async function getAllActivePlayers(): Promise<PlayerRow[]> {
-  const result = await mainQuery<{
-    player_id: string;
-    display_name: string;
-    gender: string | null;
-    user_id: string | null;
-    email: string | null;
-    account_status: string | null;
-    registration_name: string | null;
-    team_name: string | null;
-  }>(
-    `SELECT p.id AS player_id, p.display_name, p.gender,
-            u.id AS user_id, u.email, u.account_status, u.registration_name,
-            t.name AS team_name
-     FROM players p
-     LEFT JOIN users u ON u.player_id = p.id
-     LEFT JOIN LATERAL (
-       SELECT pts.team_id
-       FROM player_team_seasons pts
-       JOIN seasons s ON s.id = pts.season_id
-       WHERE pts.player_id = p.id
-         AND s.year = (
-           SELECT MAX(s2.year)
-           FROM player_team_seasons pts2
-           JOIN seasons s2 ON s2.id = pts2.season_id
-           WHERE pts2.player_id = p.id
-         )
-       LIMIT 1
-     ) current_team ON true
-     LEFT JOIN teams t ON t.id = current_team.team_id
-     WHERE p.active = true
-     ORDER BY coalesce(u.registration_name, p.display_name) ASC`
-  );
+const PLAYER_SELECT = `
+  SELECT p.id AS player_id, p.display_name, p.gender, p.active,
+         u.id AS user_id, u.email, u.account_status, u.registration_name,
+         t.name AS team_name
+  FROM players p
+  LEFT JOIN users u ON u.player_id = p.id
+  LEFT JOIN LATERAL (
+    SELECT pts.team_id
+    FROM player_team_seasons pts
+    JOIN seasons s ON s.id = pts.season_id
+    WHERE pts.player_id = p.id
+      AND s.year = (
+        SELECT MAX(s2.year)
+        FROM player_team_seasons pts2
+        JOIN seasons s2 ON s2.id = pts2.season_id
+        WHERE pts2.player_id = p.id
+      )
+    LIMIT 1
+  ) current_team ON true
+  LEFT JOIN teams t ON t.id = current_team.team_id
+`;
 
-  return result.rows.map((r) => ({
+type PlayerRowRaw = {
+  player_id: string;
+  display_name: string;
+  gender: string | null;
+  active: boolean;
+  user_id: string | null;
+  email: string | null;
+  account_status: string | null;
+  registration_name: string | null;
+  team_name: string | null;
+};
+
+function mapPlayerRow(r: PlayerRowRaw): PlayerRow {
+  return {
     playerId: r.player_id,
     displayName: r.display_name ?? "",
     gender: r.gender,
+    active: r.active,
     userId: r.user_id,
     email: r.email,
     accountStatus: r.account_status,
     registrationName: r.registration_name,
     teamName: r.team_name,
-  }));
+  };
+}
+
+export async function getAllActivePlayers(): Promise<PlayerRow[]> {
+  const result = await mainQuery<PlayerRowRaw>(
+    PLAYER_SELECT + `WHERE p.active = true ORDER BY coalesce(u.registration_name, p.display_name) ASC`
+  );
+  return result.rows.map(mapPlayerRow);
+}
+
+export async function getAllPlayers(): Promise<PlayerRow[]> {
+  const result = await mainQuery<PlayerRowRaw>(
+    PLAYER_SELECT + `ORDER BY p.active DESC, coalesce(u.registration_name, p.display_name) ASC`
+  );
+  return result.rows.map(mapPlayerRow);
 }
 
 export function playerDisplayName(p: PlayerRow): string {

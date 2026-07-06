@@ -1,21 +1,19 @@
 import { NextResponse } from "next/server";
-import { consumeVerificationToken, markEmailVerified } from "@ndsc/auth";
-
-function redirectTo(req: Request, status: "success" | "invalid") {
-  const base = process.env.NEXT_PUBLIC_SITE_URL
-    ? process.env.NEXT_PUBLIC_SITE_URL.replace(/\/$/, "")
-    : new URL(req.url).origin;
-  return NextResponse.redirect(`${base}/members/verify-email?status=${status}`);
-}
+import { consumePasswordResetToken, markEmailVerified } from "@ndsc/auth";
 
 export async function GET(req: Request) {
   const token = new URL(req.url).searchParams.get("token") ?? "";
+  const origin = new URL(req.url).origin;
 
-  if (!token) return redirectTo(req, "invalid");
+  if (!token) {
+    return NextResponse.redirect(`${origin}/members?verified=invalid`);
+  }
 
-  const userId = await consumeVerificationToken(token);
-  if (!userId) return redirectTo(req, "invalid");
+  const userId = await consumePasswordResetToken(token);
+  if (!userId) {
+    return NextResponse.redirect(`${origin}/members?verified=invalid`);
+  }
 
   await markEmailVerified(userId);
-  return redirectTo(req, "success");
+  return NextResponse.redirect(`${origin}/members?verified=1`);
 }
