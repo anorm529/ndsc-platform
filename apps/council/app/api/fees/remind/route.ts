@@ -3,7 +3,7 @@ import { getCouncilUser, hasTreasurerAccess } from "@/lib/council-session";
 import { councilQuery } from "@/db/council-db";
 import { mainQuery } from "@/lib/main-db";
 import { sendCouncilEmail } from "@/lib/email";
-import { stripe } from "@/lib/stripe";
+import { getStripe } from "@/lib/stripe";
 import { updatePlayerFeeStripeLink } from "@/lib/treasurer-queries";
 import { buildFeeEmail, type ReminderType } from "@/lib/fee-emails";
 
@@ -76,7 +76,7 @@ export async function POST(req: NextRequest) {
   // Cancel the previous Stripe session if it's still active, to avoid stale duplicate links
   if (fee.stripe_session_id && fee.stripe_link_expires_at && fee.stripe_link_expires_at > new Date()) {
     try {
-      await stripe.checkout.sessions.expire(fee.stripe_session_id);
+      await getStripe().checkout.sessions.expire(fee.stripe_session_id);
     } catch {
       // Session may already be paid/cancelled — safe to ignore
     }
@@ -89,7 +89,7 @@ export async function POST(req: NextRequest) {
   const feeTypeLabel = fee.fee_type === "rookie" ? "Rookie fee" : fee.fee_type === "umpire" ? "Umpire fee" : "Player fee";
   const expiresAt = Math.floor(Date.now() / 1000) + STRIPE_LINK_TTL_SECONDS;
 
-  const session = await stripe.checkout.sessions.create({
+  const session = await getStripe().checkout.sessions.create({
     mode: "payment",
     customer_email: email,
     line_items: [{
