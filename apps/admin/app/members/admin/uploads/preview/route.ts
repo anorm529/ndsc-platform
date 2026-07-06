@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
-import { isAdminAuthenticated } from "@/lib/admin-session";
+import { hasAdminPermission } from "@/lib/permissions";
 import { buildUploadPreview } from "@/lib/neon-admin";
 
 export async function POST(request: Request) {
-  if (!(await isAdminAuthenticated())) {
+  if (!(await hasAdminPermission("database"))) {
     return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
   }
 

@@ -215,7 +215,14 @@ export default async function NeonAdminSectionPage({
   }
 
   const [tables, gameStatsOverview, playersOverview] = await Promise.all([
-    Promise.all(section.tables.map((tableName) => getTableAdminData(tableName))),
+    Promise.all(
+      section.tables.map((tableName) =>
+        getTableAdminData(
+          tableName,
+          section.slug === "game-stats" ? { rowLimit: null } : undefined,
+        ),
+      ),
+    ),
     section.slug === "game-stats" ? getGameStatsUploadOverview() : Promise.resolve([]),
     section.slug === "players" ? getPlayersOverview() : Promise.resolve([]),
   ]);
@@ -277,7 +284,12 @@ export default async function NeonAdminSectionPage({
       {section.slug === "players" ? <PlayersOverview players={playersOverview} /> : null}
 
       {tables.map((table) => (
-        <NeonTableAdmin key={table.tableName} table={table} />
+        <NeonTableAdmin
+          key={table.tableName}
+          table={table}
+          collapsibleGroups={section.slug === "game-stats"}
+          hiddenColumns={section.slug === "game-stats" ? ["id"] : []}
+        />
       ))}
     </div>
   );

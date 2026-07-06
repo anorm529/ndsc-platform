@@ -364,9 +364,43 @@ function labelForRow(row: Record<string, unknown>) {
   return String(Object.values(row).find((value) => value != null) || "");
 }
 
+async function getGameLookupOptions(): Promise<FieldOption[]> {
+  const hasTeams = await tableExists("teams");
+  const hasSeasons = await tableExists("seasons");
+  const result = await dbQuery(
+    `select g.id, g.opponent, g.game_date, g.home_away
+            ${hasTeams ? ", t.name as team_name" : ""}
+            ${hasSeasons ? ", s.year" : ""}
+     from public.games g
+     ${hasTeams ? "left join public.teams t on t.id = g.team_id" : ""}
+     ${hasSeasons ? "left join public.seasons s on s.id = g.season_id" : ""}
+     order by g.game_date desc nulls last
+     limit 500`,
+  );
+
+  return result.rows
+    .filter((row) => row.id != null)
+    .map((row) => {
+      const date = row.game_date
+        ? new Date(row.game_date as string | Date).toISOString().slice(0, 10)
+        : "Date TBC";
+      const parts = [
+        date,
+        `${String(row.team_name || "NDSC")} vs ${String(row.opponent || "Unknown opponent")}`,
+      ];
+      if (row.home_away) parts.push(String(row.home_away));
+      if (row.year != null) parts.push(String(row.year));
+      return { value: String(row.id), label: parts.join(" · ") };
+    });
+}
+
 async function getLookupOptions(tableName: string, onlyUnassignedPlayers = false) {
   if (!(await tableExists(tableName))) {
     return [] as FieldOption[];
+  }
+
+  if (tableName === "games") {
+    return getGameLookupOptions();
   }
 
   const query =
@@ -1030,7 +1064,10 @@ export async function getTableColumns(tableName: string) {
   })) satisfies DbColumn[];
 }
 
-export async function getTableAdminData(tableName: string): Promise<TableAdminData> {
+export async function getTableAdminData(
+  tableName: string,
+  options?: { rowLimit?: number | null },
+): Promise<TableAdminData> {
   if (!isDatabaseConfigured()) {
     return {
       tableName,
@@ -1056,8 +1093,9 @@ export async function getTableAdminData(tableName: string): Promise<TableAdminDa
       columns.find((column) => ["year", "season", "date", "game_date", "id"].includes(column.name))
         ?.name || columns[0]?.name;
     const orderSql = orderColumn ? ` order by ${quoteIdent(orderColumn)} desc nulls last` : "";
+    const rowLimit = options?.rowLimit === undefined ? 100 : options.rowLimit;
     const rowsResult = await dbQuery(
-      `select * from public.${quoteIdent(tableName)}${orderSql} limit 100`,
+      `select * from public.${quoteIdent(tableName)}${orderSql}${rowLimit == null ? "" : ` limit ${rowLimit}`}`,
     );
     const countResult = await dbQuery<{ count: string }>(
       `select count(*)::text as count from public.${quoteIdent(tableName)}`,

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import { ChevronDown, ChevronRight, Trash2 } from "lucide-react";
 import {
   createNeonRecordAction,
@@ -194,21 +194,58 @@ function HiddenPrimaryKeys({
   );
 }
 
-export function NeonTableAdmin({ table }: { table: TableAdminData }) {
+export function NeonTableAdmin({
+  table,
+  collapsibleGroups = false,
+  hiddenColumns = [],
+}: {
+  table: TableAdminData;
+  collapsibleGroups?: boolean;
+  hiddenColumns?: string[];
+}) {
   const primaryKeyCount = table.columns.filter((column) => column.primary).length;
   const [showAddForm, setShowAddForm] = useState(false);
-  const [editingRowIndex, setEditingRowIndex] = useState<number | null>(null);
+  const [editingRowKey, setEditingRowKey] = useState<string | null>(null);
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
 
   const playerIdColumn = table.columns.find((c) => c.name === "player_id");
+  const gameIdColumn = table.columns.find((c) => c.name === "game_id");
   const groupByPlayer = Boolean(playerIdColumn && table.relationOptions.player_id?.length);
+  const useCollapsibleGroups = collapsibleGroups && groupByPlayer;
 
-  const displayRows = groupByPlayer
-    ? [...table.rows].sort((a, b) => {
-        const aName = resolveDisplayValue(playerIdColumn!, a.player_id, table.relationOptions);
-        const bName = resolveDisplayValue(playerIdColumn!, b.player_id, table.relationOptions);
-        return aName.localeCompare(bName);
-      })
-    : table.rows;
+  const hidden = new Set(hiddenColumns);
+  if (useCollapsibleGroups) {
+    hidden.add("player_id");
+  }
+  const visibleColumns = table.columns.filter((column) => !hidden.has(column.name)).slice(0, 8);
+  const colSpan = visibleColumns.length + 1;
+
+  const rowKey = (row: Record<string, unknown>, fallback: string) => {
+    const pkValue = table.columns
+      .filter((column) => column.primary)
+      .map((column) => formatValue(row[column.name]))
+      .join(":");
+    return pkValue || fallback;
+  };
+
+  const playerNameForRow = (row: Record<string, unknown>) =>
+    playerIdColumn
+      ? resolveDisplayValue(playerIdColumn, row.player_id, table.relationOptions) || "Unknown player"
+      : "";
+
+  const gameSortValue = (row: Record<string, unknown>) =>
+    gameIdColumn ? resolveDisplayValue(gameIdColumn, row.game_id, table.relationOptions) : "";
+
+  const toggleGroup = (name: string) =>
+    setExpandedGroups((current) => {
+      const next = new Set(current);
+      if (next.has(name)) {
+        next.delete(name);
+      } else {
+        next.add(name);
+      }
+      return next;
+    });
 
   if (table.error) {
     return (
@@ -229,13 +266,125 @@ export function NeonTableAdmin({ table }: { table: TableAdminData }) {
     );
   }
 
+  const renderBodyRows = (rows: Array<Record<string, unknown>>, keyPrefix: string) =>
+    rows.map((row, index) => {
+      const key = rowKey(row, `${keyPrefix}-${index}`);
+
+      return (
+        <Fragment key={key}>
+          <tr className="bg-[#061321]/80 text-[#dce5f2]">
+            {visibleColumns.map((column) => (
+              <td key={column.name} className="max-w-[280px] truncate px-3 py-3">
+                {resolveDisplayValue(column, row[column.name], table.relationOptions) || "-"}
+              </td>
+            ))}
+            <td className="px-3 py-3">
+              <button
+                type="button"
+                onClick={() => setEditingRowKey((current) => (current === key ? null : key))}
+                className="inline-flex items-center gap-2 text-[color:var(--accent)]"
+              >
+                {editingRowKey === key ? (
+                  <ChevronDown className="h-4 w-4" />
+                ) : (
+                  <ChevronRight className="h-4 w-4" />
+                )}
+                Edit
+              </button>
+            </td>
+          </tr>
+          {editingRowKey === key ? (
+            <tr>
+              <td colSpan={colSpan} className="pb-3 pt-0">
+                <div className="rounded-xl border border-[color:var(--border)] bg-[#020913] p-4">
+                  <form action={updateNeonRecordAction} className="space-y-4">
+                    <input type="hidden" name="tableName" value={table.tableName} />
+                    <HiddenPrimaryKeys columns={table.columns} row={row} />
+                    <TableFormFields
+                      columns={table.columns}
+                      row={row}
+                      includePrimary={false}
+                      relationOptions={table.relationOptions}
+                    />
+                    <button
+                      disabled={primaryKeyCount === 0}
+                      className="h-10 rounded-full bg-[color:var(--accent)] px-5 text-sm font-semibold text-[#02111d] disabled:cursor-not-allowed disabled:opacity-40"
+                    >
+                      Save
+                    </button>
+                  </form>
+
+                  <form action={deleteNeonRecordAction} className="mt-5 flex flex-wrap items-end gap-3 border-t border-[color:var(--border)] pt-4">
+                    <input type="hidden" name="tableName" value={table.tableName} />
+                    <HiddenPrimaryKeys columns={table.columns} row={row} />
+                    <label className="space-y-1">
+                      <span className="block text-xs text-[#93a0b3]">Type DELETE</span>
+                      <input
+                        name="confirmation"
+                        className="h-10 rounded-lg border border-[rgba(239,75,95,0.35)] bg-[#071525] px-3 text-sm text-white"
+                      />
+                    </label>
+                    <button
+                      disabled={primaryKeyCount === 0}
+                      className="inline-flex h-10 items-center gap-2 rounded-full border border-[rgba(239,75,95,0.45)] px-4 text-sm font-semibold text-[color:var(--danger)] disabled:cursor-not-allowed disabled:opacity-40"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                      Delete
+                    </button>
+                  </form>
+                </div>
+              </td>
+            </tr>
+          ) : null}
+        </Fragment>
+      );
+    });
+
+  const tableHeader = (
+    <thead className="text-xs uppercase tracking-[0.12em] text-[#91a0b5]">
+      <tr>
+        {visibleColumns.map((column) => (
+          <th key={column.name} className="px-3 py-2">
+            {column.name}
+          </th>
+        ))}
+        <th className="px-3 py-2">Actions</th>
+      </tr>
+    </thead>
+  );
+
+  let playerGroups: Array<[string, Array<Record<string, unknown>>]> = [];
+
+  if (useCollapsibleGroups) {
+    const map = new Map<string, Array<Record<string, unknown>>>();
+    for (const row of table.rows) {
+      const name = playerNameForRow(row);
+      const existing = map.get(name) ?? [];
+      existing.push(row);
+      map.set(name, existing);
+    }
+    playerGroups = [...map.entries()]
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([name, rows]) => [
+        name,
+        [...rows].sort((a, b) => gameSortValue(a).localeCompare(gameSortValue(b))),
+      ]);
+  }
+
+  const flatRows = groupByPlayer
+    ? [...table.rows].sort((a, b) => playerNameForRow(a).localeCompare(playerNameForRow(b)))
+    : table.rows;
+
   return (
     <section className="admin-panel rounded-[1.5rem] p-5">
       <div className="flex flex-col gap-2 border-b border-[color:var(--border)] pb-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h2 className="text-xl font-semibold tracking-[-0.03em] text-white">{table.tableName}</h2>
           <p className="text-sm text-[color:var(--muted-foreground)]">
-            {table.totalRows} rows. Showing latest 100.
+            {table.rows.length < table.totalRows
+              ? `${table.totalRows} rows. Showing latest ${table.rows.length}.`
+              : `${table.totalRows} rows.`}
+            {useCollapsibleGroups ? ` ${playerGroups.length} players.` : ""}
           </p>
         </div>
         {primaryKeyCount === 0 ? (
@@ -273,114 +422,78 @@ export function NeonTableAdmin({ table }: { table: TableAdminData }) {
         ) : null}
       </div>
 
-      <div className="mt-5 overflow-x-auto">
-        <table className="min-w-full border-separate border-spacing-y-2 text-left text-sm">
-          <thead className="text-xs uppercase tracking-[0.12em] text-[#91a0b5]">
-            <tr>
-              {table.columns.slice(0, 8).map((column) => (
-                <th key={column.name} className="px-3 py-2">
-                  {column.name}
-                </th>
-              ))}
-              <th className="px-3 py-2">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {displayRows.map((row, index) => {
-              const prevRow = displayRows[index - 1];
-              const currentPlayerName = groupByPlayer
-                ? resolveDisplayValue(playerIdColumn!, row.player_id, table.relationOptions)
-                : null;
-              const prevPlayerName =
-                groupByPlayer && prevRow
-                  ? resolveDisplayValue(playerIdColumn!, prevRow.player_id, table.relationOptions)
-                  : null;
-              const isNewGroup = groupByPlayer && currentPlayerName !== prevPlayerName;
-              const colSpan = table.columns.slice(0, 8).length + 1;
+      {useCollapsibleGroups ? (
+        <div className="mt-5 space-y-3">
+          {playerGroups.map(([name, rows]) => {
+            const expanded = expandedGroups.has(name);
 
-              return (
-              <>
-                {isNewGroup ? (
-                  <tr key={`group-${currentPlayerName}`}>
-                    <td colSpan={colSpan} className="px-3 pb-1 pt-4">
-                      <span className="text-xs font-semibold uppercase tracking-[0.12em] text-[color:var(--accent)]">
-                        {currentPlayerName}
-                      </span>
-                    </td>
-                  </tr>
+            return (
+              <div
+                key={name}
+                className="rounded-xl border border-[color:var(--border)] bg-[#061321]/70"
+              >
+                <button
+                  type="button"
+                  onClick={() => toggleGroup(name)}
+                  className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left"
+                >
+                  <span className="inline-flex items-center gap-2 text-sm font-semibold text-white">
+                    {expanded ? (
+                      <ChevronDown className="h-4 w-4 text-[color:var(--accent)]" />
+                    ) : (
+                      <ChevronRight className="h-4 w-4 text-[color:var(--accent)]" />
+                    )}
+                    {name}
+                  </span>
+                  <span className="text-xs text-[#93a0b3]">
+                    {rows.length} game{rows.length === 1 ? "" : "s"}
+                  </span>
+                </button>
+                {expanded ? (
+                  <div className="overflow-x-auto px-4 pb-4">
+                    <table className="min-w-full border-separate border-spacing-y-2 text-left text-sm">
+                      {tableHeader}
+                      <tbody>{renderBodyRows(rows, name)}</tbody>
+                    </table>
+                  </div>
                 ) : null}
-                <tr key={index} className="bg-[#061321]/80 text-[#dce5f2]">
-                  {table.columns.slice(0, 8).map((column) => (
-                    <td key={column.name} className="max-w-[220px] truncate px-3 py-3">
-                      {resolveDisplayValue(column, row[column.name], table.relationOptions) || "-"}
-                    </td>
-                  ))}
-                  <td className="px-3 py-3">
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setEditingRowIndex((current) => (current === index ? null : index))
-                      }
-                      className="inline-flex items-center gap-2 text-[color:var(--accent)]"
-                    >
-                      {editingRowIndex === index ? (
-                        <ChevronDown className="h-4 w-4" />
-                      ) : (
-                        <ChevronRight className="h-4 w-4" />
-                      )}
-                      Edit
-                    </button>
-                  </td>
-                </tr>
-                {editingRowIndex === index ? (
-                  <tr key={`${index}-edit`}>
-                    <td colSpan={table.columns.slice(0, 8).length + 1} className="pb-3 pt-0">
-                      <div className="rounded-xl border border-[color:var(--border)] bg-[#020913] p-4">
-                        <form action={updateNeonRecordAction} className="space-y-4">
-                          <input type="hidden" name="tableName" value={table.tableName} />
-                          <HiddenPrimaryKeys columns={table.columns} row={row} />
-                          <TableFormFields
-                            columns={table.columns}
-                            row={row}
-                            includePrimary={false}
-                            relationOptions={table.relationOptions}
-                          />
-                          <button
-                            disabled={primaryKeyCount === 0}
-                            className="h-10 rounded-full bg-[color:var(--accent)] px-5 text-sm font-semibold text-[#02111d] disabled:cursor-not-allowed disabled:opacity-40"
-                          >
-                            Save
-                          </button>
-                        </form>
+              </div>
+            );
+          })}
+          {playerGroups.length === 0 ? (
+            <p className="text-sm text-[color:var(--muted-foreground)]">No rows yet.</p>
+          ) : null}
+        </div>
+      ) : (
+        <div className="mt-5 overflow-x-auto">
+          <table className="min-w-full border-separate border-spacing-y-2 text-left text-sm">
+            {tableHeader}
+            <tbody>
+              {flatRows.map((row, index) => {
+                const prevRow = flatRows[index - 1];
+                const currentPlayerName = groupByPlayer ? playerNameForRow(row) : null;
+                const prevPlayerName = groupByPlayer && prevRow ? playerNameForRow(prevRow) : null;
+                const isNewGroup = groupByPlayer && currentPlayerName !== prevPlayerName;
 
-                        <form action={deleteNeonRecordAction} className="mt-5 flex flex-wrap items-end gap-3 border-t border-[color:var(--border)] pt-4">
-                          <input type="hidden" name="tableName" value={table.tableName} />
-                          <HiddenPrimaryKeys columns={table.columns} row={row} />
-                          <label className="space-y-1">
-                            <span className="block text-xs text-[#93a0b3]">Type DELETE</span>
-                            <input
-                              name="confirmation"
-                              className="h-10 rounded-lg border border-[rgba(239,75,95,0.35)] bg-[#071525] px-3 text-sm text-white"
-                            />
-                          </label>
-                          <button
-                            disabled={primaryKeyCount === 0}
-                            className="inline-flex h-10 items-center gap-2 rounded-full border border-[rgba(239,75,95,0.45)] px-4 text-sm font-semibold text-[color:var(--danger)] disabled:cursor-not-allowed disabled:opacity-40"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                            Delete
-                          </button>
-                        </form>
-                      </div>
-                    </td>
-                  </tr>
-                ) : null}
-              </>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
+                return (
+                  <Fragment key={rowKey(row, `flat-${index}`)}>
+                    {isNewGroup ? (
+                      <tr>
+                        <td colSpan={colSpan} className="px-3 pb-1 pt-4">
+                          <span className="text-xs font-semibold uppercase tracking-[0.12em] text-[color:var(--accent)]">
+                            {currentPlayerName}
+                          </span>
+                        </td>
+                      </tr>
+                    ) : null}
+                    {renderBodyRows([row], `flat-${index}`)}
+                  </Fragment>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
     </section>
   );
 }

@@ -10,6 +10,7 @@ import {
   type AdminUser,
 } from "@/lib/admin-session";
 import { logAdminAudit } from "@/lib/admin-audit";
+import { hasAdminPermission } from "@/lib/permissions";
 import { dbQuery } from "@/lib/db";
 
 type TargetUser = {
@@ -61,7 +62,15 @@ function requireConfirmation(formData: FormData, expected: string) {
   }
 }
 
-async function loadAuthorizedTarget(formData: FormData) {
+/** Approval actions accept either permission; everything else needs "accounts". */
+async function assertAccountsAccess(options?: { allowApprovals?: boolean }) {
+  if (await hasAdminPermission("accounts")) return;
+  if (options?.allowApprovals && (await hasAdminPermission("approvals"))) return;
+  throw new Error("You don't have permission to perform this action.");
+}
+
+async function loadAuthorizedTarget(formData: FormData, options?: { allowApprovals?: boolean }) {
+  await assertAccountsAccess(options);
   const adminUser = await requireAdminUser();
   const target = await getTargetUser(getUserId(formData));
 
@@ -74,7 +83,7 @@ async function loadAuthorizedTarget(formData: FormData) {
 }
 
 export async function approveUserAction(formData: FormData) {
-  const { adminUser, target } = await loadAuthorizedTarget(formData);
+  const { adminUser, target } = await loadAuthorizedTarget(formData, { allowApprovals: true });
 
   await dbQuery(
     "update users set account_status = 'active', updated_at = now() where id = $1",
@@ -94,6 +103,7 @@ export async function approveUserAction(formData: FormData) {
 }
 
 export async function bulkApproveAction(formData: FormData) {
+  await assertAccountsAccess({ allowApprovals: true });
   const adminUser = await requireAdminUser();
 
   const userIds = formData.getAll("userId").map(String).filter(Boolean);

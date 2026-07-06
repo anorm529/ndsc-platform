@@ -7,16 +7,20 @@ import {
   refreshPlayerSeasonStats,
   updateNeonRecord,
 } from "@/lib/neon-admin";
+import { assertAdminPermission } from "@/lib/permissions";
 
 export async function createNeonRecordAction(formData: FormData) {
+  await assertAdminPermission("database");
   await createNeonRecord(formData);
 }
 
 export async function updateNeonRecordAction(formData: FormData) {
+  await assertAdminPermission("database");
   await updateNeonRecord(formData);
 }
 
 export async function deleteNeonRecordAction(formData: FormData) {
+  await assertAdminPermission("database");
   const confirmation = String(formData.get("confirmation") || "");
 
   if (confirmation !== "DELETE") {
@@ -27,6 +31,7 @@ export async function deleteNeonRecordAction(formData: FormData) {
 }
 
 export async function refreshSeasonStatsAction(formData: FormData) {
+  await assertAdminPermission("database");
   const rawYear = String(formData.get("year") || "").trim();
   const rawTeamSlug = String(formData.get("teamSlug") || "").trim();
   const year = rawYear ? Number(rawYear) : undefined;
@@ -39,6 +44,7 @@ export async function refreshSeasonStatsAction(formData: FormData) {
 }
 
 export async function archiveSeasonStatsAction(formData: FormData) {
+  await assertAdminPermission("database");
   const year = Number(formData.get("year"));
   const archivedBy = String(formData.get("archivedBy") || "admin").trim();
 
