@@ -870,6 +870,12 @@ async function getRecentUploadErrors() {
     : hasColumn("createdat")
       ? "createdat desc"
       : "1 desc";
+  // Only surface errors from the last two weeks — older ones aren't "recent".
+  const whereSql = hasColumn("created_at")
+    ? "where created_at >= now() - interval '14 days'"
+    : hasColumn("createdat")
+      ? "where createdat >= now() - interval '14 days'"
+      : "";
 
   const result = await dbQuery<{
     row_number: number | null;
@@ -881,6 +887,7 @@ async function getRecentUploadErrors() {
        ${messageSql} as message,
        ${createdAtSql} as created_at
      from public.upload_errors
+     ${whereSql}
      order by ${orderSql}
      limit 5`,
   );
