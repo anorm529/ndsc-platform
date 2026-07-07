@@ -1,5 +1,5 @@
 import { hasAdminPermission } from "@/lib/permissions";
-import { getBarracudasPlayers } from "@/lib/barracudas";
+import { getGuestPlayerPool } from "@/lib/barracudas";
 
 export async function GET() {
   if (!(await hasAdminPermission("barracudas"))) {
@@ -7,12 +7,12 @@ export async function GET() {
   }
 
   try {
-    const players = await getBarracudasPlayers();
+    const players = await getGuestPlayerPool();
     return Response.json({ players });
   } catch (error) {
     return Response.json(
       {
-        error: error instanceof Error ? error.message : "Unable to load Barracudas players.",
+        error: error instanceof Error ? error.message : "Unable to load the player database.",
       },
       { status: 500 },
     );

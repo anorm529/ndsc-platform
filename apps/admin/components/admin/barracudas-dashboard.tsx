@@ -781,6 +781,9 @@ export function BarracudasDashboard({
   const [manualGender, setManualGender] = useState<"Male" | "Female">("Male");
   const [manualLock, setManualLock] = useState(false);
   const [manualError, setManualError] = useState("");
+  const [guestPool, setGuestPool] = useState<AggregatedPlayer[]>([]);
+  const [guestLoading, setGuestLoading] = useState(true);
+  const [guestSelection, setGuestSelection] = useState("");
   const [typedMessage, setTypedMessage] = useState("");
   const [lineupHistory, setLineupHistory] = useState<LineupHistoryItem[]>(() => {
     if (typeof window === "undefined") {
@@ -874,6 +877,36 @@ export function BarracudasDashboard({
     );
   }, [lineupHistory]);
 
+  useEffect(() => {
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const response = await fetch("/admin/api/barracudas/pool", { cache: "no-store" });
+        const payload = (await response.json()) as { players?: AggregatedPlayer[] };
+
+        if (!cancelled && response.ok && Array.isArray(payload.players)) {
+          setGuestPool(payload.players);
+        }
+      } catch {
+        // Guest additions stay unavailable; the free-text fallback still works.
+      } finally {
+        if (!cancelled) {
+          setGuestLoading(false);
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const guestOptions = useMemo(() => {
+    const existingNames = new Set(allPlayers.map((player) => player.__name_norm));
+    return guestPool.filter((player) => !existingNames.has(player.__name_norm));
+  }, [allPlayers, guestPool]);
+
   const loadPlayers = useCallback(async () => {
     setLoading(true);
     setError("");
@@ -926,6 +959,28 @@ export function BarracudasDashboard({
         [nameNorm]: next,
       };
     });
+  }
+
+  function handleAddGuestPlayer() {
+    const guest = guestOptions.find((player) => player.__name_norm === guestSelection);
+
+    if (!guest) {
+      setManualError("Choose a player from the database list first.");
+      return;
+    }
+
+    // One-time guest: lives in component state only, never persisted, so the
+    // next lineup build starts from the regular Barracudas pool again.
+    setManualPlayers((current) => [...current, { ...guest, isManual: true }]);
+    setSelections((current) => ({
+      ...current,
+      [guest.__name_norm]: {
+        selected: true,
+        locked: manualLock,
+      },
+    }));
+    setGuestSelection("");
+    setManualError("");
   }
 
   function handleAddManualPlayer() {
@@ -1277,6 +1332,49 @@ export function BarracudasDashboard({
                   </div>
 
                   <div className="mt-4 space-y-4">
+                    <label className="block space-y-2">
+                      <span className="text-sm font-medium text-[#d8dfeb]">From player database</span>
+                      <select
+                        value={guestSelection}
+                        onChange={(event) => setGuestSelection(event.target.value)}
+                        disabled={guestLoading}
+                        className="w-full rounded-xl border border-[rgba(115,145,176,0.12)] bg-[rgba(3,11,21,0.82)] px-3 py-3 text-sm text-white outline-none disabled:opacity-60"
+                      >
+                        <option value="">
+                          {guestLoading ? "Loading player database..." : "Choose a player"}
+                        </option>
+                        {guestOptions.map((player) => (
+                          <option key={player.__name_norm} value={player.__name_norm}>
+                            {player.Player} — {player.Gender}
+                            {player.YearsIncluded === "No stats"
+                              ? " (no stats)"
+                              : ` · ${player.Score.toFixed(3)}`}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+
+                    <button
+                      type="button"
+                      onClick={handleAddGuestPlayer}
+                      disabled={guestLoading || !guestSelection}
+                      className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-[color:var(--accent)] px-5 text-sm font-semibold text-[#02111d] hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      <UserPlus className="h-4 w-4" />
+                      Add From Database
+                    </button>
+
+                    <p className="text-xs text-[color:var(--muted-foreground)]">
+                      One-time guest for this lineup only — added with their club-wide score, but
+                      not saved to the Barracudas pool for future lineups.
+                    </p>
+
+                    <div className="border-t border-[rgba(115,145,176,0.1)] pt-4">
+                      <p className="mb-3 text-xs uppercase tracking-[0.12em] text-[#8ea0b4]">
+                        Or add a name manually
+                      </p>
+                    </div>
+
                     <label className="block space-y-2">
                       <span className="text-sm font-medium text-[#d8dfeb]">Player name</span>
                       <input

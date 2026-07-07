@@ -179,6 +179,77 @@ function buildWeightedPlayerTable(records: Record<string, unknown>[]) {
   });
 }
 
+/**
+ * Every player in the database, scored from their stats across all teams
+ * (generated + archive). Used for one-time guest additions to a lineup —
+ * players with no stat rows are included at score 0.
+ */
+export async function getGuestPlayerPool(): Promise<BarracudasPlayer[]> {
+  const [statsResult, playersResult] = await Promise.all([
+    dbQuery<Record<string, unknown>>(
+      `
+      select
+        coalesce(nullif(trim(p.display_name), ''), nullif(trim(p.normalized_name), ''), p.id::text) as "Player",
+        p.gender as "Gender",
+        s.year as "Year",
+        coalesce(pss.at_bats, 0) as "Total AB",
+        coalesce(pss.obp, 0) as "OBP",
+        coalesce(pss.slg, 0) as "SLG",
+        coalesce(pss.singles, 0) as "1B",
+        coalesce(pss.doubles, 0) as "2B",
+        coalesce(pss.triples, 0) as "3B",
+        coalesce(pss.home_runs, 0) as "HR"
+      from public.player_season_stats pss
+      join public.seasons s on s.id = pss.season_id
+      join public.players p on p.id = pss.player_id
+      union all
+      select
+        a.player,
+        a.gender,
+        a.year,
+        coalesce(a.at_bats, 0),
+        coalesce(a.obp, 0),
+        coalesce(a.slg, 0),
+        coalesce(a.singles, 0),
+        coalesce(a.doubles, 0),
+        coalesce(a.triples, 0),
+        coalesce(a.home_runs, 0)
+      from public.player_season_stats_archive a
+      `,
+    ),
+    dbQuery<{ player_name: string; gender: string | null }>(
+      `
+      select
+        coalesce(nullif(trim(p.display_name), ''), nullif(trim(p.normalized_name), ''), p.id::text) as player_name,
+        p.gender
+      from public.players p
+      `,
+    ),
+  ]);
+
+  const scoredByName = new Map(
+    buildWeightedPlayerTable(statsResult.rows).map((player) => [player.__name_norm, player]),
+  );
+
+  for (const row of playersResult.rows) {
+    const name = row.player_name?.trim();
+    if (!name) continue;
+    const nameNorm = normName(name);
+    if (!scoredByName.has(nameNorm)) {
+      scoredByName.set(nameNorm, {
+        Player: name,
+        Gender: normalizeGender(row.gender),
+        Score: 0,
+        MostRecentYear: null,
+        YearsIncluded: "No stats",
+        __name_norm: nameNorm,
+      });
+    }
+  }
+
+  return [...scoredByName.values()].sort((left, right) => left.Player.localeCompare(right.Player));
+}
+
 export async function getBarracudasPlayers() {
   const result = await dbQuery<Record<string, unknown>>(
     `
