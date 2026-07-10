@@ -195,17 +195,7 @@ export async function updateFixtureScores(_state: ActionState, formData: FormDat
       });
     }
 
-    const adminBase = `/admin/tournaments/${tournament.slug}`;
-
-    revalidatePath("/");
-    revalidatePath("/admin");
-    revalidatePath("/admin/results");
-    revalidatePath("/admin/standings");
-    revalidatePath(adminBase);
-    revalidatePath(`${adminBase}/results`);
-    revalidatePath(`${adminBase}/schedule`);
-    revalidatePath(`${adminBase}/standings`);
-    revalidatePath(`/tournaments/${tournament.slug}`);
+    revalidateResultPages(tournament.slug);
     refresh();
     return successState(
       plannedFixturesCreated > 0
