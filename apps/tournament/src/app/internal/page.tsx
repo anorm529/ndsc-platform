@@ -18,6 +18,9 @@ export default async function InternalSeasonPage({
     Number.isInteger(requestedYear) && requestedYear >= 2000 ? requestedYear : undefined,
   );
   const champion = season.teamRows[0];
+  const leaders = champion
+    ? season.teamRows.filter((row) => row.points === champion.points)
+    : [];
   const maleMvpRows = season.mvpRows.filter((row) => row.category === "male");
   const femaleMvpRows = season.mvpRows.filter((row) => row.category === "female");
   const topMaleVotes = maleMvpRows[0]?.votes;
@@ -63,7 +66,11 @@ export default async function InternalSeasonPage({
               ) : null}
             </div>
             <div className="grid gap-3 rounded-lg border border-white/10 bg-white/5 p-4">
-              <Stat icon={Trophy} label="Current leader" value={champion?.teamName ?? "TBC"} />
+              <Stat
+                icon={Trophy}
+                label={leaders.length > 1 ? "Current leaders (tied)" : "Current leader"}
+                value={leaders.length > 0 ? leaders.map((row) => row.teamName).join(", ") : "TBC"}
+              />
               <Stat icon={Medal} label="Total male MVP" value={formatMvpLeaders(topMaleMvps)} />
               <Stat icon={Medal} label="Total female MVP" value={formatMvpLeaders(topFemaleMvps)} />
               <Stat icon={CalendarDays} label="Events" value={`${season.tournaments.length}`} />

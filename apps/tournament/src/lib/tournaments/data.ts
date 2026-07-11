@@ -638,6 +638,6 @@ function getCompletedFinalPlacements(
 }
 
 function getSeasonPoints(position: number) {
-  const pointsByPosition = [10, 8, 6, 4, 2, 1];
+  const pointsByPosition = [3, 2, 1];
   return pointsByPosition[position - 1] ?? 1;
 }
